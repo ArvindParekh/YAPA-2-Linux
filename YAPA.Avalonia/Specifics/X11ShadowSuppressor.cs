@@ -16,24 +16,24 @@ internal static class X11ShadowSuppressor
     private const int PropModeReplace = 0;
     private const int XaAtom = 4; // predefined X11 atom for the ATOM type
 
-    [DllImport("libX11", EntryPoint = "XOpenDisplay")]
+    [DllImport("libX11.so.6", EntryPoint = "XOpenDisplay")]
     private static extern IntPtr XOpenDisplay(string? display);
 
-    [DllImport("libX11", EntryPoint = "XCloseDisplay")]
+    [DllImport("libX11.so.6", EntryPoint = "XCloseDisplay")]
     private static extern int XCloseDisplay(IntPtr display);
 
-    [DllImport("libX11", EntryPoint = "XInternAtom")]
+    [DllImport("libX11.so.6", EntryPoint = "XInternAtom")]
     private static extern IntPtr XInternAtom(IntPtr display, string atomName,
         [MarshalAs(UnmanagedType.Bool)] bool onlyIfExists);
 
     // data is IntPtr[] because on 64-bit Linux, Atom/long is pointer-sized even
     // when the X11 protocol format is 32; XLib expects native-long-sized elements.
-    [DllImport("libX11", EntryPoint = "XChangeProperty")]
+    [DllImport("libX11.so.6", EntryPoint = "XChangeProperty")]
     private static extern int XChangeProperty(IntPtr display, IntPtr window,
         IntPtr property, IntPtr type, int format, int mode,
         IntPtr[] data, int nElements);
 
-    [DllImport("libX11", EntryPoint = "XFlush")]
+    [DllImport("libX11.so.6", EntryPoint = "XFlush")]
     private static extern int XFlush(IntPtr display);
 
     /// <param name="xid">X11 window XID from <c>TryGetPlatformHandle().Handle</c>.</param>
