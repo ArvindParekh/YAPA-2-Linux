@@ -156,6 +156,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         private set { _counter = value; Notify(); }
     }
 
+    private bool _statusTextVisible = true;
+    public bool StatusTextVisible
+    {
+        get => _statusTextVisible;
+        private set { _statusTextVisible = value; Notify(); }
+    }
+
     public ICommand StartCommand => _viewModel.StartCommand;
     public ICommand StopCommand  => _viewModel.StopCommand;
     public ICommand PauseCommand => _viewModel.PauseCommand;
@@ -180,6 +187,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         ExtendClientAreaToDecorationsHint = true;
         ExtendClientAreaTitleBarHeightHint = -1;
 
+        // Set taskbar/dock icon from the same embedded asset used by the tray
+        using (var iconStream = AssetLoader.Open(new Uri("avares://YAPA.Avalonia/Assets/pomoTray.ico")))
+            Icon = new WindowIcon(iconStream);
+
         DataContext = this;
 
         _flashTimer.Tick += OnFlashTick;
@@ -189,6 +200,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _viewModel.Engine.OnStopped += StopFlash;
 
         App.ExternalCommandLine += OnExternalCommandLine;
+
+        // Apply all appearance settings immediately, then subscribe for live updates
+        ApplyThemeSettings();
+        _themeSettings.PropertyChanged += (_, __) => ApplyThemeSettings();
 
         UpdateDisplay();
         UpdatePhase();
@@ -207,6 +222,31 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             Hide();
         }
+    }
+
+    // ── Theme settings ────────────────────────────────────────────────────────
+
+    private void ApplyThemeSettings()
+    {
+        // Width/Height: maintain original 130:60 aspect ratio
+        var w = Math.Max(80, _themeSettings.Width);
+        var h = (int)Math.Round(w * 60.0 / 130.0);
+        Width  = w;
+        Height = h;
+
+        Opacity          = _themeSettings.ClockOpacity;
+        TextBrush        = new SolidColorBrush(_themeSettings.TextColor);
+        ShowSeconds      = !_themeSettings.HideSeconds;
+        StatusTextVisible = _themeSettings.ShowStatusText;
+
+        // HideButtons=true  → hover-reveal (default); HideButtons=false → always visible
+        if (!_themeSettings.HideButtons)
+            ControlsVisible = true;
+        else
+            ControlsVisible = false;
+
+        if (_themeSettings.DisableFlashingAnimation)
+            StopFlash();
     }
 
     // ── Opened / Closing ──────────────────────────────────────────────────────
@@ -256,6 +296,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void OnPointerEntered(object? sender, global::Avalonia.Input.PointerEventArgs e)
     {
+        // Only show controls on hover when HideButtons=true (hover-reveal mode)
+        if (!_themeSettings.HideButtons) return;
         _hideCts.Cancel();
         _hideCts = new CancellationTokenSource();
         ControlsVisible = true;
@@ -263,6 +305,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void OnPointerExited(object? sender, global::Avalonia.Input.PointerEventArgs e)
     {
+        // Only auto-hide controls when in hover-reveal mode
+        if (!_themeSettings.HideButtons) return;
         var cts = _hideCts;
         try
         {
@@ -379,6 +423,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void StartFlash()
     {
+        if (_themeSettings.DisableFlashingAnimation)
+        {
+            StopFlash();
+            return;
+        }
+
         var phase = _viewModel.Engine.Phase;
         if (phase == PomodoroPhase.WorkEnded)
             _flashTarget = new SolidColorBrush(Color.Parse("Tomato"));

@@ -122,6 +122,10 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
         ExtendClientAreaToDecorationsHint = true;
         ExtendClientAreaTitleBarHeightHint = -1;
 
+        // Set taskbar/dock icon
+        using (var iconStream = AssetLoader.Open(new Uri("avares://YAPA.Avalonia/Assets/pomoTray.ico")))
+            Icon = new WindowIcon(iconStream);
+
         DataContext = this;
 
         _flashTimer.Tick += OnFlashTick;
@@ -129,10 +133,24 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
         _viewModel.Engine.OnStarted += StopFlash;
         _viewModel.Engine.OnStopped += StopFlash;
 
+        // Apply appearance settings immediately, subscribe for live updates
+        ApplyThemeSettings();
+        _themeSettings.PropertyChanged += (_, __) => ApplyThemeSettings();
+
         RefreshQuote();
         UpdateTimer();
         UpdatePhase();
         UpdateStatus();
+    }
+
+    // ── Theme settings ────────────────────────────────────────────────────────
+
+    private void ApplyThemeSettings()
+    {
+        Opacity   = _themeSettings.ClockOpacity;
+        TextBrush = new SolidColorBrush(_themeSettings.TextColor);
+        if (_themeSettings.DisableFlashingAnimation)
+            StopFlash();
     }
 
     // ── Avalonia property changes ─────────────────────────────────────────────
@@ -264,6 +282,12 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
 
     private void StartFlash()
     {
+        if (_themeSettings.DisableFlashingAnimation)
+        {
+            StopFlash();
+            return;
+        }
+
         var phase = _viewModel.Engine.Phase;
         if (phase == PomodoroPhase.WorkEnded)
             _flashTarget = new SolidColorBrush(Color.Parse("Tomato"));

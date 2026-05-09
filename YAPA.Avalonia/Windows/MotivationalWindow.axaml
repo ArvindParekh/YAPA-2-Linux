@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="YAPA.Avalonia.Windows.MotivationalWindow"
         x:CompileBindings="False"
+        Classes="transparent"
         Title="YAPA"
         Width="360" Height="240"
         WindowDecorations="None"
