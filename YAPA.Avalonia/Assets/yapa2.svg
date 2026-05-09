@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <!-- Clip everything to the tomato circle -->
+    <clipPath id="tomato-clip">
+      <circle cx="128" cy="146" r="88" />
+    </clipPath>
+  </defs>
+
+  <!-- Drop shadow -->
+  <ellipse cx="128" cy="222" rx="68" ry="12" fill="#00000030" />
+
+  <!-- Tomato body -->
+  <circle cx="128" cy="146" r="88" fill="#D93025" />
+
+  <!-- Right/bottom shading, clipped to tomato -->
+  <path clip-path="url(#tomato-clip)"
+        d="M170 80 A88 88 0 0 1 216 146 A88 88 0 0 1 128 234 L128 146 Z"
+        fill="#B71C1C" opacity="0.5" />
+
+  <!-- Highlight glint, clipped to tomato -->
+  <ellipse clip-path="url(#tomato-clip)"
+           cx="96" cy="102" rx="30" ry="20"
+           fill="#FF7070" opacity="0.45"
+           transform="rotate(-25,96,102)" />
+
+  <!-- Stem -->
+  <rect x="123" y="52" width="10" height="28" rx="5" fill="#388E3C" />
+
+  <!-- Leaves -->
+  <path d="M128 62 Q106 44 93 55 Q112 54 124 68 Z" fill="#4CAF50" />
+  <path d="M128 62 Q150 44 163 55 Q144 54 132 68 Z" fill="#43A047" />
+  <path d="M128 62 Q118 38 122 26 Q126 46 128 62 Z" fill="#66BB6A" />
+  <path d="M128 62 Q138 38 134 26 Q130 46 128 62 Z" fill="#4CAF50" />
+
+  <!-- Clock face -->
+  <circle cx="128" cy="154" r="51" fill="white" />
+
+  <!-- Clock rim -->
+  <circle cx="128" cy="154" r="51" fill="none" stroke="#C0392B" stroke-width="4" />
+
+  <!-- Hour ticks -->
+  <g stroke="#BDBDBD" stroke-width="2.5" stroke-linecap="round">
+    <line x1="128" y1="108" x2="128" y2="116" />
+    <line x1="174" y1="154" x2="166" y2="154" />
+    <line x1="128" y1="200" x2="128" y2="192" />
+    <line x1="82"  y1="154" x2="90"  y2="154" />
+  </g>
+
+  <!-- Hour hand (~12) -->
+  <line x1="128" y1="154" x2="128" y2="122" stroke="#263238" stroke-width="5" stroke-linecap="round" />
+
+  <!-- Minute hand (~25 min) -->
+  <line x1="128" y1="154" x2="152" y2="132" stroke="#263238" stroke-width="3.5" stroke-linecap="round" />
+
+  <!-- Center dot -->
+  <circle cx="128" cy="154" r="5" fill="#C0392B" />
+</svg>

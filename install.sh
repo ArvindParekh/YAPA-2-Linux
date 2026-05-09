@@ -2,10 +2,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ASSETS="$SCRIPT_DIR/YAPA.Avalonia/Assets"
 OUT_DIR="$SCRIPT_DIR/out/linux-x64"
 BINARY="$OUT_DIR/YAPA.Avalonia"
 INSTALL_BIN="/usr/local/bin/yapa2"
-ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
+ICON_BASE="$HOME/.local/share/icons/hicolor"
 DESKTOP_DIR="$HOME/.local/share/applications"
 
 # ── Find dotnet ───────────────────────────────────────────────────────────────
@@ -34,10 +35,18 @@ echo "Building YAPA 2 (self-contained single file)…"
 echo "Installing binary to $INSTALL_BIN…"
 sudo install -m 755 "$BINARY" "$INSTALL_BIN"
 
-# ── Install icon ──────────────────────────────────────────────────────────────
-echo "Installing icon…"
-mkdir -p "$ICON_DIR"
-cp "$SCRIPT_DIR/YAPA.Avalonia/Assets/pomoTray.ico" "$ICON_DIR/yapa2.ico"
+# ── Install icons ─────────────────────────────────────────────────────────────
+echo "Installing icons…"
+for size in 16 32 48 128 256 512; do
+    dir="$ICON_BASE/${size}x${size}/apps"
+    mkdir -p "$dir"
+    cp "$ASSETS/yapa2_${size}.png" "$dir/yapa2.png"
+done
+# SVG for scalable (vector-aware launchers)
+mkdir -p "$ICON_BASE/scalable/apps"
+cp "$ASSETS/yapa2.svg" "$ICON_BASE/scalable/apps/yapa2.svg"
+
+gtk-update-icon-cache -f -t "$ICON_BASE" 2>/dev/null || true
 
 # ── Install .desktop entry ────────────────────────────────────────────────────
 echo "Installing .desktop entry…"

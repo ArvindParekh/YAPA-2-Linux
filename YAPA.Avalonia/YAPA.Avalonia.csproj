@@ -35,5 +35,13 @@
     </None>
     <!-- Tray icon embedded as Avalonia resource -->
     <AvaloniaResource Include="Assets\pomoTray.ico" />
+
+    <!-- Desktop icons: copied to output for install.sh to pick up -->
+    <None Update="Assets\yapa2.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Assets\yapa2_16.png;Assets\yapa2_32.png;Assets\yapa2_48.png;Assets\yapa2_128.png;Assets\yapa2_256.png;Assets\yapa2_512.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>
