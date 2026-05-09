@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="YAPA.Avalonia.Settings.Pages.EngineSettingsPage"
+             x:CompileBindings="False">
+
+    <StackPanel Spacing="10">
+        <TextBlock Text="Pomodoro" FontWeight="Bold" FontSize="15" Margin="0,0,0,4" />
+
+        <!-- Work / break durations -->
+        <Grid ColumnDefinitions="Auto,*,60" RowDefinitions="Auto,Auto,Auto,Auto" >
+            <Grid.Styles>
+                <Style Selector="TextBlock.Label">
+                    <Setter Property="VerticalAlignment" Value="Center" />
+                    <Setter Property="Width" Value="170" />
+                </Style>
+                <Style Selector="NumericUpDown">
+                    <Setter Property="Margin" Value="8,2,0,2" />
+                    <Setter Property="FormatString" Value="0" />
+                    <Setter Property="Increment" Value="1" />
+                </Style>
+            </Grid.Styles>
+
+            <TextBlock Classes="Label" Grid.Row="0" Text="Work duration (min)" />
+            <NumericUpDown Grid.Row="0" Grid.Column="1"
+                           Minimum="1" Maximum="120"
+                           Value="{Binding WorkTimeMinutes, Mode=TwoWay}" />
+
+            <TextBlock Classes="Label" Grid.Row="1" Text="Break duration (min)" />
+            <NumericUpDown Grid.Row="1" Grid.Column="1"
+                           Minimum="1" Maximum="60"
+                           Value="{Binding BreakTimeMinutes, Mode=TwoWay}" />
+
+            <TextBlock Classes="Label" Grid.Row="2" Text="Long break duration (min)" />
+            <NumericUpDown Grid.Row="2" Grid.Column="1"
+                           Minimum="1" Maximum="60"
+                           Value="{Binding LongBreakTimeMinutes, Mode=TwoWay}" />
+
+            <TextBlock Classes="Label" Grid.Row="3" Text="Pomodoros before long break" />
+            <NumericUpDown Grid.Row="3" Grid.Column="1"
+                           Minimum="1" Maximum="20"
+                           Value="{Binding PomodorosBeforeLongBreak, Mode=TwoWay}" />
+        </Grid>
+
+        <Separator />
+
+        <!-- Auto-start checkboxes -->
+        <CheckBox IsChecked="{Binding AutoStartBreak, Mode=TwoWay}"
+                  Content="Auto-start break after work ends" />
+        <CheckBox IsChecked="{Binding AutoStartWork, Mode=TwoWay}"
+                  Content="Auto-start work after break ends" />
+        <CheckBox IsChecked="{Binding CountBackwards, Mode=TwoWay}"
+                  Content="Count backwards (display remaining time)" />
+
+        <Separator />
+
+        <!-- Counter display mode -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Counter display" VerticalAlignment="Center" Width="170" />
+            <ComboBox ItemsSource="{Binding CounterOptions}"
+                      SelectedItem="{Binding SelectedCounter, Mode=TwoWay}"
+                      Width="200" />
+        </StackPanel>
+
+        <Separator />
+
+        <!-- Sound / volume -->
+        <CheckBox IsChecked="{Binding DisableSoundNotifications, Mode=TwoWay}"
+                  Content="Disable all sound notifications" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Volume" VerticalAlignment="Center" Width="170" />
+            <Slider Minimum="0" Maximum="1"
+                    Value="{Binding Volume, Mode=TwoWay}"
+                    Width="200" TickFrequency="0.1" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

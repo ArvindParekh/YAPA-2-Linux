@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="YAPA.Avalonia.Settings.Pages.SoundSettingsPage"
+             x:CompileBindings="False">
+
+    <StackPanel Spacing="10">
+        <TextBlock Text="Sound" FontWeight="Bold" FontSize="15" Margin="0,0,0,4" />
+
+        <!-- Global toggle -->
+        <CheckBox IsChecked="{Binding DisableSoundNotifications, Mode=TwoWay}"
+                  Content="Disable all sound notifications" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Volume" VerticalAlignment="Center" Width="120" />
+            <Slider Minimum="0" Maximum="1"
+                    Value="{Binding Volume, Mode=TwoWay}"
+                    Width="180" TickFrequency="0.1" />
+        </StackPanel>
+
+        <Separator />
+
+        <!-- Period sounds -->
+        <TextBlock Text="Notification sounds" FontWeight="SemiBold" />
+
+        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto">
+            <TextBlock Grid.Row="0" Text="Period start" VerticalAlignment="Center" />
+            <TextBox Grid.Row="0" Grid.Column="1"
+                     Text="{Binding PeriodStartSound, Mode=TwoWay}"
+                     Margin="0,2" />
+
+            <TextBlock Grid.Row="1" Text="Period end" VerticalAlignment="Center" />
+            <TextBox Grid.Row="1" Grid.Column="1"
+                     Text="{Binding PeriodEndSound, Mode=TwoWay}"
+                     Margin="0,2" />
+        </Grid>
+
+        <Separator />
+
+        <!-- Background music -->
+        <TextBlock Text="Background music" FontWeight="SemiBold" />
+
+        <Grid ColumnDefinitions="120,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+            <TextBlock Grid.Row="0" Grid.ColumnSpan="3"
+                       Text="Leave blank to disable. Enter full path to an audio file."
+                       FontSize="11" Foreground="Gray" Margin="0,0,0,4" />
+
+            <TextBlock Grid.Row="1" Text="Work song" VerticalAlignment="Center" />
+            <TextBox Grid.Row="1" Grid.Column="1"
+                     Text="{Binding WorkSong, Mode=TwoWay}"
+                     Margin="0,2" />
+            <CheckBox Grid.Row="1" Grid.Column="2"
+                      IsChecked="{Binding RepeatWorkSong, Mode=TwoWay}"
+                      Content="Repeat" Margin="4,0,0,0" />
+
+            <TextBlock Grid.Row="2" Text="Break song" VerticalAlignment="Center" />
+            <TextBox Grid.Row="2" Grid.Column="1"
+                     Text="{Binding BreakSong, Mode=TwoWay}"
+                     Margin="0,2" />
+            <CheckBox Grid.Row="2" Grid.Column="2"
+                      IsChecked="{Binding RepeatBreakSong, Mode=TwoWay}"
+                      Content="Repeat" Margin="4,0,0,0" />
+
+            <TextBlock Grid.Row="3" Text="Long break song" VerticalAlignment="Center" />
+            <TextBox Grid.Row="3" Grid.Column="1"
+                     Text="{Binding SessionBreakSong, Mode=TwoWay}"
+                     Margin="0,2" />
+            <CheckBox Grid.Row="3" Grid.Column="2"
+                      IsChecked="{Binding RepeatSessionBreakSong, Mode=TwoWay}"
+                      Content="Repeat" Margin="4,0,0,0" />
+        </Grid>
+    </StackPanel>
+</UserControl>

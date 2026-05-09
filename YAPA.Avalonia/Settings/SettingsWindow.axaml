@@ -1,0 +1,45 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="YAPA.Avalonia.Settings.SettingsWindow"
+        Title="Settings"
+        Width="620" Height="460"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="150" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Navigation -->
+        <ListBox x:Name="NavList"
+                 Grid.Column="0" Grid.Row="0" Grid.RowSpan="2"
+                 SelectionChanged="OnNavSelectionChanged"
+                 BorderThickness="0,0,1,0">
+            <ListBoxItem Content="Pomodoro" />
+            <ListBoxItem Content="Appearance" />
+            <ListBoxItem Content="Sound" />
+        </ListBox>
+
+        <!-- Content area -->
+        <ScrollViewer Grid.Column="1" Grid.Row="0"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <ContentControl x:Name="PageContent" Margin="16,12,16,8" />
+        </ScrollViewer>
+
+        <!-- Save / Cancel -->
+        <StackPanel Grid.Column="1" Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="8,4,12,8" Spacing="8">
+            <Button Content="Save" Width="80" Click="OnSaveClick" />
+            <Button Content="Cancel" Width="80" Click="OnCancelClick" />
+        </StackPanel>
+    </Grid>
+</Window>

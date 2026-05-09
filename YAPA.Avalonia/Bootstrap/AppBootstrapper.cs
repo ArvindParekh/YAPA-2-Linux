@@ -53,9 +53,13 @@ public class AppBootstrapper : IDisposable
         // ── Snapshot ─────────────────────────────────────────────────────────────
         services.AddSingleton<SnapshotService>();
 
+        // ── Theme / sound settings ───────────────────────────────────────────────
+        services.AddSingleton<AvaloniaYapaThemeSettings>();
+        services.AddSingleton<AvaloniaSoundNotificationsSettings>();
+        services.AddSingleton<AvaloniaMusicPlayerSettings>();
+
         // ── Commands / ViewModel ─────────────────────────────────────────────────
-        // IShowSettingsCommand is a stub until the settings shell lands in Step 5.
-        services.AddTransient<IShowSettingsCommand, StubShowSettingsCommand>();
+        services.AddSingleton<IShowSettingsCommand, ShowSettingsCommand>();
         services.AddTransient<IMainViewModel, MainViewModel>();
 
         // ── DI self-reference ────────────────────────────────────────────────────
