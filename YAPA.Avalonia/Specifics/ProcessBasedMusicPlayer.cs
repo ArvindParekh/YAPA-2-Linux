@@ -70,6 +70,9 @@ public sealed class ProcessBasedMusicPlayer : IMusicPlayer, IDisposable
 
     // ── Command selection ─────────────────────────────────────────────────────
 
+    // Builds a ProcessStartInfo using ArgumentList so paths with spaces are passed
+    // correctly. When UseShellExecute=false, the old single-string args form passes
+    // literal quote characters to the child process, causing "file not found" errors.
     private static ProcessStartInfo? BuildInfo(string path, double volume)
     {
         if (OperatingSystem.IsLinux())
@@ -78,32 +81,27 @@ public sealed class ProcessBasedMusicPlayer : IMusicPlayer, IDisposable
             if (isWav)
             {
                 // paplay accepts --volume 0-65536; scale linearly from 0-1
-                return Try("paplay", $"--volume={(int)(volume * 65536)} \"{path}\"")
-                    ?? Try("aplay", $"\"{path}\"");
+                return Try("paplay", $"--volume={(int)(volume * 65536)}", path)
+                    ?? Try("aplay", path);
             }
             else
             {
-                return Try("ffplay", $"-nodisp -autoexit -volume {(int)(volume * 100)} \"{path}\"")
-                    ?? Try("mpg123", $"-q \"{path}\"");
+                return Try("ffplay", "-nodisp", "-autoexit", $"-volume {(int)(volume * 100)}", path)
+                    ?? Try("mpg123", "-q", path);
             }
         }
 
         if (OperatingSystem.IsMacOS())
-        {
-            return Try("afplay", $"-v {volume:F2} \"{path}\"");
-        }
+            return Try("afplay", $"-v {volume:F2}", path);
 
         if (OperatingSystem.IsWindows())
-        {
-            // Works for WAV; best-effort on Windows without WPF MediaPlayer
-            return Try("powershell",
-                $"-NonInteractive -Command \"(New-Object Media.SoundPlayer '{path}').PlaySync()\"");
-        }
+            return Try("powershell", "-NonInteractive", "-Command",
+                $"(New-Object Media.SoundPlayer '{path}').PlaySync()");
 
         return null;
     }
 
-    private static ProcessStartInfo? Try(string command, string args)
+    private static ProcessStartInfo? Try(string command, params string[] args)
     {
         try
         {
@@ -118,14 +116,17 @@ public sealed class ProcessBasedMusicPlayer : IMusicPlayer, IDisposable
         }
         catch
         {
-            // 'which' may not be available (Windows)
+            // 'which' not available on Windows — fall through and try anyway
         }
 
-        return new ProcessStartInfo(command, args)
+        var info = new ProcessStartInfo(command)
         {
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
+        foreach (var arg in args)
+            info.ArgumentList.Add(arg);
+        return info;
     }
 }
