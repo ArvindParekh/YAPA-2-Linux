@@ -253,6 +253,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void OnOpened(object? sender, EventArgs e)
     {
+        // Suppress Mutter's compositor shadow on this transparent overlay window
+        if (TryGetPlatformHandle() is { HandleDescriptor: "XID" } handle)
+            X11ShadowSuppressor.Apply(handle.Handle);
+
         RestoreWindowPosition();
 
         var args = Environment.GetCommandLineArgs();

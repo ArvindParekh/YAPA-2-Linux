@@ -153,6 +153,15 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
             StopFlash();
     }
 
+    // ── Opened ────────────────────────────────────────────────────────────────
+
+    private void OnOpened(object? sender, EventArgs e)
+    {
+        // Suppress Mutter's compositor shadow on this transparent overlay window
+        if (TryGetPlatformHandle() is { HandleDescriptor: "XID" } handle)
+            X11ShadowSuppressor.Apply(handle.Handle);
+    }
+
     // ── Avalonia property changes ─────────────────────────────────────────────
 
     protected override void OnPropertyChanged(global::Avalonia.AvaloniaPropertyChangedEventArgs change)
