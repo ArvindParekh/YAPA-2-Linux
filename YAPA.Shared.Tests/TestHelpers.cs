@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using YAPA.Shared.Common;
@@ -47,7 +46,7 @@ namespace YAPA.Shared.Tests
                         if (engine.Phase == phase)
                             break;
 
-                        Thread.Sleep(50);
+                        System.Threading.Thread.Sleep(50);
                     }
                 });
 

@@ -30,6 +30,7 @@ namespace YAPA.Shared.Tests
             {
                 AutoStartBreak = false,
                 BreakTime = breakTime,
+                PomodorosBeforeLongBreak = 4,
                 WorkTime = workTime,
                 LongBreakTime = longBreakTime
             };
@@ -356,6 +357,7 @@ namespace YAPA.Shared.Tests
             {
                 AutoStartBreak = false,
                 BreakTime = breakTime,
+                PomodorosBeforeLongBreak = 4,
                 WorkTime = workTime,
                 LongBreakTime = longBreakTime
             };
@@ -684,6 +686,7 @@ namespace YAPA.Shared.Tests
             {
                 AutoStartBreak = true,
                 BreakTime = breakTime,
+                PomodorosBeforeLongBreak = 4,
                 WorkTime = workTime,
                 LongBreakTime = longBreakTime
             };
@@ -1015,6 +1018,7 @@ namespace YAPA.Shared.Tests
             {
                 AutoStartBreak = true,
                 BreakTime = breakTime,
+                PomodorosBeforeLongBreak = 4,
                 WorkTime = workTime,
                 LongBreakTime = longBreakTime
             };
@@ -1172,6 +1176,7 @@ namespace YAPA.Shared.Tests
             {
                 AutoStartBreak = false,
                 BreakTime = breakTime,
+                PomodorosBeforeLongBreak = 4,
                 WorkTime = workTime,
                 LongBreakTime = longBreakTime
             };
