@@ -64,6 +64,12 @@ public sealed class AvaloniaYapaThemeSettings : IPluginSettings
         set => _s.Update(nameof(HideButtons), value);
     }
 
+    public bool MinimizeToTray
+    {
+        get => _s.Get(nameof(MinimizeToTray), true);
+        set => _s.Update(nameof(MinimizeToTray), value);
+    }
+
     public void DeferChanges() => _s.DeferChanges();
 
     private static Color ParseColor(string? s, Color fallback)

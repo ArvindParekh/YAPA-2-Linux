@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -27,28 +28,29 @@ public partial class EngineSettingsPage : UserControl, INotifyPropertyChanged
 
     // ── Timing ────────────────────────────────────────────────────────────────
 
-    public decimal WorkTimeMinutes
+    // NumericUpDown.Value is decimal? — guard against null (e.g., when field is cleared)
+    public decimal? WorkTimeMinutes
     {
         get => _s.WorkTime / 60m;
-        set { _s.WorkTime = (int)value * 60; Notify(); }
+        set { if (value.HasValue) { _s.WorkTime = (int)value.Value * 60; Notify(); } }
     }
 
-    public decimal BreakTimeMinutes
+    public decimal? BreakTimeMinutes
     {
         get => _s.BreakTime / 60m;
-        set { _s.BreakTime = (int)value * 60; Notify(); }
+        set { if (value.HasValue) { _s.BreakTime = (int)value.Value * 60; Notify(); } }
     }
 
-    public decimal LongBreakTimeMinutes
+    public decimal? LongBreakTimeMinutes
     {
         get => _s.LongBreakTime / 60m;
-        set { _s.LongBreakTime = (int)value * 60; Notify(); }
+        set { if (value.HasValue) { _s.LongBreakTime = (int)value.Value * 60; Notify(); } }
     }
 
-    public decimal PomodorosBeforeLongBreak
+    public decimal? PomodorosBeforeLongBreak
     {
         get => _s.PomodorosBeforeLongBreak;
-        set { _s.PomodorosBeforeLongBreak = (int)value; Notify(); }
+        set { if (value.HasValue) { _s.PomodorosBeforeLongBreak = (int)value.Value; Notify(); } }
     }
 
     // ── Behaviour ─────────────────────────────────────────────────────────────
@@ -73,17 +75,25 @@ public partial class EngineSettingsPage : UserControl, INotifyPropertyChanged
 
     // ── Counter ───────────────────────────────────────────────────────────────
 
-    public List<CounterEnum> CounterOptions { get; } =
-    [
-        CounterEnum.PomodoroIndex,
-        CounterEnum.CompletedToday,
-        CounterEnum.CompletedThisSession,
-    ];
+    private static readonly string[] _counterLabels =
+        ["Pomodoro index (today)", "Completed today", "Completed this session"];
+    private static readonly CounterEnum[] _counterValues =
+        [CounterEnum.PomodoroIndex, CounterEnum.CompletedToday, CounterEnum.CompletedThisSession];
 
-    public CounterEnum SelectedCounter
+    public List<string> CounterOptions { get; } = [.. _counterLabels];
+
+    public string SelectedCounterDisplay
     {
-        get => _s.Counter;
-        set { _s.Counter = value; Notify(); }
+        get
+        {
+            var idx = Array.IndexOf(_counterValues, _s.Counter);
+            return idx >= 0 ? _counterLabels[idx] : _counterLabels[0];
+        }
+        set
+        {
+            var idx = Array.IndexOf(_counterLabels, value);
+            if (idx >= 0) { _s.Counter = _counterValues[idx]; Notify(); }
+        }
     }
 
     // ── Sound / volume ────────────────────────────────────────────────────────

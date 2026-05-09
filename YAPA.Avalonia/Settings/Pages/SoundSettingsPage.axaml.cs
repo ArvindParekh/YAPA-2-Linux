@@ -64,10 +64,11 @@ public partial class SoundSettingsPage : UserControl, INotifyPropertyChanged
 
     // ── Background music ──────────────────────────────────────────────────────
 
-    public string? WorkSong
+    // Return empty string instead of null so TextBox bindings don't throw
+    public string WorkSong
     {
-        get => _music.WorkSong;
-        set { _music.WorkSong = value; Notify(); }
+        get => _music.WorkSong ?? string.Empty;
+        set { _music.WorkSong = string.IsNullOrEmpty(value) ? null : value; Notify(); }
     }
 
     public bool RepeatWorkSong
@@ -76,10 +77,10 @@ public partial class SoundSettingsPage : UserControl, INotifyPropertyChanged
         set { _music.RepeatWorkSong = value; Notify(); }
     }
 
-    public string? BreakSong
+    public string BreakSong
     {
-        get => _music.BreakSong;
-        set { _music.BreakSong = value; Notify(); }
+        get => _music.BreakSong ?? string.Empty;
+        set { _music.BreakSong = string.IsNullOrEmpty(value) ? null : value; Notify(); }
     }
 
     public bool RepeatBreakSong
@@ -88,10 +89,10 @@ public partial class SoundSettingsPage : UserControl, INotifyPropertyChanged
         set { _music.RepeatBreakSong = value; Notify(); }
     }
 
-    public string? SessionBreakSong
+    public string SessionBreakSong
     {
-        get => _music.SessionBreakSong;
-        set { _music.SessionBreakSong = value; Notify(); }
+        get => _music.SessionBreakSong ?? string.Empty;
+        set { _music.SessionBreakSong = string.IsNullOrEmpty(value) ? null : value; Notify(); }
     }
 
     public bool RepeatSessionBreakSong

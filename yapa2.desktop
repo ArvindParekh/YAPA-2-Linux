@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=YAPA 2
+GenericName=Pomodoro Timer
+Comment=Yet Another Pomodoro App
+Exec=/usr/local/bin/yapa2
+Icon=yapa2
+Type=Application
+Categories=Utility;Office;
+Keywords=pomodoro;timer;focus;productivity;
+StartupNotify=false

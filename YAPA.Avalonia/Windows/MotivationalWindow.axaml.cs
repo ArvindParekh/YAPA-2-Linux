@@ -5,9 +5,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Platform;
 using Avalonia.Threading;
+using YAPA.Avalonia.Specifics;
 using YAPA.Shared.Common;
 using YAPA.Shared.Contracts;
 
@@ -21,6 +24,7 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
 
     private readonly IMainViewModel _viewModel;
+    private readonly AvaloniaYapaThemeSettings _themeSettings;
     private readonly DispatcherTimer _flashTimer = new() { Interval = TimeSpan.FromMilliseconds(200) };
     private IBrush _flashTarget = Brushes.Transparent;
     private bool _flashOn;
@@ -105,9 +109,19 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
 
     public MotivationalWindow()
     {
-        _viewModel = App.Bootstrapper!.Resolve<IMainViewModel>();
+        var bs = App.Bootstrapper!;
+        _viewModel     = bs.Resolve<IMainViewModel>();
+        _themeSettings = bs.Resolve<AvaloniaYapaThemeSettings>();
 
         InitializeComponent();
+
+        // Force transparency properties programmatically so they override theme defaults
+        Background = Brushes.Transparent;
+        TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent };
+        WindowDecorations = WindowDecorations.None;
+        ExtendClientAreaToDecorationsHint = true;
+        ExtendClientAreaTitleBarHeightHint = -1;
+
         DataContext = this;
 
         _flashTimer.Tick += OnFlashTick;
@@ -119,6 +133,19 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
         UpdateTimer();
         UpdatePhase();
         UpdateStatus();
+    }
+
+    // ── Avalonia property changes ─────────────────────────────────────────────
+
+    protected override void OnPropertyChanged(global::Avalonia.AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == WindowStateProperty &&
+            WindowState == WindowState.Minimized &&
+            _themeSettings.MinimizeToTray)
+        {
+            Hide();
+        }
     }
 
     // ── Pointer events ────────────────────────────────────────────────────────
@@ -155,6 +182,25 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
 
     private void OnCloseClick(object? sender, RoutedEventArgs e)
         => Close();
+
+    private void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Space:
+                if (_viewModel.Engine.Phase == PomodoroPhase.Work)
+                    _viewModel.PauseCommand.Execute(null);
+                else if (_viewModel.StartCommand.CanExecute(null))
+                    _viewModel.StartCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                if (_viewModel.StopCommand.CanExecute(null))
+                    _viewModel.StopCommand.Execute(null);
+                e.Handled = true;
+                break;
+        }
+    }
 
     // ── Engine events ─────────────────────────────────────────────────────────
 

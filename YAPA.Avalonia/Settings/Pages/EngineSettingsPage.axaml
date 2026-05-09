@@ -57,7 +57,7 @@
         <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock Text="Counter display" VerticalAlignment="Center" Width="170" />
             <ComboBox ItemsSource="{Binding CounterOptions}"
-                      SelectedItem="{Binding SelectedCounter, Mode=TwoWay}"
+                      SelectedItem="{Binding SelectedCounterDisplay, Mode=TwoWay}"
                       Width="200" />
         </StackPanel>
 

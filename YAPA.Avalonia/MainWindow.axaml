@@ -17,7 +17,15 @@
         Closing="OnWindowClosing"
         PointerPressed="OnPointerPressed"
         PointerEntered="OnPointerEntered"
-        PointerExited="OnPointerExited">
+        PointerExited="OnPointerExited"
+        KeyDown="OnKeyDown">
+
+    <!-- Strip Fluent theme chrome (border/shadow) so the window is truly transparent -->
+    <Window.Template>
+        <ControlTemplate>
+            <ContentPresenter Content="{TemplateBinding Content}" />
+        </ControlTemplate>
+    </Window.Template>
 
     <Grid Background="Transparent">
         <Viewbox Stretch="Uniform">

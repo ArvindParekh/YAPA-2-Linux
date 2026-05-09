@@ -23,10 +23,10 @@ public partial class ThemeSettingsPage : UserControl, INotifyPropertyChanged
         DataContext = this;
     }
 
-    public new int Width
+    public double WidgetWidth
     {
         get => _s.Width;
-        set { _s.Width = value; Notify(); }
+        set { _s.Width = (int)value; Notify(); }
     }
 
     public double ClockOpacity
@@ -79,5 +79,11 @@ public partial class ThemeSettingsPage : UserControl, INotifyPropertyChanged
     {
         get => _s.HideButtons;
         set { _s.HideButtons = value; Notify(); }
+    }
+
+    public bool MinimizeToTray
+    {
+        get => _s.MinimizeToTray;
+        set { _s.MinimizeToTray = value; Notify(); }
     }
 }

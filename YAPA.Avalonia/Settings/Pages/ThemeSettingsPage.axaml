@@ -25,13 +25,13 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- Width -->
+            <!-- Widget width -->
             <TextBlock Classes="Label" Grid.Row="0" Text="Widget width (px)" />
             <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="8,2,0,2">
                 <Slider Minimum="80" Maximum="600"
-                        Value="{Binding Width, Mode=TwoWay}"
+                        Value="{Binding WidgetWidth, Mode=TwoWay}"
                         Width="160" TickFrequency="10" />
-                <TextBlock Text="{Binding Width}" VerticalAlignment="Center" Width="36" />
+                <TextBlock Text="{Binding WidgetWidth}" VerticalAlignment="Center" Width="36" />
             </StackPanel>
 
             <!-- Clock opacity -->
@@ -69,5 +69,7 @@
                   Content="Hide seconds" />
         <CheckBox IsChecked="{Binding HideButtons, Mode=TwoWay}"
                   Content="Hide buttons (show on hover only)" />
+        <CheckBox IsChecked="{Binding MinimizeToTray, Mode=TwoWay}"
+                  Content="Minimize to tray instead of taskbar" />
     </StackPanel>
 </UserControl>
