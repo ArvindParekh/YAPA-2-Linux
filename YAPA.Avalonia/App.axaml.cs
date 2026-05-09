@@ -33,6 +33,9 @@ public partial class App : Application
                 ? (global::Avalonia.Controls.Window) new MotivationalWindow()
                 : new MainWindow();
 
+            // Wire the Dashboard plugin so completed pomodoros are written to the DB
+            _ = Bootstrapper.Resolve<YAPA.Shared.Common.Dashboard>();
+
             // Eagerly resolve sound notification plugins to wire engine events
             _ = Bootstrapper.Resolve<AvaloniaSoundNotifications>();
             _ = Bootstrapper.Resolve<AvaloniaBackgroundMusic>();

@@ -79,6 +79,7 @@
 
             <!-- Timer row -->
             <StackPanel Grid.Row="2" Orientation="Horizontal"
+                        Effect="{Binding TimerShadowEffect}"
                         HorizontalAlignment="Center" Spacing="2" Margin="0,4">
                 <TextBlock Text="{Binding TimerMinutes}"
                            Foreground="{Binding TextBrush}"

@@ -88,6 +88,13 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
         private set { _controlsVisible = value; Notify(); }
     }
 
+    private global::Avalonia.Media.DropShadowDirectionEffect? _timerShadowEffect;
+    public global::Avalonia.Media.DropShadowDirectionEffect? TimerShadowEffect
+    {
+        get => _timerShadowEffect;
+        private set { _timerShadowEffect = value; Notify(); }
+    }
+
     private bool _startVisible = true;
     public bool StartVisible { get => _startVisible; private set { _startVisible = value; Notify(); } }
 
@@ -151,6 +158,17 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
         TextBrush = new SolidColorBrush(_themeSettings.TextColor);
         if (_themeSettings.DisableFlashingAnimation)
             StopFlash();
+
+        TimerShadowEffect = _themeSettings.ShadowOpacity > 0
+            ? new global::Avalonia.Media.DropShadowDirectionEffect
+            {
+                Color       = _themeSettings.ShadowColor,
+                Opacity     = _themeSettings.ShadowOpacity,
+                BlurRadius  = 8,
+                Direction   = 315,
+                ShadowDepth = 3,
+            }
+            : null;
     }
 
     // ── Opened ────────────────────────────────────────────────────────────────

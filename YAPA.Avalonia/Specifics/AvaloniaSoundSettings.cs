@@ -7,10 +7,10 @@ namespace YAPA.Avalonia.Specifics;
 public sealed class AvaloniaSoundNotificationsSettings : IPluginSettings
 {
     private static readonly string DefaultTickPath =
-        Path.Combine(AppContext.BaseDirectory, "Resources", "tick.wav");
+        Path.Combine(AppContext.BaseDirectory, "Assets", "tick.wav");
 
     private static readonly string DefaultDingPath =
-        Path.Combine(AppContext.BaseDirectory, "Resources", "ding.wav");
+        Path.Combine(AppContext.BaseDirectory, "Assets", "ding.wav");
 
     private readonly ISettingsForComponent _s;
 

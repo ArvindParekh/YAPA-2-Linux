@@ -50,6 +50,11 @@ public class AppBootstrapper : IDisposable
         // ── Repository ───────────────────────────────────────────────────────────
         services.AddSingleton<IPomodoroRepository, SqlitePomodoroRepository>();
 
+        // ── Dashboard plugin ─────────────────────────────────────────────────────
+        // Subscribes to engine.OnPomodoroCompleted and writes each completed
+        // pomodoro to the repository so CompletedToday / dashboard data is correct.
+        services.AddSingleton<Dashboard>();
+
         // ── Snapshot ─────────────────────────────────────────────────────────────
         services.AddSingleton<SnapshotService>();
 

@@ -163,6 +163,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         private set { _statusTextVisible = value; Notify(); }
     }
 
+    private global::Avalonia.Media.DropShadowDirectionEffect? _timerShadowEffect;
+    public global::Avalonia.Media.DropShadowDirectionEffect? TimerShadowEffect
+    {
+        get => _timerShadowEffect;
+        private set { _timerShadowEffect = value; Notify(); }
+    }
+
     public ICommand StartCommand => _viewModel.StartCommand;
     public ICommand StopCommand  => _viewModel.StopCommand;
     public ICommand PauseCommand => _viewModel.PauseCommand;
@@ -247,6 +254,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         if (_themeSettings.DisableFlashingAnimation)
             StopFlash();
+
+        TimerShadowEffect = _themeSettings.ShadowOpacity > 0
+            ? new global::Avalonia.Media.DropShadowDirectionEffect
+            {
+                Color       = _themeSettings.ShadowColor,
+                Opacity     = _themeSettings.ShadowOpacity,
+                BlurRadius  = 8,
+                Direction   = 315,
+                ShadowDepth = 3,
+            }
+            : null;
     }
 
     // ── Opened / Closing ──────────────────────────────────────────────────────

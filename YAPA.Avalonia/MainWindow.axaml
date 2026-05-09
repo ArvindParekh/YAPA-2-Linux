@@ -43,6 +43,7 @@
                 <!-- Timer digit row spans both grid rows -->
                 <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="2"
                             Background="{Binding FlashBackground}"
+                            Effect="{Binding TimerShadowEffect}"
                             Orientation="Horizontal">
                     <TextBlock Width="32" FontSize="60"
                                Foreground="{Binding TextBrush}"
