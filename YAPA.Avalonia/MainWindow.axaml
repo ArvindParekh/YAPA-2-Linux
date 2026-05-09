@@ -5,6 +5,8 @@
         Title="YAPA"
         Width="130" Height="60"
         WindowDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="-1"
         TransparencyLevelHint="Transparent"
         Background="Transparent"
         Topmost="True"
