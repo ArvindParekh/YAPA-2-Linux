@@ -163,6 +163,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         private set { _statusTextVisible = value; Notify(); }
     }
 
+    private double _digitCellWidth = 36;
+    public double DigitCellWidth
+    {
+        get => _digitCellWidth;
+        private set { _digitCellWidth = value; Notify(); }
+    }
+
     private global::Avalonia.Media.DropShadowDirectionEffect? _timerShadowEffect;
     public global::Avalonia.Media.DropShadowDirectionEffect? TimerShadowEffect
     {
@@ -204,7 +211,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         _viewModel.Engine.PropertyChanged += OnEnginePropertyChanged;
         _viewModel.Engine.OnStarted += StopFlash;
-        _viewModel.Engine.OnStopped += StopFlash;
+        _viewModel.Engine.OnStopped += OnEngineStopped;
 
         App.ExternalCommandLine += OnExternalCommandLine;
 
@@ -252,6 +259,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else
             ControlsVisible = false;
 
+        DigitCellWidth = _themeSettings.DigitCellWidth;
+
         if (_themeSettings.DisableFlashingAnimation)
             StopFlash();
 
@@ -298,7 +307,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         App.ExternalCommandLine -= OnExternalCommandLine;
         _viewModel.Engine.PropertyChanged -= OnEnginePropertyChanged;
         _viewModel.Engine.OnStarted -= StopFlash;
-        _viewModel.Engine.OnStopped -= StopFlash;
+        _viewModel.Engine.OnStopped -= OnEngineStopped;
     }
 
     // ── Pointer events ────────────────────────────────────────────────────────
@@ -457,10 +466,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else if (phase == PomodoroPhase.BreakEnded)
             _flashTarget = new SolidColorBrush(Color.Parse("MediumSeaGreen"));
         else
-        {
-            StopFlash();
             return;
-        }
 
         _flashOn = false;
         _flashTimer.Start();
@@ -477,6 +483,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         _flashOn = !_flashOn;
         FlashBackground = _flashOn ? _flashTarget : Brushes.Transparent;
+    }
+
+    private void OnEngineStopped()
+    {
+        // Stopping from Work/Pause lands at WorkEnded — flash should keep running there.
+        // Stopping from Break/WorkEnded lands at NotStarted — clear the flash.
+        if (_viewModel.Engine.Phase == PomodoroPhase.NotStarted)
+            StopFlash();
     }
 
     // ── External command-line (second instance) ───────────────────────────────

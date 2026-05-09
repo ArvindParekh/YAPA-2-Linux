@@ -32,12 +32,12 @@
         <Viewbox Stretch="Uniform">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <!-- Timer digit row spans both grid rows -->
@@ -45,16 +45,16 @@
                             Background="{Binding FlashBackground}"
                             Effect="{Binding TimerShadowEffect}"
                             Orientation="Horizontal">
-                    <TextBlock Width="32" FontSize="60"
+                    <TextBlock Width="{Binding DigitCellWidth}" FontSize="60" TextAlignment="Center"
                                Foreground="{Binding TextBrush}"
                                IsVisible="{Binding HundredsVisible}"
                                HorizontalAlignment="Right" VerticalAlignment="Center"
                                Text="{Binding DigitH}" />
-                    <TextBlock Width="32" FontSize="60"
+                    <TextBlock Width="{Binding DigitCellWidth}" FontSize="60" TextAlignment="Center"
                                Foreground="{Binding TextBrush}"
                                HorizontalAlignment="Right" VerticalAlignment="Center"
                                Text="{Binding TensMinutes}" />
-                    <TextBlock Width="32" FontSize="60"
+                    <TextBlock Width="{Binding DigitCellWidth}" FontSize="60" TextAlignment="Center"
                                Foreground="{Binding TextBrush}"
                                HorizontalAlignment="Right" VerticalAlignment="Center"
                                Text="{Binding OnesMinutes}" />
@@ -63,12 +63,12 @@
                                IsVisible="{Binding ShowSeconds}"
                                HorizontalAlignment="Right" VerticalAlignment="Center"
                                Text=":" />
-                    <TextBlock Width="32" FontSize="60"
+                    <TextBlock Width="{Binding DigitCellWidth}" FontSize="60" TextAlignment="Center"
                                Foreground="{Binding TextBrush}"
                                IsVisible="{Binding ShowSeconds}"
                                HorizontalAlignment="Right" VerticalAlignment="Center"
                                Text="{Binding TensSeconds}" />
-                    <TextBlock Width="32" FontSize="60"
+                    <TextBlock Width="{Binding DigitCellWidth}" FontSize="60" TextAlignment="Center"
                                Foreground="{Binding TextBrush}"
                                IsVisible="{Binding ShowSeconds}"
                                HorizontalAlignment="Right" VerticalAlignment="Center"
@@ -97,7 +97,9 @@
                             BorderThickness="0"
                             FontSize="10"
                             Cursor="Hand"
-                            Padding="0" />
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center" />
                     <Button Content="x"
                             ToolTip.Tip="Close"
                             Width="15" Height="15"
@@ -107,7 +109,9 @@
                             BorderThickness="0"
                             FontSize="10"
                             Cursor="Hand"
-                            Padding="0" />
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center" />
                 </StackPanel>
 
                 <!-- Phase control buttons -->
@@ -123,7 +127,9 @@
                             Background="Transparent"
                             BorderThickness="0"
                             FontSize="11" Cursor="Hand"
-                            Padding="0" />
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center" />
                     <Button IsVisible="{Binding StartVisible}"
                             Command="{Binding StartCommand}"
                             Content="START"
@@ -133,7 +139,9 @@
                             Background="Transparent"
                             BorderThickness="0"
                             FontSize="11" Cursor="Hand"
-                            Padding="0" />
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center" />
                     <Button IsVisible="{Binding PauseVisible}"
                             Command="{Binding PauseCommand}"
                             Content="PAUSE"
@@ -143,7 +151,9 @@
                             Background="Transparent"
                             BorderThickness="0"
                             FontSize="11" Cursor="Hand"
-                            Padding="0" />
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center" />
                     <Button IsVisible="{Binding StopVisible}"
                             Command="{Binding StopCommand}"
                             Content="STOP"
@@ -153,7 +163,9 @@
                             Background="Transparent"
                             BorderThickness="0"
                             FontSize="11" Cursor="Hand"
-                            Padding="0" />
+                            Padding="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center" />
                     <TextBlock Text="{Binding Counter}"
                                Foreground="{Binding TextBrush}"
                                FontSize="8"

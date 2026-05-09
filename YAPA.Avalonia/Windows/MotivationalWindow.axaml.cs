@@ -138,7 +138,7 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
         _flashTimer.Tick += OnFlashTick;
         _viewModel.Engine.PropertyChanged += OnEnginePropertyChanged;
         _viewModel.Engine.OnStarted += StopFlash;
-        _viewModel.Engine.OnStopped += StopFlash;
+        _viewModel.Engine.OnStopped += OnEngineStopped;
 
         // Apply appearance settings immediately, subscribe for live updates
         ApplyThemeSettings();
@@ -320,7 +320,7 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
             _flashTarget = new SolidColorBrush(Color.Parse("Tomato"));
         else if (phase == PomodoroPhase.BreakEnded)
             _flashTarget = new SolidColorBrush(Color.Parse("MediumSeaGreen"));
-        else { StopFlash(); return; }
+        else return;
 
         _flashOn = false;
         _flashTimer.Start();
@@ -337,5 +337,11 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
     {
         _flashOn = !_flashOn;
         WindowBackground = _flashOn ? _flashTarget : new SolidColorBrush(Color.Parse("#CC1a1a2e"));
+    }
+
+    private void OnEngineStopped()
+    {
+        if (_viewModel.Engine.Phase == PomodoroPhase.NotStarted)
+            StopFlash();
     }
 }

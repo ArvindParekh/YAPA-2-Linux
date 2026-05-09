@@ -65,9 +65,19 @@ public class AppBootstrapper : IDisposable
         services.AddSingleton<AvaloniaMusicPlayerSettings>();
 
         // ── Audio player + sound plugins ─────────────────────────────────────────
-        services.AddSingleton<IMusicPlayer, ProcessBasedMusicPlayer>();
-        services.AddSingleton<AvaloniaSoundNotifications>();
-        services.AddSingleton<AvaloniaBackgroundMusic>();
+        // Each plugin gets its own ProcessBasedMusicPlayer so they don't race:
+        // AvaloniaBackgroundMusic always calls Stop() on phase change, which would
+        // kill the notification sound if both shared the same player instance.
+        services.AddSingleton<AvaloniaSoundNotifications>(sp => new AvaloniaSoundNotifications(
+            sp.GetRequiredService<IPomodoroEngine>(),
+            sp.GetRequiredService<AvaloniaSoundNotificationsSettings>(),
+            new ProcessBasedMusicPlayer(),
+            sp.GetRequiredService<PomodoroEngineSettings>()));
+        services.AddSingleton<AvaloniaBackgroundMusic>(sp => new AvaloniaBackgroundMusic(
+            sp.GetRequiredService<IPomodoroEngine>(),
+            sp.GetRequiredService<AvaloniaMusicPlayerSettings>(),
+            new ProcessBasedMusicPlayer(),
+            sp.GetRequiredService<PomodoroEngineSettings>()));
 
         // ── Tray ─────────────────────────────────────────────────────────────────
         services.AddSingleton<SystemTrayService>();

@@ -23,6 +23,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <!-- Widget width -->
@@ -56,6 +57,24 @@
                      Text="{Binding ShadowColorHex, Mode=TwoWay}"
                      PlaceholderText="#FF000000" Width="160"
                      HorizontalAlignment="Left" />
+
+            <!-- Shadow opacity -->
+            <TextBlock Classes="Label" Grid.Row="4" Text="Shadow opacity" />
+            <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="8,2,0,2">
+                <Slider Minimum="0.0" Maximum="1.0"
+                        Value="{Binding ShadowOpacity, Mode=TwoWay}"
+                        Width="160" TickFrequency="0.1" />
+                <TextBlock Text="{Binding ShadowOpacityDisplay}" VerticalAlignment="Center" Width="36" />
+            </StackPanel>
+
+            <!-- Digit cell width -->
+            <TextBlock Classes="Label" Grid.Row="5" Text="Digit cell width (px)" />
+            <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="8,2,0,2">
+                <Slider Minimum="30" Maximum="60"
+                        Value="{Binding DigitCellWidth, Mode=TwoWay}"
+                        Width="160" TickFrequency="1" IsSnapToTickEnabled="True" />
+                <TextBlock Text="{Binding DigitCellWidth}" VerticalAlignment="Center" Width="36" />
+            </StackPanel>
 
         </Grid>
 

@@ -35,7 +35,15 @@
             <ContentControl x:Name="PageContent" Margin="16,12,16,8" />
         </ScrollViewer>
 
-        <!-- Save / Cancel -->
+        <!-- Reset to defaults (left-aligned) -->
+        <StackPanel Grid.Column="1" Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Left"
+                    Margin="12,4,8,8">
+            <Button Content="Reset to defaults" Width="130" Click="OnResetClick" />
+        </StackPanel>
+
+        <!-- Save / Cancel (right-aligned) -->
         <StackPanel Grid.Column="1" Grid.Row="1"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"

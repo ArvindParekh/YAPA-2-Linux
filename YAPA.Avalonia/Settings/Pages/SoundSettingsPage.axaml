@@ -22,16 +22,20 @@
         <!-- Period sounds -->
         <TextBlock Text="Notification sounds" FontWeight="SemiBold" />
 
-        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto">
+        <Grid ColumnDefinitions="120,*,Auto" RowDefinitions="Auto,Auto">
             <TextBlock Grid.Row="0" Text="Period start" VerticalAlignment="Center" />
             <TextBox Grid.Row="0" Grid.Column="1"
                      Text="{Binding PeriodStartSound, Mode=TwoWay}"
                      Margin="0,2" />
+            <Button Grid.Row="0" Grid.Column="2" Content="Browse…"
+                    Click="OnBrowsePeriodStartClick" Margin="4,2,0,2" />
 
             <TextBlock Grid.Row="1" Text="Period end" VerticalAlignment="Center" />
             <TextBox Grid.Row="1" Grid.Column="1"
                      Text="{Binding PeriodEndSound, Mode=TwoWay}"
                      Margin="0,2" />
+            <Button Grid.Row="1" Grid.Column="2" Content="Browse…"
+                    Click="OnBrowsePeriodEndClick" Margin="4,2,0,2" />
         </Grid>
 
         <Separator />
@@ -39,8 +43,8 @@
         <!-- Background music -->
         <TextBlock Text="Background music" FontWeight="SemiBold" />
 
-        <Grid ColumnDefinitions="120,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
-            <TextBlock Grid.Row="0" Grid.ColumnSpan="3"
+        <Grid ColumnDefinitions="120,*,Auto,Auto" RowDefinitions="Auto,Auto,Auto,Auto">
+            <TextBlock Grid.Row="0" Grid.ColumnSpan="4"
                        Text="Leave blank to disable. Enter full path to an audio file."
                        FontSize="11" Foreground="Gray" Margin="0,0,0,4" />
 
@@ -48,7 +52,9 @@
             <TextBox Grid.Row="1" Grid.Column="1"
                      Text="{Binding WorkSong, Mode=TwoWay}"
                      Margin="0,2" />
-            <CheckBox Grid.Row="1" Grid.Column="2"
+            <Button Grid.Row="1" Grid.Column="2" Content="Browse…"
+                    Click="OnBrowseWorkSongClick" Margin="4,2,0,2" />
+            <CheckBox Grid.Row="1" Grid.Column="3"
                       IsChecked="{Binding RepeatWorkSong, Mode=TwoWay}"
                       Content="Repeat" Margin="4,0,0,0" />
 
@@ -56,7 +62,9 @@
             <TextBox Grid.Row="2" Grid.Column="1"
                      Text="{Binding BreakSong, Mode=TwoWay}"
                      Margin="0,2" />
-            <CheckBox Grid.Row="2" Grid.Column="2"
+            <Button Grid.Row="2" Grid.Column="2" Content="Browse…"
+                    Click="OnBrowseBreakSongClick" Margin="4,2,0,2" />
+            <CheckBox Grid.Row="2" Grid.Column="3"
                       IsChecked="{Binding RepeatBreakSong, Mode=TwoWay}"
                       Content="Repeat" Margin="4,0,0,0" />
 
@@ -64,7 +72,9 @@
             <TextBox Grid.Row="3" Grid.Column="1"
                      Text="{Binding SessionBreakSong, Mode=TwoWay}"
                      Margin="0,2" />
-            <CheckBox Grid.Row="3" Grid.Column="2"
+            <Button Grid.Row="3" Grid.Column="2" Content="Browse…"
+                    Click="OnBrowseSessionBreakSongClick" Margin="4,2,0,2" />
+            <CheckBox Grid.Row="3" Grid.Column="3"
                       IsChecked="{Binding RepeatSessionBreakSong, Mode=TwoWay}"
                       Content="Repeat" Margin="4,0,0,0" />
         </Grid>

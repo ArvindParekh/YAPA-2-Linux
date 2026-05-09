@@ -15,6 +15,9 @@
                            FontSize="32" FontWeight="Bold"
                            VerticalAlignment="Center" />
                 <TextBlock Text="🍅" FontSize="24" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding FocusedTodayDisplay}"
+                           VerticalAlignment="Center"
+                           Foreground="Gray" FontSize="13" Margin="8,0,0,0" />
             </StackPanel>
         </Border>
 

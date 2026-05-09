@@ -25,6 +25,9 @@ public partial class ThemeSelectorPage : UserControl, INotifyPropertyChanged
 
     public ThemeSelectorPage() : this(App.Bootstrapper!.Resolve<AvaloniaThemeSettings>()) { }
 
+    public void NotifyAllChanged()
+        => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(string.Empty));
+
     public ThemeSelectorPage(AvaloniaThemeSettings settings)
     {
         _s = settings;

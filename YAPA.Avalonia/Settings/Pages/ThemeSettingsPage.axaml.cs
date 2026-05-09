@@ -86,4 +86,21 @@ public partial class ThemeSettingsPage : UserControl, INotifyPropertyChanged
         get => _s.MinimizeToTray;
         set { _s.MinimizeToTray = value; Notify(); }
     }
+
+    public double ShadowOpacity
+    {
+        get => _s.ShadowOpacity;
+        set { _s.ShadowOpacity = value; Notify(); Notify(nameof(ShadowOpacityDisplay)); }
+    }
+
+    public string ShadowOpacityDisplay => $"{ShadowOpacity:P0}";
+
+    public double DigitCellWidth
+    {
+        get => _s.DigitCellWidth;
+        set { _s.DigitCellWidth = (int)value; Notify(); }
+    }
+
+    public void NotifyAllChanged()
+        => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(string.Empty));
 }

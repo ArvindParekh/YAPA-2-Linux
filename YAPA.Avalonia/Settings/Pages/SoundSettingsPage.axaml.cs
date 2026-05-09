@@ -1,6 +1,10 @@
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using YAPA.Avalonia.Specifics;
 using YAPA.Shared.Common;
 
@@ -100,4 +104,40 @@ public partial class SoundSettingsPage : UserControl, INotifyPropertyChanged
         get => _music.RepeatSessionBreakSong;
         set { _music.RepeatSessionBreakSong = value; Notify(); }
     }
+
+    // ── File picker ───────────────────────────────────────────────────────────
+
+    private static readonly FilePickerFileType[] AudioFilter =
+    [
+        new("Audio files") { Patterns = ["*.wav", "*.mp3", "*.ogg", "*.flac", "*.aac"] },
+        new("All files")   { Patterns = ["*"] }
+    ];
+
+    private async Task BrowseSoundFileAsync(Action<string> setter)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return;
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select audio file",
+            AllowMultiple = false,
+            FileTypeFilter = AudioFilter
+        });
+        if (files.Count > 0)
+            setter(files[0].Path.LocalPath);
+    }
+
+    private void OnBrowsePeriodStartClick(object? s, RoutedEventArgs e)
+        => _ = BrowseSoundFileAsync(v => PeriodStartSound = v);
+    private void OnBrowsePeriodEndClick(object? s, RoutedEventArgs e)
+        => _ = BrowseSoundFileAsync(v => PeriodEndSound = v);
+    private void OnBrowseWorkSongClick(object? s, RoutedEventArgs e)
+        => _ = BrowseSoundFileAsync(v => WorkSong = v);
+    private void OnBrowseBreakSongClick(object? s, RoutedEventArgs e)
+        => _ = BrowseSoundFileAsync(v => BreakSong = v);
+    private void OnBrowseSessionBreakSongClick(object? s, RoutedEventArgs e)
+        => _ = BrowseSoundFileAsync(v => SessionBreakSong = v);
+
+    public void NotifyAllChanged()
+        => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(string.Empty));
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using YAPA.Shared.Contracts;
 
 namespace YAPA.Avalonia.Persistence;
@@ -33,13 +34,15 @@ public sealed class SqlitePomodoroRepository : IPomodoroRepository, IDisposable
     {
         lock (_context)
         {
-            var start = DateTime.Now.Date;
-            var end = start.AddDays(1).AddSeconds(-1);
-            return _context.Pomodoros
-                .Where(p => start <= p.DateTime && p.DateTime <= end)
-                .Select(_ => _.Count)
-                .DefaultIfEmpty(0)
-                .Sum();
+            // EF Core SQLite formats DateTimeKind.Utc parameters as "yyyy-MM-ddTHH:mm:ssZ"
+            // (with T and Z), but stored values use "yyyy-MM-dd HH:mm:ss" (space, no Z).
+            // SQLite TEXT comparison is lexicographic: space (0x20) < T (0x54), so every
+            // record compares as less-than a UTC parameter, returning 0.
+            // Use strftime to extract just the date portion and compare as a plain string.
+            var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
+            return _context.Database
+                .SqlQuery<int>($"SELECT COALESCE(SUM(\"Count\"), 0) AS Value FROM Pomodoros WHERE strftime('%Y-%m-%d', DateTime) = {today}")
+                .Single();
         }
     }
 
@@ -69,7 +72,11 @@ public sealed class SqlitePomodoroRepository : IPomodoroRepository, IDisposable
     {
         lock (_context)
         {
-            return _context.Pomodoros.Where(x => x.DateTime >= date).ToList();
+            var dateStr = date.ToString("yyyy-MM-dd");
+            return _context.Pomodoros
+                .FromSqlInterpolated($"SELECT * FROM Pomodoros WHERE strftime('%Y-%m-%d', DateTime) >= {dateStr}")
+                .AsNoTracking()
+                .ToList();
         }
     }
 

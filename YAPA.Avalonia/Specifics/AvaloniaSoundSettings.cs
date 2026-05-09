@@ -30,6 +30,12 @@ public sealed class AvaloniaSoundNotificationsSettings : IPluginSettings
     }
 
     public void DeferChanges() => _s.DeferChanges();
+
+    public void ResetToDefaults()
+    {
+        PeriodStartSound = DefaultTickPath;
+        PeriodEndSound   = DefaultDingPath;
+    }
 }
 
 public sealed class AvaloniaMusicPlayerSettings : IPluginSettings
@@ -76,4 +82,14 @@ public sealed class AvaloniaMusicPlayerSettings : IPluginSettings
     }
 
     public void DeferChanges() => _s.DeferChanges();
+
+    public void ResetToDefaults()
+    {
+        WorkSong               = null;
+        RepeatWorkSong         = false;
+        BreakSong              = null;
+        RepeatBreakSong        = false;
+        SessionBreakSong       = null;
+        RepeatSessionBreakSong = false;
+    }
 }

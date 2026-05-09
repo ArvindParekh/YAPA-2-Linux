@@ -16,4 +16,6 @@ public sealed class AvaloniaThemeSettings : IPluginSettings
     }
 
     public void DeferChanges() => _s.DeferChanges();
+
+    public void ResetToDefaults() => ActiveTheme = "YAPA 1.0";
 }

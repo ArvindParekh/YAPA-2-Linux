@@ -109,4 +109,7 @@ public partial class EngineSettingsPage : UserControl, INotifyPropertyChanged
         get => _s.Volume;
         set { _s.Volume = value; Notify(); }
     }
+
+    public void NotifyAllChanged()
+        => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(string.Empty));
 }

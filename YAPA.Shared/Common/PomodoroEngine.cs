@@ -151,8 +151,25 @@ namespace YAPA.Shared.Common
 
         public void Stop()
         {
-            ResetTo(Phase == PomodoroPhase.Break || Phase == PomodoroPhase.WorkEnded ? Current.NextPomodoro : Current);
-
+            if (Phase == PomodoroPhase.Work || Phase == PomodoroPhase.Pause)
+            {
+                // Treat as a completed work session: land at WorkEnded so flash/sound
+                // trigger via the normal PropertyChanged path, counter increments, and
+                // the next Start begins a Break (not another Work).
+                _timer.Stop();
+                _elapsedInPause = 0;
+                _startDate = _endDate = _dateTime.DateTimeUtc();
+                Phase = PomodoroPhase.WorkEnded;
+                EverythingChanged();
+                OnPomodoroCompleted?.Invoke();
+                NotifyPropertyChanged(nameof(Counter));
+            }
+            else
+            {
+                ResetTo(Phase == PomodoroPhase.Break || Phase == PomodoroPhase.WorkEnded
+                    ? Current.NextPomodoro
+                    : Current);
+            }
             OnStopped?.Invoke();
         }
 
@@ -556,6 +573,20 @@ namespace YAPA.Shared.Common
         public void DeferChanges()
         {
             _settings.DeferChanges();
+        }
+
+        public void ResetToDefaults()
+        {
+            WorkTime                 = 25 * 60;
+            BreakTime                = 5  * 60;
+            LongBreakTime            = 15 * 60;
+            PomodorosBeforeLongBreak = 4;
+            AutoStartBreak           = false;
+            AutoStartWork            = false;
+            CountBackwards           = false;
+            DisableSoundNotifications = false;
+            Volume                   = 0.5;
+            Counter                  = CounterEnum.PomodoroIndex;
         }
     }
 

@@ -22,7 +22,7 @@ public partial class SettingsWindow : Window
         var bs = App.Bootstrapper!;
         _settings = bs.Resolve<ISettings>();
 
-        _dashPage          = new DashboardPage(bs.Resolve<IPomodoroRepository>());
+        _dashPage          = new DashboardPage(bs.Resolve<IPomodoroRepository>(), bs.Resolve<IPomodoroEngine>());
         _enginePage        = new EngineSettingsPage(bs.Resolve<PomodoroEngineSettings>());
         _themePage         = new ThemeSettingsPage(bs.Resolve<AvaloniaYapaThemeSettings>());
         _soundPage         = new SoundSettingsPage(
@@ -58,5 +58,20 @@ public partial class SettingsWindow : Window
     {
         _settings.Load();
         Close();
+    }
+
+    private void OnResetClick(object? sender, RoutedEventArgs e)
+    {
+        var bs = App.Bootstrapper!;
+        bs.Resolve<AvaloniaYapaThemeSettings>().ResetToDefaults();
+        bs.Resolve<PomodoroEngineSettings>().ResetToDefaults();
+        bs.Resolve<AvaloniaSoundNotificationsSettings>().ResetToDefaults();
+        bs.Resolve<AvaloniaMusicPlayerSettings>().ResetToDefaults();
+        bs.Resolve<AvaloniaThemeSettings>().ResetToDefaults();
+
+        _enginePage.NotifyAllChanged();
+        _themePage.NotifyAllChanged();
+        _soundPage.NotifyAllChanged();
+        _themeSelectorPage.NotifyAllChanged();
     }
 }

@@ -77,7 +77,28 @@ public sealed class AvaloniaYapaThemeSettings : IPluginSettings, INotifyProperty
         set { _s.Update(nameof(MinimizeToTray), value); Notify(); }
     }
 
+    public int DigitCellWidth
+    {
+        get => _s.Get(nameof(DigitCellWidth), 36);
+        set { _s.Update(nameof(DigitCellWidth), value); Notify(); }
+    }
+
     public void DeferChanges() => _s.DeferChanges();
+
+    public void ResetToDefaults()
+    {
+        Width                    = 200;
+        ClockOpacity             = 1.0;
+        ShadowOpacity            = 0.6;
+        TextColor                = Colors.White;
+        ShadowColor              = Colors.Black;
+        DisableFlashingAnimation = false;
+        ShowStatusText           = true;
+        HideSeconds              = false;
+        HideButtons              = false;
+        MinimizeToTray           = true;
+        DigitCellWidth           = 36;
+    }
 
     private static Color ParseColor(string? s, Color fallback)
     {

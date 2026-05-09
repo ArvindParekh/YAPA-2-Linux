@@ -1,8 +1,10 @@
 using System;
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform;
+using Avalonia.Threading;
 using YAPA.Shared.Contracts;
 
 namespace YAPA.Avalonia.Specifics;
@@ -26,10 +28,11 @@ public sealed class SystemTrayService : IDisposable
         using var stream = AssetLoader.Open(new Uri("avares://YAPA.Avalonia/Assets/pomoTray.ico"));
         _tray.Icon = new WindowIcon(stream);
 
-        _tray.ToolTipText = "YAPA 2";
         _tray.IsVisible = true;
         _tray.Menu = BuildMenu();
         _tray.Clicked += OnTrayClicked;
+        _viewModel.Engine.PropertyChanged += OnEnginePropertyChanged;
+        UpdateTooltip();
     }
 
     private NativeMenu BuildMenu()
@@ -97,10 +100,35 @@ public sealed class SystemTrayService : IDisposable
 
     private void OnTrayClicked(object? sender, EventArgs e) => ShowMainWindow();
 
+    private void OnEnginePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(IPomodoroEngine.DisplayValue) or nameof(IPomodoroEngine.Phase))
+            Dispatcher.UIThread.Post(UpdateTooltip);
+    }
+
+    private void UpdateTooltip()
+    {
+        var phase = _viewModel.Engine.Phase switch
+        {
+            PomodoroPhase.NotStarted => "Ready",
+            PomodoroPhase.Work       => "Working",
+            PomodoroPhase.WorkEnded  => "Work ended",
+            PomodoroPhase.Break      => "Break",
+            PomodoroPhase.BreakEnded => "Break ended",
+            PomodoroPhase.Pause      => "Paused",
+            _                        => "YAPA"
+        };
+        var d = _viewModel.Engine.DisplayValue;
+        _tray.ToolTipText = d > 0
+            ? $"YAPA — {phase} {d / 60:00}:{d % 60:00}"
+            : $"YAPA — {phase}";
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        _viewModel.Engine.PropertyChanged -= OnEnginePropertyChanged;
         _tray.IsVisible = false;
         _tray.Dispose();
     }
