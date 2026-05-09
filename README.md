@@ -157,7 +157,18 @@ Settings live in:
 
 ## Credits
 
-Based on [YAPA-2](https://github.com/YetAnotherPomodoroApp/YAPA-2) by [@floatas](https://github.com/floatas) and contributors — the original Windows/WPF Pomodoro timer. This fork ports the core engine and plugin architecture to [Avalonia](https://avaloniaui.net), adds Linux-specific fixes (X11 shadow suppression, XDG paths, process-based audio), and extends the settings and dashboard.
+This project is a fork of **YAPA-2**, the original Windows Pomodoro timer built by [@floatas](https://github.com/floatas) and the [YetAnotherPomodoroApp](https://github.com/YetAnotherPomodoroApp) team.
+
+| | |
+|---|---|
+| **Original repo** | [github.com/YetAnotherPomodoroApp/YAPA-2](https://github.com/YetAnotherPomodoroApp/YAPA-2) |
+| **Original website** | [yapa2.app](https://yapa2.app) |
+| **Original author** | [@floatas](https://github.com/floatas) |
+| **License** | [MIT](LICENSE.TXT) (unchanged) |
+
+This fork ports the core Pomodoro engine and plugin architecture to [Avalonia](https://avaloniaui.net), replacing the WPF frontend with a cross-platform UI that runs natively on Linux. It also adds Linux-specific fixes (X11 shadow suppression, XDG data paths, process-based audio playback) and extends the settings, dashboard, and install experience.
+
+All credit for the original concept, engine design, and plugin system goes to the YAPA-2 contributors.
 
 ---
 
