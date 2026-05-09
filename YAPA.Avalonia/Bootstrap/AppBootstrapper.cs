@@ -55,8 +55,17 @@ public class AppBootstrapper : IDisposable
 
         // ── Theme / sound settings ───────────────────────────────────────────────
         services.AddSingleton<AvaloniaYapaThemeSettings>();
+        services.AddSingleton<AvaloniaThemeSettings>();
         services.AddSingleton<AvaloniaSoundNotificationsSettings>();
         services.AddSingleton<AvaloniaMusicPlayerSettings>();
+
+        // ── Audio player + sound plugins ─────────────────────────────────────────
+        services.AddSingleton<IMusicPlayer, ProcessBasedMusicPlayer>();
+        services.AddSingleton<AvaloniaSoundNotifications>();
+        services.AddSingleton<AvaloniaBackgroundMusic>();
+
+        // ── Tray ─────────────────────────────────────────────────────────────────
+        services.AddSingleton<SystemTrayService>();
 
         // ── Commands / ViewModel ─────────────────────────────────────────────────
         services.AddSingleton<IShowSettingsCommand, ShowSettingsCommand>();

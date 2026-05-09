@@ -1,0 +1,118 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="YAPA.Avalonia.Windows.MotivationalWindow"
+        x:CompileBindings="False"
+        Title="YAPA"
+        Width="360" Height="240"
+        WindowDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        Topmost="True"
+        WindowStartupLocation="Manual"
+        ShowInTaskbar="True"
+        CanResize="False"
+        PointerPressed="OnPointerPressed"
+        PointerEntered="OnPointerEntered"
+        PointerExited="OnPointerExited">
+
+    <Grid Background="Transparent">
+        <!-- Background gradient panel (flashes on phase end) -->
+        <Border x:Name="BackgroundPanel"
+                Background="{Binding WindowBackground}"
+                CornerRadius="4" Opacity="0.85" />
+
+        <Grid Margin="16,8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Top row: phase label + minimize/close -->
+            <Grid Grid.Row="0">
+                <TextBlock Text="{Binding StatusText}"
+                           Foreground="{Binding TextBrush}"
+                           FontSize="11" Opacity="0.8" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                            IsVisible="{Binding ControlsVisible}">
+                    <Button Content="_" ToolTip.Tip="Minimize"
+                            Width="16" Height="16" Padding="0"
+                            Click="OnMinimizeClick"
+                            Foreground="{Binding TextBrush}"
+                            Background="Transparent" BorderThickness="0"
+                            FontSize="10" Cursor="Hand" />
+                    <Button Content="x" ToolTip.Tip="Close"
+                            Width="16" Height="16" Padding="0"
+                            Click="OnCloseClick"
+                            Foreground="{Binding TextBrush}"
+                            Background="Transparent" BorderThickness="0"
+                            FontSize="10" Cursor="Hand" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Quote -->
+            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="4">
+                <TextBlock Text="{Binding QuoteText}"
+                           Foreground="{Binding TextBrush}"
+                           FontSize="14" TextWrapping="Wrap"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center"
+                           Opacity="0.9" />
+                <TextBlock Text="{Binding QuoteSource}"
+                           Foreground="{Binding TextBrush}"
+                           FontSize="10" HorizontalAlignment="Center"
+                           Opacity="0.6" />
+            </StackPanel>
+
+            <!-- Timer row -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal"
+                        HorizontalAlignment="Center" Spacing="2" Margin="0,4">
+                <TextBlock Text="{Binding TimerMinutes}"
+                           Foreground="{Binding TextBrush}"
+                           FontSize="36" FontWeight="Light"
+                           VerticalAlignment="Center" />
+                <TextBlock Text=":"
+                           Foreground="{Binding TextBrush}"
+                           FontSize="36" FontWeight="Light"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding TimerSeconds}"
+                           Foreground="{Binding TextBrush}"
+                           FontSize="36" FontWeight="Light"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Controls row -->
+            <StackPanel Grid.Row="3" Orientation="Horizontal"
+                        HorizontalAlignment="Center" Spacing="8"
+                        IsVisible="{Binding ControlsVisible}">
+                <Button IsVisible="{Binding SkipVisible}"
+                        Command="{Binding SkipCommand}"
+                        Content="SKIP" Height="20" Width="50"
+                        Foreground="{Binding TextBrush}"
+                        Background="Transparent" BorderThickness="0"
+                        FontSize="11" Cursor="Hand" Padding="0" />
+                <Button IsVisible="{Binding StartVisible}"
+                        Command="{Binding StartCommand}"
+                        Content="START" Height="20" Width="50"
+                        Foreground="{Binding TextBrush}"
+                        Background="Transparent" BorderThickness="0"
+                        FontSize="11" Cursor="Hand" Padding="0" />
+                <Button IsVisible="{Binding PauseVisible}"
+                        Command="{Binding PauseCommand}"
+                        Content="PAUSE" Height="20" Width="50"
+                        Foreground="{Binding TextBrush}"
+                        Background="Transparent" BorderThickness="0"
+                        FontSize="11" Cursor="Hand" Padding="0" />
+                <Button IsVisible="{Binding StopVisible}"
+                        Command="{Binding StopCommand}"
+                        Content="STOP" Height="20" Width="50"
+                        Foreground="{Binding TextBrush}"
+                        Background="Transparent" BorderThickness="0"
+                        FontSize="11" Cursor="Hand" Padding="0" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

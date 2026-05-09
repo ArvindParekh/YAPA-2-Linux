@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="YAPA.Avalonia.Settings.Pages.ThemeSelectorPage"
+             x:CompileBindings="False">
+
+    <StackPanel Spacing="12">
+        <TextBlock Text="Theme" FontWeight="Bold" FontSize="15" Margin="0,0,0,4" />
+
+        <StackPanel Orientation="Horizontal" Spacing="12">
+            <TextBlock Text="Active theme" VerticalAlignment="Center" Width="120" />
+            <ComboBox ItemsSource="{Binding AvailableThemes}"
+                      SelectedItem="{Binding ActiveTheme, Mode=TwoWay}"
+                      Width="200" />
+        </StackPanel>
+
+        <TextBlock Text="Restart the app for theme changes to take effect."
+                   FontSize="11" Foreground="Gray" />
+    </StackPanel>
+</UserControl>

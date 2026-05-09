@@ -24,4 +24,16 @@
   <ItemGroup>
     <ProjectReference Include="..\YAPA.Shared\YAPA.Shared.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- Sound assets: copied to output so ProcessBasedMusicPlayer can find them -->
+    <None Update="Assets\tick.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Assets\ding.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- Tray icon embedded as Avalonia resource -->
+    <AvaloniaResource Include="Assets\pomoTray.ico" />
+  </ItemGroup>
 </Project>
