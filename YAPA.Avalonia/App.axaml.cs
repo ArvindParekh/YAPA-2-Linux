@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using YAPA.Avalonia.Bootstrap;
+using YAPA.Avalonia.Persistence;
 
 namespace YAPA.Avalonia;
 
@@ -11,7 +12,7 @@ public partial class App : Application
     public static AppBootstrapper? Bootstrapper { get; private set; }
 
     // Raised on the UI thread when a second instance sends command-line arguments.
-    // The active main window subscribes to this during Step 4.
+    // The main window subscribes to this in Step 4.
     public static event Action<string[]>? ExternalCommandLine;
 
     public override void Initialize()
@@ -26,10 +27,17 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow();
-            desktop.Exit += (_, _) => Bootstrapper?.Dispose();
+
+            desktop.Exit += OnExit;
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private void OnExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
+    {
+        Bootstrapper?.Resolve<SnapshotService>().SaveSnapshot();
+        Bootstrapper?.Dispose();
     }
 
     internal static void HandleExternalCommandLine(string[] args)

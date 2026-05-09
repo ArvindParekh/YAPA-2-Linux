@@ -1,5 +1,6 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using YAPA.Avalonia.Persistence;
 using YAPA.Avalonia.Specifics;
 using YAPA.Shared.Common;
 using YAPA.Shared.Contracts;
@@ -46,8 +47,11 @@ public class AppBootstrapper : IDisposable
         services.AddTransient<PomodoroEngineSettings>();
         services.AddSingleton<IPomodoroEngine, PomodoroEngine>();
 
-        // ── Repository (stub; real SQLite impl added in Step 3) ──────────────────
-        services.AddSingleton<IPomodoroRepository, NullPomodoroRepository>();
+        // ── Repository ───────────────────────────────────────────────────────────
+        services.AddSingleton<IPomodoroRepository, SqlitePomodoroRepository>();
+
+        // ── Snapshot ─────────────────────────────────────────────────────────────
+        services.AddSingleton<SnapshotService>();
 
         // ── Commands / ViewModel ─────────────────────────────────────────────────
         // IShowSettingsCommand is a stub until the settings shell lands in Step 5.
