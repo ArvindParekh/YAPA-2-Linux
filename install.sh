@@ -27,6 +27,7 @@ echo "Building YAPA 2 (self-contained single file)…"
     --self-contained true \
     -p:PublishSingleFile=true \
     -p:IncludeNativeLibrariesForSelfExtract=true \
+    -p:IncludeAllContentForSelfExtract=true \
     -p:EnableCompressionInSingleFile=true \
     -o "$OUT_DIR" \
     --nologo -v quiet

@@ -12,6 +12,7 @@ dotnet publish "$SCRIPT_DIR/YAPA.Avalonia/YAPA.Avalonia.csproj" \
     --self-contained true \
     -p:PublishSingleFile=true \
     -p:IncludeNativeLibrariesForSelfExtract=true \
+    -p:IncludeAllContentForSelfExtract=true \
     -p:EnableCompressionInSingleFile=true \
     -o "$OUT_DIR"
 
