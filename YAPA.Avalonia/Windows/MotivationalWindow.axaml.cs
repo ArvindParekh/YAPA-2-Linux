@@ -182,14 +182,24 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
 
     // ── Avalonia property changes ─────────────────────────────────────────────
 
+    // See MainWindow: only hide to tray on user-initiated minimize, not when
+    // GNOME/Mutter auto-minimizes the UTILITY-typed window on focus loss.
+    private bool _userInitiatedMinimize;
+
     protected override void OnPropertyChanged(global::Avalonia.AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
-        if (change.Property == WindowStateProperty &&
-            WindowState == WindowState.Minimized &&
-            _themeSettings.MinimizeToTray)
+        if (change.Property != WindowStateProperty) return;
+
+        if (WindowState == WindowState.Minimized)
         {
-            Hide();
+            if (_themeSettings.MinimizeToTray && _userInitiatedMinimize)
+                Hide();
+            _userInitiatedMinimize = false;
+        }
+        else
+        {
+            _userInitiatedMinimize = false;
         }
     }
 
@@ -223,7 +233,10 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
     }
 
     private void OnMinimizeClick(object? sender, RoutedEventArgs e)
-        => WindowState = WindowState.Minimized;
+    {
+        _userInitiatedMinimize = true;
+        WindowState = WindowState.Minimized;
+    }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e)
         => Close();

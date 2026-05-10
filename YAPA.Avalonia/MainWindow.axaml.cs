@@ -227,14 +227,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     // ── Avalonia property changes ─────────────────────────────────────────────
 
+    // Only hide to tray when the user explicitly minimized via the "_" button.
+    // On GNOME/Mutter, the WM can auto-minimize a UTILITY-typed window when it
+    // loses focus; without this flag the window would vanish whenever the user
+    // clicked away to another app, requiring a tray click to bring it back.
+    private bool _userInitiatedMinimize;
+
     protected override void OnPropertyChanged(global::Avalonia.AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
-        if (change.Property == WindowStateProperty &&
-            WindowState == WindowState.Minimized &&
-            _themeSettings.MinimizeToTray)
+        if (change.Property != WindowStateProperty) return;
+
+        if (WindowState == WindowState.Minimized)
         {
-            Hide();
+            if (_themeSettings.MinimizeToTray && _userInitiatedMinimize)
+                Hide();
+            _userInitiatedMinimize = false;
+        }
+        else
+        {
+            _userInitiatedMinimize = false;
         }
     }
 
@@ -350,7 +362,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     // ── Button handlers ───────────────────────────────────────────────────────
 
     private void OnMinimizeClick(object? sender, RoutedEventArgs e)
-        => WindowState = WindowState.Minimized;
+    {
+        _userInitiatedMinimize = true;
+        WindowState = WindowState.Minimized;
+    }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e)
         => Close();
