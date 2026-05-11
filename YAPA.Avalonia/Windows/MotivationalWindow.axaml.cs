@@ -175,9 +175,8 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
 
     private void OnOpened(object? sender, EventArgs e)
     {
-        // Suppress Mutter's compositor shadow on this transparent overlay window
-        if (TryGetPlatformHandle() is { HandleDescriptor: "XID" } handle)
-            X11ShadowSuppressor.Apply(handle.Handle);
+        // See MainWindow: WINDOW_TYPE hints break drag/right-click or focus
+        // behaviour; we accept Mutter's default shadow on a NORMAL window.
     }
 
     // ── Pointer events ────────────────────────────────────────────────────────

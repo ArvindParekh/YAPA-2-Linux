@@ -267,9 +267,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void OnOpened(object? sender, EventArgs e)
     {
-        // Suppress Mutter's compositor shadow on this transparent overlay window
-        if (TryGetPlatformHandle() is { HandleDescriptor: "XID" } handle)
-            X11ShadowSuppressor.Apply(handle.Handle);
+        // Note: we used to stamp _NET_WM_WINDOW_TYPE_UTILITY / _DOCK here to
+        // suppress Mutter's compositor shadow on the transparent overlay, but
+        // both broke usability: UTILITY caused the WM to vanish the window on
+        // focus loss, and DOCK disabled drag-move and right-click. A NORMAL
+        // window keeps the small Mutter shadow but everything else works.
 
         RestoreWindowPosition();
 
