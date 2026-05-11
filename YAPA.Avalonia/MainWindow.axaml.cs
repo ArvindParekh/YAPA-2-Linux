@@ -227,27 +227,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     // ── Avalonia property changes ─────────────────────────────────────────────
 
-    // Only hide to tray when the user explicitly minimized via the "_" button.
-    // On GNOME/Mutter, the WM can auto-minimize a UTILITY-typed window when it
-    // loses focus; without this flag the window would vanish whenever the user
-    // clicked away to another app, requiring a tray click to bring it back.
-    private bool _userInitiatedMinimize;
-
+    // The minimize button hides the window directly (see OnMinimizeClick), so
+    // we never set WindowState=Minimized ourselves when MinimizeToTray is on.
+    // Any Minimized state we observe here therefore came from the WM (Show
+    // Desktop / Super+D, focus loss on UTILITY-typed windows, Super+H, etc.).
+    // Revert it so the timer behaves like a desktop widget that stays put.
     protected override void OnPropertyChanged(global::Avalonia.AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
         if (change.Property != WindowStateProperty) return;
-
-        if (WindowState == WindowState.Minimized)
-        {
-            if (_themeSettings.MinimizeToTray && _userInitiatedMinimize)
-                Hide();
-            _userInitiatedMinimize = false;
-        }
-        else
-        {
-            _userInitiatedMinimize = false;
-        }
+        if (WindowState == WindowState.Minimized && _themeSettings.MinimizeToTray)
+            WindowState = WindowState.Normal;
     }
 
     // ── Theme settings ────────────────────────────────────────────────────────
@@ -363,8 +353,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void OnMinimizeClick(object? sender, RoutedEventArgs e)
     {
-        _userInitiatedMinimize = true;
-        WindowState = WindowState.Minimized;
+        if (_themeSettings.MinimizeToTray)
+            Hide();
+        else
+            WindowState = WindowState.Minimized;
     }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e)
