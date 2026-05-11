@@ -180,19 +180,6 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
             X11ShadowSuppressor.Apply(handle.Handle);
     }
 
-    // ── Avalonia property changes ─────────────────────────────────────────────
-
-    // See MainWindow: the minimize button hides the window directly when
-    // MinimizeToTray is on, so any Minimized state we observe came from the
-    // WM (Show Desktop, focus loss, Super+H). Revert it.
-    protected override void OnPropertyChanged(global::Avalonia.AvaloniaPropertyChangedEventArgs change)
-    {
-        base.OnPropertyChanged(change);
-        if (change.Property != WindowStateProperty) return;
-        if (WindowState == WindowState.Minimized && _themeSettings.MinimizeToTray)
-            WindowState = WindowState.Normal;
-    }
-
     // ── Pointer events ────────────────────────────────────────────────────────
 
     private void OnPointerPressed(object? sender, global::Avalonia.Input.PointerPressedEventArgs e)

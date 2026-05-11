@@ -4,9 +4,15 @@ using System.Runtime.InteropServices;
 namespace YAPA.Avalonia.Specifics;
 
 /// <summary>
-/// Stamps _NET_WM_WINDOW_TYPE = _NET_WM_WINDOW_TYPE_UTILITY on the X11 window
-/// after it is mapped to the screen. Mutter (GNOME) skips shadow rendering for
-/// UTILITY-type windows, eliminating the visible halo around transparent windows.
+/// Stamps _NET_WM_WINDOW_TYPE = _NET_WM_WINDOW_TYPE_DOCK on the X11 window
+/// after it is mapped to the screen. DOCK-type windows on Mutter (GNOME):
+///   - Skip shadow rendering (no transparent halo)
+///   - Are excluded from Show Desktop (Super+D leaves them visible)
+///   - Are not auto-minimized when the user clicks another window
+///
+/// UTILITY was previously used here, but Mutter treats parent-less UTILITY
+/// windows oddly (auto-minimize on focus loss, hidden during Show Desktop),
+/// which fights the desktop-widget behaviour we want.
 ///
 /// Must be called from the window's Opened handler (after the XID is live).
 /// No-op on non-Linux platforms or when DISPLAY is unavailable.
@@ -47,10 +53,10 @@ internal static class X11ShadowSuppressor
         try
         {
             var propAtom = XInternAtom(display, "_NET_WM_WINDOW_TYPE", false);
-            var utilityAtom = XInternAtom(display, "_NET_WM_WINDOW_TYPE_UTILITY", false);
+            var dockAtom = XInternAtom(display, "_NET_WM_WINDOW_TYPE_DOCK", false);
 
             XChangeProperty(display, xid, propAtom, (IntPtr)XaAtom,
-                32, PropModeReplace, new[] { utilityAtom }, 1);
+                32, PropModeReplace, new[] { dockAtom }, 1);
             XFlush(display);
         }
         finally

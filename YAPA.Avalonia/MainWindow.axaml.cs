@@ -225,21 +225,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Counter = _viewModel.Engine.Counter.ToString();
     }
 
-    // ── Avalonia property changes ─────────────────────────────────────────────
-
-    // The minimize button hides the window directly (see OnMinimizeClick), so
-    // we never set WindowState=Minimized ourselves when MinimizeToTray is on.
-    // Any Minimized state we observe here therefore came from the WM (Show
-    // Desktop / Super+D, focus loss on UTILITY-typed windows, Super+H, etc.).
-    // Revert it so the timer behaves like a desktop widget that stays put.
-    protected override void OnPropertyChanged(global::Avalonia.AvaloniaPropertyChangedEventArgs change)
-    {
-        base.OnPropertyChanged(change);
-        if (change.Property != WindowStateProperty) return;
-        if (WindowState == WindowState.Minimized && _themeSettings.MinimizeToTray)
-            WindowState = WindowState.Normal;
-    }
-
     // ── Theme settings ────────────────────────────────────────────────────────
 
     private void ApplyThemeSettings()
