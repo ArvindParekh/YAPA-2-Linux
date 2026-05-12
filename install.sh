@@ -34,12 +34,14 @@ echo "==> Building YAPA 2 (Release · linux-x64 · self-contained · single-file
     -p:DebugSymbols=false \
     -o "$PUBLISH_OUT"
 
-# ── Install binary + assets ───────────────────────────────────────────────────
+# ── Install binary + native libs + assets ────────────────────────────────────
+# Single-file publish bundles managed code but leaves native .so files
+# (libSkiaSharp, libHarfBuzzSharp, libe_sqlite3) alongside the binary.
+# Copy the entire publish output so nothing is missing.
 echo "==> Installing to $INSTALL_LIB ..."
-sudo mkdir -p "$INSTALL_LIB/Assets"
-sudo install -m 755 "$PUBLISH_OUT/YAPA.Avalonia"      "$INSTALL_LIB/YAPA.Avalonia"
-sudo install -m 644 "$PUBLISH_OUT/Assets/tick.wav"    "$INSTALL_LIB/Assets/tick.wav"
-sudo install -m 644 "$PUBLISH_OUT/Assets/ding.wav"    "$INSTALL_LIB/Assets/ding.wav"
+sudo mkdir -p "$INSTALL_LIB"
+sudo cp -r "$PUBLISH_OUT"/. "$INSTALL_LIB/"
+sudo chmod 755 "$INSTALL_LIB/YAPA.Avalonia"
 
 # ── Launcher wrapper ──────────────────────────────────────────────────────────
 echo "==> Writing launcher at $INSTALL_BIN ..."
