@@ -148,6 +148,10 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
         UpdateTimer();
         UpdatePhase();
         UpdateStatus();
+
+        // Set UTILITY type before XMapWindow so Mutter never composites a shadow.
+        if (TryGetPlatformHandle() is { HandleDescriptor: "XID" } earlyHandle)
+            X11ShadowSuppressor.Apply(earlyHandle.Handle);
     }
 
     // ── Theme settings ────────────────────────────────────────────────────────
@@ -175,9 +179,8 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
 
     private void OnOpened(object? sender, EventArgs e)
     {
-        // Suppress Mutter's compositor shadow on this transparent overlay window
-        if (TryGetPlatformHandle() is { HandleDescriptor: "XID" } handle)
-            X11ShadowSuppressor.Apply(handle.Handle);
+        // Re-assert _NET_WM_STATE_ABOVE post-map on every show (Avalonia issue #16115).
+        if (Topmost) { Topmost = false; Topmost = true; }
     }
 
     // ── Avalonia property changes ─────────────────────────────────────────────
@@ -223,7 +226,12 @@ public partial class MotivationalWindow : Window, INotifyPropertyChanged
     }
 
     private void OnMinimizeClick(object? sender, RoutedEventArgs e)
-        => WindowState = WindowState.Minimized;
+    {
+        if (_themeSettings.MinimizeToTray)
+            Hide();
+        else
+            WindowState = WindowState.Minimized;
+    }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e)
         => Close();

@@ -163,6 +163,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         private set { _statusTextVisible = value; Notify(); }
     }
 
+    private int _digitSpacing = 36;
+    public int DigitSpacing
+    {
+        get => _digitSpacing;
+        private set { _digitSpacing = value; Notify(); }
+    }
+
     private global::Avalonia.Media.DropShadowDirectionEffect? _timerShadowEffect;
     public global::Avalonia.Media.DropShadowDirectionEffect? TimerShadowEffect
     {
@@ -216,6 +223,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         UpdatePhase();
         UpdateStatusText();
         Counter = _viewModel.Engine.Counter.ToString();
+
+        // Set UTILITY type before XMapWindow so Mutter never composites a shadow.
+        // TryGetPlatformHandle() is valid here: PlatformManager.CreateWindow() runs in
+        // Window()'s no-arg constructor, before our constructor body executes.
+        if (TryGetPlatformHandle() is { HandleDescriptor: "XID" } earlyHandle)
+            X11ShadowSuppressor.Apply(earlyHandle.Handle);
     }
 
     // ── Avalonia property changes ─────────────────────────────────────────────
@@ -252,6 +265,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else
             ControlsVisible = false;
 
+        DigitSpacing = _themeSettings.DigitSpacing;
+
         if (_themeSettings.DisableFlashingAnimation)
             StopFlash();
 
@@ -271,9 +286,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void OnOpened(object? sender, EventArgs e)
     {
-        // Suppress Mutter's compositor shadow on this transparent overlay window
-        if (TryGetPlatformHandle() is { HandleDescriptor: "XID" } handle)
-            X11ShadowSuppressor.Apply(handle.Handle);
+        // Avalonia loses _NET_WM_STATE_ABOVE after every Hide/Show cycle on X11 (issue #16115).
+        // OnOpened fires post-XMapWindow (_mapped=true), so this toggle sends the
+        // post-map _NET_WM_STATE client message that Mutter reliably honors.
+        if (Topmost) { Topmost = false; Topmost = true; }
 
         RestoreWindowPosition();
 
@@ -341,7 +357,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     // ── Button handlers ───────────────────────────────────────────────────────
 
     private void OnMinimizeClick(object? sender, RoutedEventArgs e)
-        => WindowState = WindowState.Minimized;
+    {
+        if (_themeSettings.MinimizeToTray)
+            Hide();
+        else
+            WindowState = WindowState.Minimized;
+    }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e)
         => Close();
