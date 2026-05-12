@@ -77,6 +77,12 @@ public sealed class AvaloniaYapaThemeSettings : IPluginSettings, INotifyProperty
         set { _s.Update(nameof(MinimizeToTray), value); Notify(); }
     }
 
+    public int DigitSpacing
+    {
+        get => _s.Get(nameof(DigitSpacing), 36);
+        set { _s.Update(nameof(DigitSpacing), value); Notify(); }
+    }
+
     public void DeferChanges() => _s.DeferChanges();
 
     private static Color ParseColor(string? s, Color fallback)

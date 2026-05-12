@@ -86,4 +86,10 @@ public partial class ThemeSettingsPage : UserControl, INotifyPropertyChanged
         get => _s.MinimizeToTray;
         set { _s.MinimizeToTray = value; Notify(); }
     }
+
+    public double DigitSpacing
+    {
+        get => _s.DigitSpacing;
+        set { _s.DigitSpacing = (int)value; Notify(); }
+    }
 }
