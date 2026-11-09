@@ -19,7 +19,7 @@ public partial class App : Application
 {
     private static readonly TimeSpan RemoteCommandTimeout = TimeSpan.FromSeconds(2);
 
-    public static AppBootstrapper? Bootstrapper { get; private set; }
+    public static AppBootstrapper? Bootstrapper { get; internal set; }
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 

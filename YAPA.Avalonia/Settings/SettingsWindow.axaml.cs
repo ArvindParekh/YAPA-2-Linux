@@ -3,14 +3,16 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Avalonia.Controls;
+using System.Threading.Tasks;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using YAPA.Avalonia.Services;
 using YAPA.Avalonia.Specifics;
 using YAPA.Shared.Common;
 
 namespace YAPA.Avalonia.Settings;
 
-public partial class SettingsWindow : Window, INotifyPropertyChanged
+public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicker
 {
     private SettingsPageViewModel _selectedPage;
 
@@ -26,6 +28,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
             new AboutPageViewModel(),
         };
         _selectedPage = Pages[0];
+        foreach (var sounds in Pages.OfType<SoundsPageViewModel>()) sounds.FilePicker = this;
 
         InitializeComponent();
         DataContext = this;
@@ -53,4 +56,22 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged
     private void OnResetClick(object? sender, RoutedEventArgs e) => SelectedPage.Reset();
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
+
+    private void OnPreviewVolumeClick(object? sender, RoutedEventArgs e)
+        => (SelectedPage as SoundsPageViewModel)?.PreviewVolume();
+
+    public async Task<string?> PickAudioFileAsync(string title)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Audio") { Patterns = ["*.wav", "*.ogg", "*.oga", "*.opus", "*.flac", "*.mp3", "*.m4a"] },
+                FilePickerFileTypes.All,
+            ],
+        });
+        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+    }
 }

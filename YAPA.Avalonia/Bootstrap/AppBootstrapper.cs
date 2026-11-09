@@ -1,6 +1,8 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using YAPA.Avalonia.Audio;
 using YAPA.Avalonia.Persistence;
+using YAPA.Avalonia.Settings;
 using YAPA.Avalonia.Platform;
 using YAPA.Avalonia.Services;
 using YAPA.Avalonia.Specifics;
@@ -35,7 +37,6 @@ public sealed class AppBootstrapper : IDisposable
         services.AddSingleton<AvaloniaYapaThemeSettings>();
         services.AddSingleton<AvaloniaThemeSettings>();
         services.AddSingleton<GeneralSettings>();
-        services.AddSingleton<AvaloniaSoundNotificationsSettings>();
         services.AddSingleton<AvaloniaMusicPlayerSettings>();
 
         // ── Timer ────────────────────────────────────────────────────────────
@@ -45,18 +46,9 @@ public sealed class AppBootstrapper : IDisposable
         services.AddSingleton<SnapshotService>();
 
         // ── Effects of timer transitions ─────────────────────────────────────
-        // Notifications and background music must not share a player: music
-        // stops its player on every transition, which would cut off the cue.
-        services.AddSingleton(sp => new AvaloniaSoundNotifications(
-            sp.GetRequiredService<IPomodoroEngine>(),
-            sp.GetRequiredService<AvaloniaSoundNotificationsSettings>(),
-            new ProcessBasedMusicPlayer(),
-            sp.GetRequiredService<PomodoroEngineSettings>()));
-        services.AddSingleton(sp => new AvaloniaBackgroundMusic(
-            sp.GetRequiredService<IPomodoroEngine>(),
-            sp.GetRequiredService<AvaloniaMusicPlayerSettings>(),
-            new ProcessBasedMusicPlayer(),
-            sp.GetRequiredService<PomodoroEngineSettings>()));
+        services.AddSingleton<SoundSettings>();
+        services.AddSingleton<SoundEffects>();
+        services.AddSingleton<SoundsPageFactory>();
 
         // ── UI and shell integration ─────────────────────────────────────────
         services.AddSingleton<AppNavigator>();
@@ -77,8 +69,7 @@ public sealed class AppBootstrapper : IDisposable
     public void StartEffects()
     {
         Resolve<Dashboard>();
-        Resolve<AvaloniaSoundNotifications>();
-        Resolve<AvaloniaBackgroundMusic>();
+        Resolve<SoundEffects>();
         Resolve<NotificationEffects>();
         Resolve<SessionEffects>();
     }
