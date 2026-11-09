@@ -43,12 +43,15 @@ fi
 # ── A running instance must quit first: its files are about to be replaced ──
 # Ask it over IPC first (works however it was launched); fall back to the
 # process list for builds that predate the IPC channel.
+# Exact process names only: matching command lines would also hit any shell
+# whose command happens to mention yapa2 (including the one running this).
 running() {
-    pgrep -u "$USER" -f '(yapa2/YAPA\.Avalonia|/bin/yapa2)( |$)' >/dev/null 2>&1
+    pgrep -u "$USER" -x 'yapa2|YAPA\.Avalonia' >/dev/null 2>&1
 }
 if [[ -x "$PREFIX_BIN/yapa2" ]] && "$PREFIX_BIN/yapa2" --status >/dev/null 2>&1; then
     echo "==> Quitting the running YAPA 2 (its timer is saved and restored after the upgrade)"
     "$PREFIX_BIN/yapa2" --quit >/dev/null 2>&1 || true
+    for _ in $(seq 1 25); do "$PREFIX_BIN/yapa2" --status >/dev/null 2>&1 || break; sleep 0.2; done
     for _ in $(seq 1 25); do running || break; sleep 0.2; done
 fi
 if running; then

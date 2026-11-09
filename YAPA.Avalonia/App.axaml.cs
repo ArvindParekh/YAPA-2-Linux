@@ -39,6 +39,8 @@ public partial class App : Application
 
         // Effects hang off engine transitions; resolve them before anything can start the timer.
         bs.StartEffects();
+        bs.Resolve<IPomodoroEngine>().Transitioned += t =>
+            Trace.WriteLine($"[timer] {t} · {bs.Resolve<IPomodoroEngine>().Elapsed}s elapsed, pomodoro {bs.Resolve<IPomodoroEngine>().Index}");
 
         var navigator = bs.Resolve<AppNavigator>();
         var tray = bs.Resolve<SystemTrayService>();
