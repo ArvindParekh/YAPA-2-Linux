@@ -47,11 +47,8 @@ public partial class App : Application
         var commands = bs.Resolve<AppCommandHandler>();
         var snapshots = bs.Resolve<SnapshotService>();
 
-        var timer = navigator.EnsureTimer();
-        timer.PropertyChanged += (_, e) =>
-        {
-            if (e.Property == Visual.IsVisibleProperty) tray.SetTimerVisible(timer.IsVisible);
-        };
+        navigator.EnsureTimer();
+        navigator.TimerShowingChanged += tray.SetTimerVisible;
         navigator.Quitting += snapshots.Save;
         navigator.Quitting += tray.Freeze;
 

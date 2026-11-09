@@ -31,6 +31,13 @@ public sealed class GeneralSettings : IPluginSettings, INotifyPropertyChanged
         set => Set(value);
     }
 
+    /// <summary>Keep the timer visible when "Show Desktop" (Super+D) hides everything else.</summary>
+    public bool StayOnShowDesktop
+    {
+        get => _s.Get(nameof(StayOnShowDesktop), true);
+        set => Set(value);
+    }
+
     /// <summary>Whether the timer appears in the dock / Alt+Tab.</summary>
     public bool ShowInTaskbar
     {
@@ -74,6 +81,7 @@ public sealed class GeneralSettings : IPluginSettings, INotifyPropertyChanged
     {
         AlwaysOnTop = true;
         ShowOnAllWorkspaces = true;
+        StayOnShowDesktop = true;
         ShowInTaskbar = false;
         AvoidShellPanels = true;
         StartHidden = false;

@@ -37,16 +37,27 @@ public sealed class InstanceChannel : IDisposable
     /// </summary>
     public Func<string[], string>? RequestHandler { get; set; }
 
-    public static string DefaultSocketPath
+    /// <summary>sun_path is 108 bytes on Linux, including the terminating NUL.</summary>
+    private const int MaxSocketPathBytes = 107;
+
+    public static string DefaultSocketPath => ChooseSocketPath(Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR"), Path.GetTempPath(), AppPaths.InstanceKey);
+
+    /// <summary>
+    /// XDG_RUNTIME_DIR is per-user, 0700, and cleared at logout: the right
+    /// lifetime and privacy for an IPC socket. A runtime dir can be long enough
+    /// to overflow sun_path, which used to crash startup, so fall back to the
+    /// temp dir and finally /tmp.
+    /// </summary>
+    internal static string ChooseSocketPath(string? runtimeDir, string tempDir, string instanceKey)
     {
-        get
+        var name = $"yapa2-{instanceKey}.sock";
+        foreach (var dir in new[] { runtimeDir, tempDir, "/tmp" })
         {
-            // XDG_RUNTIME_DIR is per-user, 0700, and cleared at logout: the right
-            // lifetime and privacy for an IPC socket. The temp dir is the fallback.
-            var dir = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
-            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) dir = Path.GetTempPath();
-            return Path.Combine(dir, $"yapa2-{AppPaths.InstanceKey}.sock");
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) continue;
+            var path = Path.Combine(dir, name);
+            if (System.Text.Encoding.UTF8.GetByteCount(path) <= MaxSocketPathBytes) return path;
         }
+        return Path.Combine("/tmp", name);
     }
 
     public static InstanceChannel? TryBecomePrimary(string? path = null)

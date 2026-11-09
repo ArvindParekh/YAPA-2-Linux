@@ -112,6 +112,27 @@ public class UiSmokeTests
     });
 
     [TestMethod]
+    public void Tray_toggle_restores_a_minimized_timer_in_one_click() => OnUi(() =>
+    {
+        // Regression: after Show Desktop / minimize the window still reported
+        // IsVisible, so the first toggle hid it and only the second showed it.
+        var navigator = App.Bootstrapper!.Resolve<YAPA.Avalonia.Services.AppNavigator>();
+        navigator.ShowTimer();
+        var window = navigator.TimerWindow!;
+        window.WindowState = WindowState.Minimized;
+        Dispatcher.UIThread.RunJobs();
+        Assert.IsFalse(navigator.IsTimerShowing);
+
+        navigator.ToggleTimerVisibility();
+        Dispatcher.UIThread.RunJobs();
+        Assert.IsTrue(navigator.IsTimerShowing);
+        Assert.AreEqual(WindowState.Normal, window.WindowState);
+
+        navigator.ToggleTimerVisibility();
+        Assert.IsFalse(window.IsVisible);
+    });
+
+    [TestMethod]
     public void Keyboard_space_toggles_the_timer() => OnUi(() =>
     {
         var engine = App.Bootstrapper!.Resolve<IPomodoroEngine>();

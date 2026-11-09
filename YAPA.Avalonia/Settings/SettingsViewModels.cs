@@ -124,6 +124,7 @@ public sealed class GeneralPageViewModel(GeneralSettings g, AvaloniaYapaThemeSet
 
     public bool AlwaysOnTop { get => g.AlwaysOnTop; set { g.AlwaysOnTop = value; Changed(); } }
     public bool ShowOnAllWorkspaces { get => g.ShowOnAllWorkspaces; set { g.ShowOnAllWorkspaces = value; Changed(); } }
+    public bool StayOnShowDesktop { get => g.StayOnShowDesktop; set { g.StayOnShowDesktop = value; Changed(); } }
     public bool ShowInTaskbar { get => g.ShowInTaskbar; set { g.ShowInTaskbar = value; Changed(); } }
     public bool AvoidShellPanels { get => g.AvoidShellPanels; set { g.AvoidShellPanels = value; Changed(); } }
     public bool MinimizeToTray { get => theme.MinimizeToTray; set { theme.MinimizeToTray = value; Changed(); } }

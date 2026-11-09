@@ -29,6 +29,9 @@ public sealed class AppNavigator : IAppNavigator
     /// <summary>Raised just before the app shuts down, while windows still exist.</summary>
     public event Action? Quitting;
 
+    /// <summary>The timer was shown, hidden, minimized or restored (by us or the window manager).</summary>
+    public event Action<bool>? TimerShowingChanged;
+
     public TimerWindowBase? TimerWindow => _timer;
 
     public void ShowTimer()
@@ -45,9 +48,16 @@ public sealed class AppNavigator : IAppNavigator
 
     public void ToggleTimerVisibility()
     {
-        if (_timer is { IsVisible: true }) HideTimer();
+        if (IsTimerShowing) HideTimer();
         else ShowTimer();
     }
+
+    /// <summary>
+    /// On screen right now. A minimized window still reports IsVisible, which
+    /// made the tray's first click "hide" an already-minimized timer and only
+    /// the second click bring it back.
+    /// </summary>
+    public bool IsTimerShowing => _timer is { IsVisible: true } t && t.WindowState != WindowState.Minimized;
 
     public void ShowSettings(SettingsPage page = SettingsPage.Timer)
     {
@@ -96,6 +106,12 @@ public sealed class AppNavigator : IAppNavigator
         TimerWindowBase window = _themeSettings.ActiveTheme == MotivationalTheme
             ? new MotivationalWindow()
             : new MainWindow();
+
+        window.PropertyChanged += (_, e) =>
+        {
+            if (ReferenceEquals(window, _timer) && (e.Property == Visual.IsVisibleProperty || e.Property == Window.WindowStateProperty))
+                TimerShowingChanged?.Invoke(IsTimerShowing);
+        };
 
         // Closing the timer from the window manager (Alt+F4, the dock's "Quit")
         // means quit, since the app has no other main window.

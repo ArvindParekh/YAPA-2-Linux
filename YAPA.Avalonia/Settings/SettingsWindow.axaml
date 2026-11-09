@@ -160,6 +160,9 @@
                 <c:SettingRow Title="Show on all workspaces">
                     <ToggleSwitch IsChecked="{Binding ShowOnAllWorkspaces}" OnContent="" OffContent="" />
                 </c:SettingRow>
+                <c:SettingRow Title="Stay visible on Show Desktop" Description="Super+D hides your windows but leaves the timer">
+                    <ToggleSwitch IsChecked="{Binding StayOnShowDesktop}" OnContent="" OffContent="" />
+                </c:SettingRow>
                 <c:SettingRow Title="Show in the dock and Alt+Tab" Description="Off keeps the timer a quiet widget; the tray icon is always there">
                     <ToggleSwitch IsChecked="{Binding ShowInTaskbar}" OnContent="" OffContent="" />
                 </c:SettingRow>

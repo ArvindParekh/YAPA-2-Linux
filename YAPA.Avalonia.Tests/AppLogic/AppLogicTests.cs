@@ -137,6 +137,29 @@ public class InstanceChannelTests
     }
 
     [TestMethod]
+    public void Overlong_runtime_dir_falls_back_to_a_usable_socket_path()
+    {
+        // Regression: a long XDG_RUNTIME_DIR overflowed sun_path and crashed startup.
+        var longDir = Path.Combine(Path.GetTempPath(), new string('d', 120));
+        Directory.CreateDirectory(longDir);
+        try
+        {
+            var path = InstanceChannel.ChooseSocketPath(longDir, "/nonexistent", "user");
+            Assert.IsTrue(System.Text.Encoding.UTF8.GetByteCount(path) <= 107, path);
+            using var primary = InstanceChannel.TryBecomePrimary(path);
+            Assert.IsNotNull(primary);
+        }
+        finally
+        {
+            Directory.Delete(longDir);
+        }
+    }
+
+    [TestMethod]
+    public void Runtime_dir_is_preferred_when_it_fits()
+        => Assert.AreEqual("/tmp/yapa2-user.sock", InstanceChannel.ChooseSocketPath("/tmp", Path.GetTempPath(), "user"));
+
+    [TestMethod]
     public void Send_without_a_primary_returns_null()
         => Assert.IsNull(InstanceChannel.Send(["--status"], SocketPath()));
 

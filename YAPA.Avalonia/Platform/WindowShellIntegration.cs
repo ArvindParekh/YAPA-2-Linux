@@ -15,6 +15,9 @@ namespace YAPA.Avalonia.Platform;
 /// </summary>
 public static class WindowShellIntegration
 {
+    // One per process; its X connection (and so the anchor window) lives until exit.
+    private static readonly Lazy<X11DesktopAnchor?> Anchor = new(X11DesktopAnchor.TryCreate);
+
     public static void Apply(Window window, GeneralSettings settings)
     {
         if (window.TryGetPlatformHandle() is not { HandleDescriptor: "XID" } handle) return;
@@ -27,5 +30,6 @@ public static class WindowShellIntegration
         X11Window.SetAbove(xid, settings.AlwaysOnTop);
         X11Window.SetSkipTaskbar(xid, !settings.ShowInTaskbar);
         X11Window.SetOnAllWorkspaces(xid, settings.ShowOnAllWorkspaces);
+        Anchor.Value?.Attach(xid, settings.StayOnShowDesktop);
     }
 }
