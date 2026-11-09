@@ -1,73 +1,107 @@
-![Yapa2](https://user-images.githubusercontent.com/7883111/155704469-7854e3d0-9f1e-4d46-b42a-acaf09856f57.jpg)
+<p align="center"><img src="YAPA.Avalonia/Assets/yapa2_128.png" width="96" alt="YAPA 2"></p>
 
-YAPA-2 is minimalistic desktop timer app for Pomodoro Technique users.
+<h1 align="center">YAPA 2 for Linux</h1>
 
-[![Build status](https://ci.appveyor.com/api/projects/status/p7k6ort2xvl35vbq?svg=true)](https://ci.appveyor.com/project/floatas/yapa-2-lffj9) [![Total downloads](https://img.shields.io/github/downloads/YetAnotherPomodoroApp/YAPA-2/total)](https://somsubhra.github.io/github-release-stats/?username=YetAnotherPomodoroApp&repository=YAPA-2&page=1&per_page=5) [Download latest version](https://github.com/YetAnotherPomodoroApp/YAPA-2/releases/latest) | [Website](https://yapa2.app)
+<p align="center">A minimal, always-on-top Pomodoro timer that stays out of your way.</p>
 
-Features
----------
+YAPA 2 puts a small transparent timer on your desktop: big digits, a few buttons
+that appear when you need them, and a tray icon. It's a Linux port of the
+Windows classic [YAPA-2](https://github.com/YetAnotherPomodoroApp/YAPA-2),
+rebuilt on Avalonia and tuned for GNOME.
 
-- Pomodoro™ counter :)
-- Control app using taskbar jumplist
-- Configurable periods
-- Count time backwards
-- Automatically start break
-- Show\hide in taskbar
-- Minimize to tray
-- Supports custom themes
+## Features
 
-- Command line arguments
-  - /start
-  - /stop
-  - /pause
-  - /reset
-  - /settings
-  - /homepage
+- **The classic look**: large digits, colour and size of your choice, a shadow for
+  busy wallpapers, optional status and progress line. A *Motivational* theme adds a quote card.
+- **Proper Pomodoro flow**: work, short breaks, a long break every N pomodoros,
+  optional auto-start, pause and resume (breaks too), skip, stop.
+- **Sound for every event**: start, pause, resume, stop, pomodoro complete and break over each get
+  their own soft cue, or your own file. Optional background music per phase.
+- **Notifications with buttons**: *Start break* / *Skip break* / *Start pomodoro*
+  right from the notification, even while the timer is hidden.
+- **Statistics**: today, this week, streaks, a daily goal, a year heatmap and a two-week chart.
+- **Plays well with GNOME**:
+  - Stays clear of the dock and top bar, where GNOME on X11 would swallow its clicks.
+  - Shows on every workspace and stays on top.
+  - Hides from Alt+Tab unless you want it there.
+  - Lives in the tray and can launch at login.
+- **Honest time**: time asleep never counts as work, and an interrupted pomodoro is
+  restored (paused) the next time you start YAPA.
+- **Scriptable**:
+  - `yapa2 --toggle` for a global shortcut.
+  - `yapa2 --status --json` for status bars.
 
-- Sound
-  - Disable all sound notifications
-  - Volume controls
-  - Play custom music during work\break periods
+## Install
 
-- Dashboard
-  - Pomodoro counter history similar to github contributions
+You need the [.NET 8 SDK](https://dot.net) to build.
 
-- Themes
-  - YAPA 1.0 theme
-    - Shows period progress on taskbar
-    - Select opacity for timer
-    - Select light or dark theme for timer
-    - Change application size
-    - Enable\Disable flashing animation
-![Theme Settings Preview](http://imgur.com/ulwYfix.gif)
+```bash
+git clone https://github.com/ArvindParekh/YAPA-2-Linux.git
+cd YAPA-2-Linux
+./install.sh            # per-user, into ~/.local (no sudo)
+```
 
-  - Motivational theme
-    - More about theme [here](https://github.com/YetAnotherPomodoroApp/MotivationalTheme).
+`./install.sh --system` installs for all users under `/opt/yapa2`. Running it
+again upgrades in place. `./uninstall.sh` removes the app; add `--purge` to also
+delete settings and history.
 
-Contribution guidelines
-===
-1. Before doing code refactoring, create issue to discuss it.
-2. Create new branch for each bug/feature.
+The tray icon on GNOME needs the AppIndicator extension. Ubuntu ships it enabled.
 
-How to build installer
-===
-Installers are created with slightly modified [Squirrel.Windows](https://github.com/floatas/Squirrel.Windows)
-1. Restore nuget packages.
-``NuGet restore ..\Yapa.sln``
-2. Run ``Build\BuildAndRelease.cmd`` 
-Without arguments 2.0.0 version will be used.
-To create specific version: ``Build\BuildAndRelease.cmd 2.4.9`` 
+## Using it
 
-Nightly builds
-===
-To enable nightly builds:
-1. Go to folder: C:\Users\<username>\Documents\YAPA2
-2. Create empty file: PreRelease.txt
-3. Restart application.
-4. Open application settings, next to version you should see *pre-release*.
+| | |
+|---|---|
+| Drag anywhere | move the timer |
+| Right-click | every action, Statistics, Settings |
+| <kbd>Space</kbd> | start / pause / resume |
+| <kbd>Esc</kbd> | stop: abandon the pomodoro, or end the break |
+| <kbd>S</kbd> | skip the break |
+| <kbd>Ctrl</kbd>+<kbd>,</kbd> / <kbd>Ctrl</kbd>+<kbd>I</kbd> | settings / statistics |
+| <kbd>Ctrl</kbd>+<kbd>H</kbd> / <kbd>Ctrl</kbd>+<kbd>Q</kbd> | hide to tray / quit |
 
-To disable nightly builds:
-1. Go to folder: C:\Users\<username>\Documents\YAPA2
-2. Remove file: PreRelease.txt
-3. Uninstall application (application settings and completed pomodoro history will not be removed).
-4. Install latest stable version
+**Stop vs. finish.** Stopping a pomodoro abandons it: it isn't recorded, and the
+same pomodoro starts over. Stopping during a break ends the break.
+
+### Global shortcut
+
+GNOME Settings → Keyboard → View and Customise Shortcuts → Custom Shortcuts → add
+`yapa2 --toggle`. One key starts and pauses the timer from anywhere.
+
+### Command line
+
+```text
+yapa2 --start | --pause | --toggle | --stop | --skip | --reset
+yapa2 --show | --hide | --toggle-window | --settings | --stats
+yapa2 --status [--json]     # e.g. "Work 12:34"
+yapa2 --quit
+```
+
+Commands go to the running timer. `--status` never launches the app when it
+isn't running, so it's safe to poll from a status bar.
+
+## Files
+
+| What | Where |
+|---|---|
+| Settings | `~/.config/YAPA2/` |
+| History (SQLite) | `~/.local/share/YAPA2/Yapa.db` |
+| Log | `~/.cache/YAPA2/yapa2.log` |
+
+## Development
+
+```bash
+dotnet build YAPA.sln
+dotnet test YAPA.sln
+YAPA_HOME=/tmp/yapa-dev dotnet run --project YAPA.Avalonia   # isolated profile
+```
+
+`YAPA_HOME` gives a fully separate instance: its own settings, history and
+single-instance lock. It runs next to your real timer. See
+[CLAUDE.md](CLAUDE.md) for architecture notes and [ROADMAP.md](ROADMAP.md)
+for what's next.
+
+## Credits
+
+The original YAPA and YAPA-2 are by floatas and contributors, and the YAPA-2
+website is [yapa2.app](https://yapa2.app). Pomodoro Technique® is a trademark
+of Francesco Cirillo. MIT licensed: see [LICENSE.TXT](LICENSE.TXT).

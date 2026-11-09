@@ -1,87 +1,93 @@
 #!/usr/bin/env bash
-# install.sh — build YAPA 2 from source and install it on this machine.
-# Run from the repo root: ./install.sh
+# Build YAPA 2 from source and install it.
+#
+#   ./install.sh            install for the current user (no sudo): ~/.local
+#   ./install.sh --system   install for everyone under /opt/yapa2 (uses sudo)
+#
+# Re-running upgrades in place. Settings and history are never touched.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT="$REPO/YAPA.Avalonia/YAPA.Avalonia.csproj"
-PUBLISH_OUT="$REPO/out/linux-x64"
+OUT="$REPO/out/linux-x64"
 
-INSTALL_LIB="/usr/local/lib/yapa2"   # binary + Assets/ live here
-INSTALL_BIN="/usr/local/bin/yapa2"   # thin wrapper script
-DESKTOP="$HOME/.local/share/applications/yapa2.desktop"
-ICON_BASE="$HOME/.local/share/icons/hicolor"
+MODE=user
+for arg in "$@"; do
+    case "$arg" in
+        --system) MODE=system ;;
+        -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
+        *) echo "unknown option: $arg" >&2; exit 2 ;;
+    esac
+done
 
-# ── Find dotnet ───────────────────────────────────────────────────────────────
-DOTNET="dotnet"
-if ! command -v dotnet &>/dev/null; then
-    if [[ -x "$HOME/.dotnet/dotnet" ]]; then
-        DOTNET="$HOME/.dotnet/dotnet"
-    else
-        echo "ERROR: dotnet not found. Install .NET 8 SDK first." >&2
+if [[ $MODE == system ]]; then
+    PREFIX_LIB=/opt/yapa2
+    PREFIX_BIN=/usr/local/bin
+    PREFIX_SHARE=/usr/local/share
+    SUDO=sudo
+else
+    PREFIX_LIB="${XDG_DATA_HOME:-$HOME/.local/share}/../lib/yapa2"
+    PREFIX_LIB="$(realpath -m "$PREFIX_LIB")"
+    PREFIX_BIN="$HOME/.local/bin"
+    PREFIX_SHARE="${XDG_DATA_HOME:-$HOME/.local/share}"
+    SUDO=
+fi
+
+# ── dotnet ───────────────────────────────────────────────────────────────────
+DOTNET=dotnet
+if ! command -v dotnet >/dev/null 2>&1; then
+    if [[ -x "$HOME/.dotnet/dotnet" ]]; then DOTNET="$HOME/.dotnet/dotnet"
+    else echo "error: the .NET 8 SDK is required (https://dot.net)" >&2; exit 1; fi
+fi
+
+# ── A running instance must quit first: its files are about to be replaced ──
+if pgrep -u "$USER" -f 'yapa2/YAPA\.Avalonia' >/dev/null 2>&1; then
+    if [[ -x "$PREFIX_BIN/yapa2" ]] && "$PREFIX_BIN/yapa2" --quit >/dev/null 2>&1; then
+        sleep 1
+    fi
+    if pgrep -u "$USER" -f 'yapa2/YAPA\.Avalonia' >/dev/null 2>&1; then
+        echo "YAPA 2 is running. Quit it (tray icon → Quit) and run this again." >&2
+        echo "Your timer state is saved on quit and restored on the next launch." >&2
         exit 1
     fi
 fi
 
-# ── Build ─────────────────────────────────────────────────────────────────────
-echo "==> Building YAPA 2 (Release · linux-x64 · self-contained · single-file)..."
-"$DOTNET" publish "$PROJECT" \
-    -c Release \
-    -r linux-x64 \
-    --self-contained true \
-    -p:PublishSingleFile=true \
-    -p:DebugType=none \
-    -p:DebugSymbols=false \
-    -o "$PUBLISH_OUT"
+# ── Build ────────────────────────────────────────────────────────────────────
+echo "==> Building (Release, linux-x64, self-contained)…"
+rm -rf "$OUT"
+"$DOTNET" publish "$PROJECT" -c Release -r linux-x64 --self-contained true \
+    -p:DebugType=none -p:DebugSymbols=false -nologo -v:quiet -o "$OUT"
 
-# ── Install binary + native libs + assets ────────────────────────────────────
-# Single-file publish bundles managed code but leaves native .so files
-# (libSkiaSharp, libHarfBuzzSharp, libe_sqlite3) alongside the binary.
-# Copy the entire publish output so nothing is missing.
-echo "==> Installing to $INSTALL_LIB ..."
-sudo mkdir -p "$INSTALL_LIB"
-sudo cp -r "$PUBLISH_OUT"/. "$INSTALL_LIB/"
-sudo chmod 755 "$INSTALL_LIB/YAPA.Avalonia"
+# ── Install ──────────────────────────────────────────────────────────────────
+echo "==> Installing to $PREFIX_LIB"
+$SUDO rm -rf "$PREFIX_LIB.new"
+$SUDO mkdir -p "$PREFIX_LIB.new"
+$SUDO cp -r "$OUT"/. "$PREFIX_LIB.new/"
+$SUDO rm -rf "$PREFIX_LIB"
+$SUDO mv "$PREFIX_LIB.new" "$PREFIX_LIB"
 
-# ── Launcher wrapper ──────────────────────────────────────────────────────────
-echo "==> Writing launcher at $INSTALL_BIN ..."
-sudo tee "$INSTALL_BIN" > /dev/null <<'WRAPPER'
-#!/usr/bin/env bash
-exec /usr/local/lib/yapa2/YAPA.Avalonia "$@"
-WRAPPER
-sudo chmod +x "$INSTALL_BIN"
+$SUDO mkdir -p "$PREFIX_BIN"
+$SUDO ln -sf "$PREFIX_LIB/YAPA.Avalonia" "$PREFIX_BIN/yapa2"
 
-# ── Icon ──────────────────────────────────────────────────────────────────────
-ICO="$REPO/YAPA.Avalonia/Assets/pomoTray.ico"
-if command -v convert &>/dev/null && [[ -f "$ICO" ]]; then
-    echo "==> Installing icons..."
-    for size in 16 32 48 128 256; do
-        dir="$ICON_BASE/${size}x${size}/apps"
-        mkdir -p "$dir"
-        # ImageMagick picks the best-fitting frame from the ICO for the target size
-        convert "$ICO" -thumbnail "${size}x${size}" -alpha on \
-            "$dir/yapa2.png" 2>/dev/null && true
-    done
-    gtk-update-icon-cache --force --quiet "$ICON_BASE" 2>/dev/null || true
+for size in 16 32 48 128 256 512; do
+    $SUDO install -Dm644 "$REPO/YAPA.Avalonia/Assets/yapa2_${size}.png" \
+        "$PREFIX_SHARE/icons/hicolor/${size}x${size}/apps/yapa2.png"
+done
+$SUDO install -Dm644 "$REPO/YAPA.Avalonia/Assets/yapa2.svg" "$PREFIX_SHARE/icons/hicolor/scalable/apps/yapa2.svg"
+
+sed "s|@EXEC@|$PREFIX_BIN/yapa2|g" "$REPO/packaging/yapa2.desktop.in" > "$OUT/yapa2.desktop"
+$SUDO install -Dm644 "$OUT/yapa2.desktop" "$PREFIX_SHARE/applications/yapa2.desktop"
+
+gtk-update-icon-cache -q -t -f "$PREFIX_SHARE/icons/hicolor" 2>/dev/null || true
+update-desktop-database -q "$PREFIX_SHARE/applications" 2>/dev/null || true
+
+# ── Earlier builds installed elsewhere; point at them so they get removed ────
+if [[ $MODE == user && -e /usr/local/lib/yapa2 ]]; then
+    echo
+    echo "note: an older YAPA 2 build is still in /usr/local (root-owned). Remove it with:"
+    echo "      sudo rm -rf /usr/local/lib/yapa2 /usr/local/bin/yapa2"
 fi
+case ":$PATH:" in *":$PREFIX_BIN:"*) ;; *) echo "note: $PREFIX_BIN is not on your PATH; the launcher entry works regardless." ;; esac
 
-# ── Desktop entry ─────────────────────────────────────────────────────────────
-echo "==> Writing desktop entry..."
-mkdir -p "$(dirname "$DESKTOP")"
-cat > "$DESKTOP" <<'DESKTOP_ENTRY'
-[Desktop Entry]
-Name=YAPA 2
-GenericName=Pomodoro Timer
-Comment=Yet Another Pomodoro App
-Exec=/usr/local/bin/yapa2
-Icon=yapa2
-Type=Application
-Categories=Utility;Office;
-Keywords=pomodoro;timer;focus;productivity;
-StartupNotify=false
-DESKTOP_ENTRY
-
-update-desktop-database "$(dirname "$DESKTOP")" 2>/dev/null || true
-
-echo ""
-echo "Done. Launch with:  yapa2"
+echo
+echo "Installed YAPA 2. Start it from the app grid, or run: yapa2   (yapa2 --help for commands)"

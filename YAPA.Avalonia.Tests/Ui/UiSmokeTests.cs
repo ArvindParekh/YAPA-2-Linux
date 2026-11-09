@@ -33,14 +33,11 @@ public static class HeadlessApp
 public class UiSmokeTests
 {
     private static HeadlessUnitTestSession? _session;
-    private static string? _home;
 
     [ClassInitialize]
     public static void Init(TestContext _)
     {
-        _home = Path.Combine(Path.GetTempPath(), "yapa-ui-tests-" + Guid.NewGuid().ToString("N")[..8]);
-        // Must be set before AppPaths is first touched by anything.
-        Environment.SetEnvironmentVariable("YAPA_HOME", _home);
+        // YAPA_HOME is already pointed at a sandbox by TestAssembly.
         _session = HeadlessUnitTestSession.StartNew(typeof(HeadlessApp));
         _session.Dispatch(() => { App.Bootstrapper = new AppBootstrapper(); }, CancellationToken.None).GetAwaiter().GetResult();
     }
@@ -50,7 +47,6 @@ public class UiSmokeTests
     {
         _session?.Dispatch(() => App.Bootstrapper?.Dispose(), CancellationToken.None).GetAwaiter().GetResult();
         _session?.Dispose();
-        try { if (_home != null) Directory.Delete(_home, recursive: true); } catch { }
     }
 
     private static void OnUi(Action action) => _session!.Dispatch(action, CancellationToken.None).GetAwaiter().GetResult();

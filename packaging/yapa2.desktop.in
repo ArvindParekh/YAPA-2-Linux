@@ -1,0 +1,29 @@
+[Desktop Entry]
+Type=Application
+Name=YAPA 2
+GenericName=Pomodoro Timer
+Comment=Minimal always-on-top Pomodoro timer
+Exec="@EXEC@"
+Icon=yapa2
+Terminal=false
+Categories=Utility;Office;
+Keywords=pomodoro;timer;focus;productivity;tomato;
+StartupNotify=false
+StartupWMClass=yapa2
+Actions=toggle;skip;stats;settings;
+
+[Desktop Action toggle]
+Name=Start / Pause
+Exec="@EXEC@" --toggle
+
+[Desktop Action skip]
+Name=Skip Break
+Exec="@EXEC@" --skip
+
+[Desktop Action stats]
+Name=Statistics
+Exec="@EXEC@" --stats
+
+[Desktop Action settings]
+Name=Settings
+Exec="@EXEC@" --settings
