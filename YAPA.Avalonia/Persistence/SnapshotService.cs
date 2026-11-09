@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using YAPA.Avalonia.Platform;
 using YAPA.Avalonia.Specifics;
 using YAPA.Shared.Common;
 using YAPA.Shared.Contracts;
@@ -27,10 +28,8 @@ public sealed class SnapshotService
         _date = date;
         _json = json;
 
-        // Derive the data directory from the plugin directory path.
-        var dataDir = Path.GetDirectoryName(environment.GetPluginDirectory())!;
-        Directory.CreateDirectory(dataDir);
-        _snapshotPath = Path.Combine(dataDir, "snapshot.json");
+        AppPaths.EnsureCreated();
+        _snapshotPath = Path.Combine(AppPaths.DataDirectory, "snapshot.json");
     }
 
     /// <summary>

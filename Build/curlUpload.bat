@@ -1,1 +1,0 @@
-curl -F "files=@%1" http://app.floatas.net/installers/upload?key=%2^&application=YAPA-2

@@ -154,3 +154,8 @@ $RECYCLE.BIN/
 /MotivationalTheme
 /.vs/YAPA/v15
 /YAPA/gitversion.json
+
+# Linux port
+out/
+TestResults/
+*.ppm

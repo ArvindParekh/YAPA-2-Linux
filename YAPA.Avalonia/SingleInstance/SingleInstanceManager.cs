@@ -14,8 +14,8 @@ namespace YAPA.Avalonia.SingleInstance;
 public sealed class SingleInstanceManager : IDisposable
 {
     // Pipe name ends up at /tmp/CoreFxPipe_YAPA2-<username> on Linux.
-    private static string PipeName => $"YAPA2-{Environment.UserName}";
-    private static string MutexName => $"YAPA2-SingleInstance-{Environment.UserName}";
+    private static string PipeName => $"YAPA2-{Platform.AppPaths.InstanceKey}";
+    private static string MutexName => $"YAPA2-SingleInstance-{Platform.AppPaths.InstanceKey}";
 
     private Mutex? _mutex;
     private Thread? _listenerThread;

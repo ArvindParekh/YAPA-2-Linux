@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using YAPA.Avalonia.Platform;
 using YAPA.Shared.Contracts;
 
 namespace YAPA.Avalonia.Persistence;
@@ -17,11 +18,8 @@ public sealed class SqlitePomodoroRepository : IPomodoroRepository, IDisposable
 
     public SqlitePomodoroRepository(IEnvironment environment)
     {
-        // Derive the data directory from the plugin directory (DataDir/Plugins → DataDir).
-        var dataDir = Path.GetDirectoryName(environment.GetPluginDirectory())!;
-        Directory.CreateDirectory(dataDir);
-
-        _context = new PomodoroDbContext(Path.Combine(dataDir, "Yapa.db"));
+        AppPaths.EnsureCreated();
+        _context = new PomodoroDbContext(Path.Combine(AppPaths.DataDirectory, "Yapa.db"));
 
         // EnsureCreated is a no-op if the database already exists (e.g. opened from WPF).
         // All three WPF migrations are reflected in the entity definition so the schema is
