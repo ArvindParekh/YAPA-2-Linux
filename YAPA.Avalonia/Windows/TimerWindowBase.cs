@@ -192,6 +192,9 @@ public abstract class TimerWindowBase : Window
         RestorePosition();
         ApplyBehaviourSettings();
         RefreshControls();
+        // Even when the window lands exactly where it was saved, no
+        // PositionChanged fires; check against the dock explicitly.
+        Dispatcher.UIThread.Post(() => KeepClearOfShellPanels(), DispatcherPriority.Background);
         // Not OnPositionSettled() here: on X11 Position only updates once the WM
         // confirms the move, and saving now would persist a stale value. The
         // PositionChanged that follows the move triggers the settle check.
@@ -238,28 +241,40 @@ public abstract class TimerWindowBase : Window
         WindowShellIntegration.Apply(this, General);
     }
 
+    /// <summary>Called just before every Show.</summary>
+    public void ReapplyShellState()
+    {
+        WindowShellIntegration.Apply(this, General);
+        PlacementGuard.Prime(Screens.All.Select(s => s.Bounds).ToList());
+    }
+
     /// <summary>Themes override to apply size, colours and so on.</summary>
     protected virtual void OnAppearanceChanged() { }
 
     // ── Placement ────────────────────────────────────────────────────────────
 
-    private void OnPlacementZonesChanged() => Dispatcher.UIThread.Post(OnPositionSettled);
+    // The dock appeared or changed under us. Moving triggers PositionChanged,
+    // and the settle that follows saves the new position.
+    private void OnPlacementZonesChanged() => Dispatcher.UIThread.Post(() => KeepClearOfShellPanels());
 
     private void OnPositionSettled()
     {
         if (!IsVisible) return;
+        if (!KeepClearOfShellPanels()) SavePosition();
+    }
 
-        if (General.AvoidShellPanels)
-        {
-            var bounds = new PixelRect(Position, PixelSize.FromSize(Bounds.Size, DesktopScaling));
-            var nudged = PlacementGuard.Resolve(bounds, Screens.All.Select(s => s.Bounds).ToList());
-            if (nudged is { } p && p != Position)
-            {
-                MoveTo(p);
-            }
-        }
+    /// <returns>True if the window had to move.</returns>
+    private bool KeepClearOfShellPanels()
+    {
+        if (!IsVisible || !General.AvoidShellPanels) return false;
 
-        SavePosition();
+        var bounds = new PixelRect(Position, PixelSize.FromSize(Bounds.Size, DesktopScaling));
+        if (PlacementGuard.Resolve(bounds, Screens.All.Select(s => s.Bounds).ToList()) is not { } p || p == Position)
+            return false;
+
+        // Not MoveTo: this move should go through the normal settle, which saves it.
+        Position = p;
+        return true;
     }
 
     private void MoveTo(PixelPoint position)

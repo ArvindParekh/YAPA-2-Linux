@@ -55,6 +55,13 @@ arguments to the user's running instance.
   includes the dock's whole container (e.g. 90% of the screen width), not just
   the visible icons. A window placed there loses clicks. `Platform/Linux/X11` watches
   that region and keeps the timer out of it.
-- Mutter skips its compositor shadow for windows that set `_GTK_FRAME_EXTENTS`;
-  that is how the transparent timer avoids a halo while staying a NORMAL window.
-  UTILITY and DOCK window types were tried earlier and broke focus, minimize, drag and right-click.
+- Mutter 46 never draws a compositor shadow on ARGB (transparent) windows, whatever
+  their type; measured, and it matches mutter's `has_shadow()`. The timer is a plain
+  NORMAL window. `_GTK_FRAME_EXTENTS` only matters for opaque visuals. UTILITY and DOCK
+  window types were tried in earlier builds and broke focus, minimize, drag and right-click.
+- Mutter deletes `_NET_WM_STATE` and `_NET_WM_DESKTOP` when a window is hidden.
+  `WindowShellIntegration.Apply` re-sets them before every show (it is a property edit
+  while the window is withdrawn) and after map (EWMH client messages).
+- Avalonia installs its own Xlib error handler. Anything chaining to the previous
+  handler must hold it as a plain `Delegate`, because marshaling hands back
+  Avalonia's delegate type.

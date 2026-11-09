@@ -400,8 +400,14 @@ public sealed class X11ShellInputRegionMonitor : IShellInputRegionMonitor
         if (error.ErrorCode == Xlib.BadWindow && IsStage(error.ResourceId)) _stageLost = true;
     }
 
+    private readonly System.Threading.ManualResetEventSlim _firstSnapshot = new(false);
+
+    /// <summary>Blocks until the region has been read once (or the timeout passes).</summary>
+    public bool WaitForFirstSnapshot(TimeSpan timeout) => _firstSnapshot.Wait(timeout);
+
     private void Publish(IReadOnlyList<PixelRect> rects)
     {
+        _firstSnapshot.Set();
         if (rects.SequenceEqual(_current)) return;
         _current = Array.AsReadOnly(rects.ToArray());
         try

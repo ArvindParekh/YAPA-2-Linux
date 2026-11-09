@@ -34,6 +34,8 @@ public sealed class AppNavigator : IAppNavigator
     public void ShowTimer()
     {
         var timer = EnsureTimer();
+        // States set while withdrawn survive the map; Mutter dropped them at the last hide.
+        if (!timer.IsVisible) timer.ReapplyShellState();
         timer.Show();
         if (timer.WindowState == WindowState.Minimized) timer.WindowState = WindowState.Normal;
         timer.Activate();

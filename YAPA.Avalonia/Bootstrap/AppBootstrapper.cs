@@ -56,7 +56,7 @@ public sealed class AppBootstrapper : IDisposable
         services.AddSingleton<TimerViewModel>();
         services.AddSingleton<AppCommandHandler>();
         services.AddSingleton<SystemTrayService>();
-        services.AddSingleton<IWindowPlacementGuard, NullPlacementGuard>();
+        services.AddSingleton(_ => YAPA.Avalonia.Platform.Linux.X11.X11PlacementGuard.Create());
         services.AddSingleton(_ => DesktopIntegration.CreateNotifier());
         services.AddSingleton(_ => DesktopIntegration.CreateSessionMonitor());
         services.AddSingleton<NotificationEffects>();

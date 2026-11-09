@@ -93,7 +93,10 @@ internal static class X11ErrorTrap
     // Held in static fields so the GC never collects the delegates native code calls.
     private static readonly Xlib.XErrorHandler HandlerDelegate = Handle;
     private static readonly IntPtr HandlerPointer = Marshal.GetFunctionPointerForDelegate(HandlerDelegate);
-    private static Xlib.XErrorHandler? s_previousDelegate;
+    // Typed as Delegate on purpose: when the previous handler is another managed
+    // library's (Avalonia installs its own), the runtime hands back *that*
+    // library's delegate instance, which can't be cast to our delegate type.
+    private static Delegate? s_previousDelegate;
 
     public static void Register(IntPtr display, Action<X11Error> sink)
     {
@@ -104,7 +107,7 @@ internal static class X11ErrorTrap
             var previous = Xlib.XSetErrorHandler(HandlerPointer);
             if (previous != HandlerPointer && previous != IntPtr.Zero)
             {
-                s_previousDelegate = Marshal.GetDelegateForFunctionPointer<Xlib.XErrorHandler>(previous);
+                s_previousDelegate = Marshal.GetDelegateForFunctionPointer(previous, typeof(Xlib.XErrorHandler));
             }
         }
         Sinks[display] = sink;
@@ -126,7 +129,7 @@ internal static class X11ErrorTrap
                     Marshal.ReadIntPtr(errorEvent, Xlib.ErrResourceId)));
                 return 0;
             }
-            return s_previousDelegate?.Invoke(display, errorEvent) ?? 0;
+            return s_previousDelegate?.DynamicInvoke(display, errorEvent) is int result ? result : 0;
         }
         catch (Exception e)
         {
