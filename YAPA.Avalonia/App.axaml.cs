@@ -51,6 +51,7 @@ public partial class App : Application
             if (e.Property == Visual.IsVisibleProperty) tray.SetTimerVisible(timer.IsVisible);
         };
         navigator.Quitting += snapshots.Save;
+        navigator.Quitting += tray.Freeze;
 
         var startup = Program.StartupCommandLine;
         var startHidden = bs.Resolve<GeneralSettings>().StartHidden || startup.Commands.Contains(AppCommand.Hide);

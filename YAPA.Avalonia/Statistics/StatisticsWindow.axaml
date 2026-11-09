@@ -1,8 +1,99 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:s="using:YAPA.Avalonia.Statistics"
         x:Class="YAPA.Avalonia.Windows.StatisticsWindow"
+        x:DataType="s:StatisticsViewModel"
         Title="YAPA 2 · Statistics"
-        Width="720" Height="520"
+        Width="860" Height="600" MinWidth="720" MinHeight="480"
         WindowStartupLocation="CenterScreen">
-    <ContentControl x:Name="Host" Margin="16" />
+
+    <Window.Styles>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="#14808080" />
+            <Setter Property="BorderBrush" Value="#22808080" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="16,12" />
+        </Style>
+        <Style Selector="TextBlock.caption">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Opacity" Value="0.7" />
+        </Style>
+        <Style Selector="TextBlock.section">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+    </Window.Styles>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="24,20" Spacing="20">
+
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel>
+                    <TextBlock Text="Statistics" FontSize="24" FontWeight="SemiBold" />
+                    <TextBlock Classes="caption" Text="{Binding GoalText}" IsVisible="{Binding HasGoal}" Margin="0,2,0,0" />
+                </StackPanel>
+                <ComboBox Grid.Column="1" VerticalAlignment="Center" MinWidth="180"
+                          ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
+                          IsVisible="{Binding HasMultipleProfiles}" />
+            </Grid>
+
+            <ProgressBar Minimum="0" Maximum="1" Value="{Binding GoalProgress}" Height="6"
+                         CornerRadius="3" Foreground="Tomato" IsVisible="{Binding HasGoal}"
+                         ToolTip.Tip="Daily goal (change it in Settings → General)" />
+
+            <ItemsControl ItemsSource="{Binding Cards}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="s:StatCard">
+                        <Border Classes="card" Margin="0,0,12,0">
+                            <StackPanel Spacing="4">
+                                <TextBlock Classes="caption" Text="{Binding Title}" />
+                                <TextBlock Text="{Binding Value}" FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border Classes="card">
+                <StackPanel>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="section" Text="Year in pomodoros" />
+                        <TextBlock Grid.Column="1" Classes="caption" Text="{Binding HeatmapSummary}" />
+                    </Grid>
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <s:HeatmapControl Heatmap="{Binding Heatmap}" HorizontalAlignment="Left" />
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel>
+                    <TextBlock Classes="section" Text="Last two weeks" />
+                    <ItemsControl ItemsSource="{Binding Bars}" Height="150">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="s:DayBar">
+                                <Grid RowDefinitions="Auto,*,Auto" Margin="3,0" ToolTip.Tip="{Binding Tooltip}" Background="Transparent">
+                                    <TextBlock Classes="caption" Text="{Binding Count}" HorizontalAlignment="Center" />
+                                    <s:BarFill Grid.Row="1" Fraction="{Binding Fraction}" Highlight="{Binding IsToday}" Margin="4,4" />
+                                    <TextBlock Grid.Row="2" Classes="caption" Text="{Binding Label}" FontSize="10"
+                                               HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Classes="caption" Text="{Binding Footer}" TextWrapping="Wrap" />
+        </StackPanel>
+    </ScrollViewer>
 </Window>

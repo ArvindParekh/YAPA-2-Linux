@@ -65,6 +65,10 @@ public sealed class AppBootstrapper : IDisposable
         services.AddSingleton<AppCommandHandler>();
         services.AddSingleton<SystemTrayService>();
         services.AddSingleton<IWindowPlacementGuard, NullPlacementGuard>();
+        services.AddSingleton(_ => DesktopIntegration.CreateNotifier());
+        services.AddSingleton(_ => DesktopIntegration.CreateSessionMonitor());
+        services.AddSingleton<NotificationEffects>();
+        services.AddSingleton<SessionEffects>();
 
         _provider = services.BuildServiceProvider();
     }
@@ -75,6 +79,8 @@ public sealed class AppBootstrapper : IDisposable
         Resolve<Dashboard>();
         Resolve<AvaloniaSoundNotifications>();
         Resolve<AvaloniaBackgroundMusic>();
+        Resolve<NotificationEffects>();
+        Resolve<SessionEffects>();
     }
 
     public void Dispose()

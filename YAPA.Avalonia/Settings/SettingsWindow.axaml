@@ -1,47 +1,210 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:s="using:YAPA.Avalonia.Settings"
+        xmlns:c="using:YAPA.Avalonia.Settings.Controls"
         x:Class="YAPA.Avalonia.Settings.SettingsWindow"
-        Title="Settings"
-        Width="620" Height="460"
-        WindowStartupLocation="CenterScreen"
-        CanResize="False">
+        x:DataType="s:SettingsWindow"
+        Title="YAPA 2 · Settings"
+        Width="780" Height="620" MinWidth="640" MinHeight="460"
+        WindowStartupLocation="CenterScreen">
 
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="150" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+    <Window.Styles>
+        <StyleInclude Source="avares://YAPA.Avalonia/Settings/SettingsStyles.axaml" />
+    </Window.Styles>
 
-        <!-- Navigation -->
-        <ListBox x:Name="NavList"
-                 Grid.Column="0" Grid.Row="0" Grid.RowSpan="2"
-                 SelectionChanged="OnNavSelectionChanged"
-                 BorderThickness="0,0,1,0">
-            <ListBoxItem Content="Dashboard" />
-            <ListBoxItem Content="Pomodoro" />
-            <ListBoxItem Content="Appearance" />
-            <ListBoxItem Content="Sound" />
-            <ListBoxItem Content="Theme" />
-        </ListBox>
+    <Window.DataTemplates>
+        <!-- ── Timer ─────────────────────────────────────────────────────── -->
+        <DataTemplate DataType="s:TimerPageViewModel">
+            <StackPanel>
+                <TextBlock Classes="group" Text="Durations" />
+                <c:SettingRow Title="Pomodoro" Description="Minutes of focused work">
+                    <NumericUpDown Classes="minutes" Minimum="1" Maximum="240" Value="{Binding WorkMinutes}" />
+                </c:SettingRow>
+                <c:SettingRow Title="Short break" Description="Minutes between pomodoros">
+                    <NumericUpDown Classes="minutes" Minimum="1" Maximum="120" Value="{Binding BreakMinutes}" />
+                </c:SettingRow>
+                <c:SettingRow Title="Long break" Description="Minutes after the last pomodoro of a cycle">
+                    <NumericUpDown Classes="minutes" Minimum="1" Maximum="240" Value="{Binding LongBreakMinutes}" />
+                </c:SettingRow>
+                <c:SettingRow Title="Pomodoros per cycle" Description="How many pomodoros come before a long break">
+                    <NumericUpDown Classes="minutes" Minimum="1" Maximum="12" Value="{Binding PomodorosBeforeLongBreak}" />
+                </c:SettingRow>
 
-        <!-- Content area -->
-        <ScrollViewer Grid.Column="1" Grid.Row="0"
-                      HorizontalScrollBarVisibility="Disabled"
-                      VerticalScrollBarVisibility="Auto">
-            <ContentControl x:Name="PageContent" Margin="16,12,16,8" />
-        </ScrollViewer>
+                <TextBlock Classes="group" Text="Flow" />
+                <c:SettingRow Title="Start breaks automatically" Description="Go straight into the break when a pomodoro ends">
+                    <ToggleSwitch IsChecked="{Binding AutoStartBreak}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Start pomodoros automatically" Description="Begin the next pomodoro as soon as a break ends">
+                    <ToggleSwitch IsChecked="{Binding AutoStartWork}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Count down" Description="Show the time remaining instead of the time elapsed">
+                    <ToggleSwitch IsChecked="{Binding CountBackwards}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Counter" Description="The small number under the buttons">
+                    <ComboBox ItemsSource="{Binding CounterOptions}" SelectedIndex="{Binding CounterIndex}" MinWidth="200" />
+                </c:SettingRow>
+            </StackPanel>
+        </DataTemplate>
 
-        <!-- Save / Cancel -->
-        <StackPanel Grid.Column="1" Grid.Row="1"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Margin="8,4,12,8" Spacing="8">
-            <Button Content="Save" Width="80" Click="OnSaveClick" />
-            <Button Content="Cancel" Width="80" Click="OnCancelClick" />
-        </StackPanel>
+        <!-- ── Appearance ────────────────────────────────────────────────── -->
+        <DataTemplate DataType="s:AppearancePageViewModel">
+            <StackPanel>
+                <TextBlock Classes="group" Text="Timer" />
+                <c:SettingRow Title="Theme" Description="Classic is the compact original; Motivational adds a quote card">
+                    <ComboBox ItemsSource="{Binding Themes}" SelectedIndex="{Binding ThemeIndex}" MinWidth="160" />
+                </c:SettingRow>
+                <c:SettingRow Title="Size">
+                    <Slider Classes="setting" Minimum="120" Maximum="600" Value="{Binding Size}" />
+                </c:SettingRow>
+                <c:SettingRow Title="Opacity">
+                    <Slider Classes="setting" Minimum="0.2" Maximum="1" Value="{Binding ClockOpacity}" />
+                </c:SettingRow>
+
+                <TextBlock Classes="group" Text="Colour" />
+                <c:SettingRow Title="Text">
+                    <StackPanel Spacing="6" HorizontalAlignment="Right">
+                        <ListBox Classes="swatches" ItemsSource="{Binding TextColors}" SelectedItem="{Binding TextColor}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Border Width="22" Height="22" CornerRadius="11" Background="{Binding}" BorderBrush="#60808080" BorderThickness="1" />
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBox Text="{Binding TextColorHex}" Width="120" HorizontalAlignment="Right" Watermark="#AARRGGBB" />
+                    </StackPanel>
+                </c:SettingRow>
+                <c:SettingRow Title="Shadow">
+                    <ListBox Classes="swatches" ItemsSource="{Binding ShadowColors}" SelectedItem="{Binding ShadowColor}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Border Width="22" Height="22" CornerRadius="11" Background="{Binding}" BorderBrush="#60808080" BorderThickness="1" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </c:SettingRow>
+                <c:SettingRow Title="Shadow strength" Description="Keeps the digits readable on busy wallpapers">
+                    <Slider Classes="setting" Minimum="0" Maximum="1" Value="{Binding ShadowOpacity}" />
+                </c:SettingRow>
+
+                <TextBlock Classes="group" Text="Details" />
+                <c:SettingRow Title="Show seconds">
+                    <ToggleSwitch IsChecked="{Binding ShowSeconds}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Show status" Description="&quot;Work&quot;, &quot;Break&quot;, &quot;Paused&quot; above the time">
+                    <ToggleSwitch IsChecked="{Binding ShowStatusText}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Show progress line">
+                    <ToggleSwitch IsChecked="{Binding ShowProgress}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Show buttons only on hover" Description="Keeps the timer minimal until you point at it">
+                    <ToggleSwitch IsChecked="{Binding ControlsOnHover}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Flash when an interval ends">
+                    <ToggleSwitch IsChecked="{Binding FlashWhenDone}" OnContent="" OffContent="" />
+                </c:SettingRow>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- ── General ───────────────────────────────────────────────────── -->
+        <DataTemplate DataType="s:GeneralPageViewModel">
+            <StackPanel>
+                <TextBlock Classes="group" Text="Window" />
+                <c:SettingRow Title="Always on top">
+                    <ToggleSwitch IsChecked="{Binding AlwaysOnTop}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Show on all workspaces">
+                    <ToggleSwitch IsChecked="{Binding ShowOnAllWorkspaces}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Show in the dock and Alt+Tab" Description="Off keeps the timer a quiet widget; the tray icon is always there">
+                    <ToggleSwitch IsChecked="{Binding ShowInTaskbar}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Keep clear of the dock and top bar" Description="GNOME swallows clicks over its panels, even where they look empty; the timer moves out of the way">
+                    <ToggleSwitch IsChecked="{Binding AvoidShellPanels}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Hide to tray" Description="The – button hides the timer instead of minimizing it">
+                    <ToggleSwitch IsChecked="{Binding MinimizeToTray}" OnContent="" OffContent="" />
+                </c:SettingRow>
+
+                <TextBlock Classes="group" Text="Startup" />
+                <c:SettingRow Title="Launch at login" IsEnabled="{Binding AutostartSupported}">
+                    <ToggleSwitch IsChecked="{Binding LaunchAtLogin}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Start hidden in the tray">
+                    <ToggleSwitch IsChecked="{Binding StartHidden}" OnContent="" OffContent="" />
+                </c:SettingRow>
+
+                <TextBlock Classes="group" Text="Behaviour" />
+                <c:SettingRow Title="Desktop notifications" Description="With buttons to start or skip the break">
+                    <ToggleSwitch IsChecked="{Binding DesktopNotifications}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Pause while the screen is locked" Description="Resumes when you unlock. Sleep never counts as work either way.">
+                    <ToggleSwitch IsChecked="{Binding PauseWhenLocked}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Daily goal" Description="Pomodoros per day, shown in Statistics; 0 to hide">
+                    <NumericUpDown Classes="minutes" Minimum="0" Maximum="40" Value="{Binding DailyGoal}" />
+                </c:SettingRow>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- ── About ─────────────────────────────────────────────────────── -->
+        <DataTemplate DataType="s:AboutPageViewModel">
+            <StackPanel Spacing="12">
+                <StackPanel Orientation="Horizontal" Spacing="14">
+                    <Image Source="avares://YAPA.Avalonia/Assets/yapa2_128.png" Width="64" Height="64" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="YAPA 2" FontSize="20" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding Version}" Opacity="0.7" />
+                        <TextBlock Text="Yet Another Pomodoro App, for Linux" Opacity="0.7" />
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock Classes="group" Text="Keyboard (when the timer has focus)" />
+                <SelectableTextBlock Text="{Binding ShortcutText}" FontFamily="monospace" FontSize="12" />
+
+                <TextBlock Classes="group" Text="Command line" />
+                <SelectableTextBlock Text="{Binding Usage}" FontFamily="monospace" FontSize="12" TextWrapping="Wrap" />
+
+                <TextBlock Classes="group" Text="Files" />
+                <c:SettingRow Title="Settings" Description="{Binding ConfigDirectory}">
+                    <Button Content="Open" Command="{Binding OpenCommand}" CommandParameter="{Binding ConfigDirectory}" />
+                </c:SettingRow>
+                <c:SettingRow Title="History" Description="{Binding DataDirectory}">
+                    <Button Content="Open" Command="{Binding OpenCommand}" CommandParameter="{Binding DataDirectory}" />
+                </c:SettingRow>
+                <c:SettingRow Title="Log" Description="{Binding LogFile}">
+                    <Button Content="Open" Command="{Binding OpenCommand}" CommandParameter="{Binding LogFile}" />
+                </c:SettingRow>
+
+                <TextBlock Opacity="0.6" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"
+                           Text="Based on YAPA-2 by floatas and contributors (github.com/YetAnotherPomodoroApp/YAPA-2). MIT licensed." />
+            </StackPanel>
+        </DataTemplate>
+    </Window.DataTemplates>
+
+    <Grid ColumnDefinitions="190,*">
+        <Border Background="#0C808080" BorderBrush="#22808080" BorderThickness="0,0,1,0">
+            <ListBox x:Name="Nav" ItemsSource="{Binding Pages}" SelectedItem="{Binding SelectedPage}"
+                     Background="Transparent" Margin="8,12">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="s:SettingsPageViewModel">
+                        <TextBlock Text="{Binding Title}" FontSize="14" Margin="4,2" />
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Border>
+
+        <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto">
+            <TextBlock Classes="pageTitle" Text="{Binding SelectedPage.Title}" Margin="24,18,24,4" />
+            <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                <ContentControl Content="{Binding SelectedPage}" Margin="24,0,24,16" />
+            </ScrollViewer>
+            <Border Grid.Row="2" BorderBrush="#22808080" BorderThickness="0,1,0,0" Padding="24,10">
+                <Grid ColumnDefinitions="*,Auto">
+                    <Button Content="Reset to defaults" Click="OnResetClick"
+                            IsVisible="{Binding SelectedPage.CanReset}" ToolTip.Tip="Resets only this page" />
+                    <Button Grid.Column="1" Content="Close" Click="OnCloseClick" Classes="accent" MinWidth="90" HorizontalContentAlignment="Center" />
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

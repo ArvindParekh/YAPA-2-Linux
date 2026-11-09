@@ -1,0 +1,59 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:YAPA.Avalonia.Settings.Controls">
+
+    <Style Selector="c|SettingRow">
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Padding="14,10" Background="#0F808080" CornerRadius="6" Margin="0,0,0,4">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="{TemplateBinding Title}" FontSize="14" TextWrapping="Wrap" />
+                            <TextBlock Text="{TemplateBinding Description}" FontSize="12" Opacity="0.65" TextWrapping="Wrap"
+                                       IsVisible="{TemplateBinding Description, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        </StackPanel>
+                        <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <Style Selector="TextBlock.pageTitle">
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+    <Style Selector="TextBlock.group">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Opacity" Value="0.8" />
+        <Setter Property="Margin" Value="2,14,0,6" />
+    </Style>
+    <Style Selector="NumericUpDown.minutes">
+        <Setter Property="Width" Value="130" />
+        <Setter Property="FormatString" Value="0" />
+        <Setter Property="Increment" Value="1" />
+    </Style>
+    <Style Selector="Slider.setting">
+        <Setter Property="Width" Value="200" />
+    </Style>
+
+    <!-- Colour swatches: a horizontal ListBox of circles. -->
+    <Style Selector="ListBox.swatches">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="ItemsPanel">
+            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="2" /></ItemsPanelTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ListBox.swatches ListBoxItem">
+        <Setter Property="Padding" Value="3" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="ListBox.swatches ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+    </Style>
+</Styles>

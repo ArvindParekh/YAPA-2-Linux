@@ -25,6 +25,7 @@ public sealed class SystemTrayService : IDisposable
     private readonly NativeMenuItem _stop = new("Stop");
     private readonly NativeMenuItem _reset = new("Reset cycle");
     private bool _disposed;
+    private bool _frozen;
 
     public SystemTrayService(TimerViewModel vm, IAppNavigator navigator)
     {
@@ -43,7 +44,22 @@ public sealed class SystemTrayService : IDisposable
     }
 
     /// <summary>Lets the window's state drive the Show/Hide label.</summary>
-    public void SetTimerVisible(bool visible) => _showHide.Header = visible ? "Hide timer" : "Show timer";
+    public void SetTimerVisible(bool visible)
+    {
+        if (_frozen) return;
+        _showHide.Header = visible ? "Hide timer" : "Show timer";
+    }
+
+    /// <summary>
+    /// Stops all menu updates. Called when quitting starts: Avalonia's D-Bus
+    /// menu exporter queues a layout update for every change, and one that runs
+    /// after the tray is disposed during shutdown throws inside Avalonia.
+    /// </summary>
+    public void Freeze()
+    {
+        _frozen = true;
+        _vm.PropertyChanged -= OnViewModelChanged;
+    }
 
     private NativeMenu BuildMenu()
     {

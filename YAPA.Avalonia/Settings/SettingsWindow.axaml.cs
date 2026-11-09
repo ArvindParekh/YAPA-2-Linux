@@ -1,64 +1,56 @@
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using YAPA.Avalonia.Settings.Pages;
+using YAPA.Avalonia.Services;
 using YAPA.Avalonia.Specifics;
 using YAPA.Shared.Common;
-using YAPA.Shared.Contracts;
-using IPomodoroRepository = YAPA.Shared.Contracts.IPomodoroRepository;
 
 namespace YAPA.Avalonia.Settings;
 
-public partial class SettingsWindow : Window
+public partial class SettingsWindow : Window, INotifyPropertyChanged
 {
-    private readonly ISettings _settings;
-    private readonly DashboardPage _dashPage;
-    private readonly EngineSettingsPage _enginePage;
-    private readonly ThemeSettingsPage _themePage;
-    private readonly SoundSettingsPage _soundPage;
-    private readonly ThemeSelectorPage _themeSelectorPage;
+    private SettingsPageViewModel _selectedPage;
 
     public SettingsWindow()
     {
         var bs = App.Bootstrapper!;
-        _settings = bs.Resolve<ISettings>();
-
-        _dashPage          = new DashboardPage(bs.Resolve<IPomodoroRepository>());
-        _enginePage        = new EngineSettingsPage(bs.Resolve<PomodoroEngineSettings>());
-        _themePage         = new ThemeSettingsPage(bs.Resolve<AvaloniaYapaThemeSettings>());
-        _soundPage         = new SoundSettingsPage(
-            bs.Resolve<PomodoroEngineSettings>(),
-            bs.Resolve<AvaloniaSoundNotificationsSettings>(),
-            bs.Resolve<AvaloniaMusicPlayerSettings>());
-        _themeSelectorPage = new ThemeSelectorPage(bs.Resolve<AvaloniaThemeSettings>());
+        Pages = new List<SettingsPageViewModel>
+        {
+            new TimerPageViewModel(bs.Resolve<PomodoroEngineSettings>()),
+            new AppearancePageViewModel(bs.Resolve<AvaloniaYapaThemeSettings>(), bs.Resolve<AvaloniaThemeSettings>()),
+            bs.Resolve<SoundsPageFactory>().Create(),
+            new GeneralPageViewModel(bs.Resolve<GeneralSettings>(), bs.Resolve<AvaloniaYapaThemeSettings>()),
+            new AboutPageViewModel(),
+        };
+        _selectedPage = Pages[0];
 
         InitializeComponent();
-        NavList.SelectedIndex = 0;
+        DataContext = this;
     }
 
-    private void OnNavSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    public new event PropertyChangedEventHandler? PropertyChanged;
+
+    public IReadOnlyList<SettingsPageViewModel> Pages { get; }
+
+    public SettingsPageViewModel SelectedPage
     {
-        PageContent.Content = NavList.SelectedIndex switch
+        get => _selectedPage;
+        set
         {
-            0 => _dashPage,
-            1 => _enginePage,
-            2 => _themePage,
-            3 => _soundPage,
-            4 => _themeSelectorPage,
-            _ => null,
-        };
+            if (value == null || ReferenceEquals(value, _selectedPage)) return;
+            _selectedPage = value;
+            Notify();
+        }
     }
 
-    public void Navigate(Services.SettingsPage page) { }
+    public void Navigate(SettingsPage page) => SelectedPage = Pages.FirstOrDefault(p => p.Page == page) ?? Pages[0];
 
-    private void OnSaveClick(object? sender, RoutedEventArgs e)
-    {
-        _settings.Save();
-        Close();
-    }
+    private void Notify([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-    private void OnCancelClick(object? sender, RoutedEventArgs e)
-    {
-        _settings.Load();
-        Close();
-    }
+    private void OnResetClick(object? sender, RoutedEventArgs e) => SelectedPage.Reset();
+
+    private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
 }
