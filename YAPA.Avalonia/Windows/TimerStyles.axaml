@@ -1,0 +1,67 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:w="using:YAPA.Avalonia.Windows">
+
+    <!-- Tabular figures: every digit has the same advance, so the clock never
+         shifts sideways as it counts (Inter's default digits are proportional). -->
+    <Style Selector="TextBlock.digits">
+        <Setter Property="FontFeatures" Value="+tnum" />
+    </Style>
+
+    <!-- Flat text buttons that take the timer's colour. -->
+    <Style Selector="Button.chrome">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{Binding $parent[w:TimerWindowBase].TextBrush}" />
+    </Style>
+    <Style Selector="Button.chrome:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#33808080" />
+        <Setter Property="Foreground" Value="{Binding $parent[w:TimerWindowBase].TextBrush}" />
+    </Style>
+    <Style Selector="Button.chrome:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#55808080" />
+        <Setter Property="Foreground" Value="{Binding $parent[w:TimerWindowBase].TextBrush}" />
+    </Style>
+    <Style Selector="Button.chrome:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- Hover-reveal: fade rather than collapse, so the layout never jumps. -->
+    <Style Selector=":is(Control).controls">
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector=":is(Control).controls.concealed">
+        <Setter Property="Opacity" Value="0" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+
+    <!-- End-of-interval alert: a pulsing wash behind the digits. -->
+    <Style Selector="Border.flash">
+        <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="Border.flash.work">
+        <Setter Property="Background" Value="Tomato" />
+    </Style>
+    <Style Selector="Border.flash.break">
+        <Setter Property="Background" Value="MediumSeaGreen" />
+    </Style>
+    <Style Selector="Border.flash.on">
+        <Style.Animations>
+            <Animation Duration="0:0:0.45" IterationCount="Infinite" PlaybackDirection="Alternate" Easing="SineEaseInOut">
+                <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.0" /></KeyFrame>
+                <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.85" /></KeyFrame>
+            </Animation>
+        </Style.Animations>
+    </Style>
+</Styles>

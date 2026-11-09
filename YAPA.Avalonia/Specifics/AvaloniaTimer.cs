@@ -4,22 +4,30 @@ using YAPA.Shared.Contracts;
 
 namespace YAPA.Avalonia.Specifics;
 
-public class AvaloniaTimer : ITimer
+public sealed class AvaloniaTimer : ITimer
 {
-    private DispatcherTimer? _timer;
+    // Several ticks per second: the displayed second then flips within ~1/4 s of
+    // the real boundary, where a 1 s timer drifts against it and occasionally
+    // skips a digit. The engine only raises changes when the second changes.
+    private static readonly TimeSpan Interval = TimeSpan.FromMilliseconds(250);
 
-    // Lazy init so DispatcherTimer is created on the UI thread after Avalonia starts.
-    private DispatcherTimer GetTimer()
-    {
-        if (_timer != null)
-            return _timer;
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _timer.Tick += (_, _) => Tick?.Invoke();
-        return _timer;
-    }
+    private DispatcherTimer? _timer;
 
     public event Action? Tick;
 
-    public void Start() => GetTimer().Start();
+    public void Start()
+    {
+        // Created lazily so it binds to the UI dispatcher once Avalonia is running.
+        _timer ??= CreateTimer();
+        _timer.Start();
+    }
+
     public void Stop() => _timer?.Stop();
+
+    private DispatcherTimer CreateTimer()
+    {
+        var timer = new DispatcherTimer(DispatcherPriority.Render) { Interval = Interval };
+        timer.Tick += (_, _) => Tick?.Invoke();
+        return timer;
+    }
 }

@@ -1,16 +1,16 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using YAPA.Avalonia.Persistence;
+using YAPA.Avalonia.Platform;
+using YAPA.Avalonia.Services;
 using YAPA.Avalonia.Specifics;
+using YAPA.Avalonia.ViewModels;
 using YAPA.Shared.Common;
 using YAPA.Shared.Contracts;
 
 namespace YAPA.Avalonia.Bootstrap;
 
-/// <summary>
-/// Composition root. Every service is registered up front; nothing registers
-/// after the provider is built.
-/// </summary>
+/// <summary>Composition root. Everything is registered before the provider is built.</summary>
 public sealed class AppBootstrapper : IDisposable
 {
     private readonly ServiceProvider _provider;
@@ -27,25 +27,26 @@ public sealed class AppBootstrapper : IDisposable
         services.AddSingleton<IEnvironment, CrossPlatformEnvironment>();
         services.AddSingleton<ISettings, JsonYapaSettings>();
         services.AddSingleton<IThreading, AvaloniaThreading>();
+        services.AddSingleton<IClock, SystemClock>();
         services.AddTransient<ITimer, AvaloniaTimer>();
-        services.AddTransient<IDate, DateTimeWrapper>();
 
-        // ── Pomodoro engine ──────────────────────────────────────────────────
-        services.AddTransient<PomodoroEngineSettings>();
+        // ── Settings ─────────────────────────────────────────────────────────
+        services.AddSingleton<PomodoroEngineSettings>();
+        services.AddSingleton<AvaloniaYapaThemeSettings>();
+        services.AddSingleton<AvaloniaThemeSettings>();
+        services.AddSingleton<GeneralSettings>();
+        services.AddSingleton<AvaloniaSoundNotificationsSettings>();
+        services.AddSingleton<AvaloniaMusicPlayerSettings>();
+
+        // ── Timer ────────────────────────────────────────────────────────────
         services.AddSingleton<IPomodoroEngine, PomodoroEngine>();
         services.AddSingleton<IPomodoroRepository, SqlitePomodoroRepository>();
         services.AddSingleton<Dashboard>();
         services.AddSingleton<SnapshotService>();
 
-        // ── Theme / sound settings ───────────────────────────────────────────
-        services.AddSingleton<AvaloniaYapaThemeSettings>();
-        services.AddSingleton<AvaloniaThemeSettings>();
-        services.AddSingleton<AvaloniaSoundNotificationsSettings>();
-        services.AddSingleton<AvaloniaMusicPlayerSettings>();
-
-        // ── Audio ────────────────────────────────────────────────────────────
+        // ── Effects of timer transitions ─────────────────────────────────────
         // Notifications and background music must not share a player: music
-        // stops its player on every phase change, which would cut off the cue.
+        // stops its player on every transition, which would cut off the cue.
         services.AddSingleton(sp => new AvaloniaSoundNotifications(
             sp.GetRequiredService<IPomodoroEngine>(),
             sp.GetRequiredService<AvaloniaSoundNotificationsSettings>(),
@@ -57,12 +58,23 @@ public sealed class AppBootstrapper : IDisposable
             new ProcessBasedMusicPlayer(),
             sp.GetRequiredService<PomodoroEngineSettings>()));
 
-        // ── Shell integration ────────────────────────────────────────────────
+        // ── UI and shell integration ─────────────────────────────────────────
+        services.AddSingleton<AppNavigator>();
+        services.AddSingleton<IAppNavigator>(sp => sp.GetRequiredService<AppNavigator>());
+        services.AddSingleton<TimerViewModel>();
+        services.AddSingleton<AppCommandHandler>();
         services.AddSingleton<SystemTrayService>();
-        services.AddSingleton<IShowSettingsCommand, ShowSettingsCommand>();
-        services.AddSingleton<IMainViewModel, MainViewModel>();
+        services.AddSingleton<IWindowPlacementGuard, NullPlacementGuard>();
 
         _provider = services.BuildServiceProvider();
+    }
+
+    /// <summary>Instantiates the services that only listen to the engine, so they're wired before the first transition.</summary>
+    public void StartEffects()
+    {
+        Resolve<Dashboard>();
+        Resolve<AvaloniaSoundNotifications>();
+        Resolve<AvaloniaBackgroundMusic>();
     }
 
     public void Dispose()

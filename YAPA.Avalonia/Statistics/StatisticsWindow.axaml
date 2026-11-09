@@ -1,0 +1,8 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="YAPA.Avalonia.Windows.StatisticsWindow"
+        Title="YAPA 2 · Statistics"
+        Width="720" Height="520"
+        WindowStartupLocation="CenterScreen">
+    <ContentControl x:Name="Host" Margin="16" />
+</Window>

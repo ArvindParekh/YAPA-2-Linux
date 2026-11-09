@@ -159,3 +159,6 @@ $RECYCLE.BIN/
 out/
 TestResults/
 *.ppm
+
+# Claude Code local state (settings, agent worktrees)
+.claude/

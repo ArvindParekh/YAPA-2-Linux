@@ -1,129 +1,82 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="YAPA.Avalonia.Windows.MotivationalWindow"
-        x:CompileBindings="False"
-        Classes="transparent"
-        Title="YAPA"
-        Width="360" Height="240"
-        WindowDecorations="None"
-        ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaTitleBarHeightHint="-1"
-        TransparencyLevelHint="Transparent"
-        Background="Transparent"
-        Topmost="True"
-        WindowStartupLocation="Manual"
-        ShowInTaskbar="True"
-        CanResize="False"
-        Opened="OnOpened"
-        PointerPressed="OnPointerPressed"
-        PointerEntered="OnPointerEntered"
-        PointerExited="OnPointerExited"
-        KeyDown="OnKeyDown">
+<w:TimerWindowBase xmlns="https://github.com/avaloniaui"
+                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                   xmlns:w="using:YAPA.Avalonia.Windows"
+                   xmlns:vm="using:YAPA.Avalonia.ViewModels"
+                   x:Class="YAPA.Avalonia.Windows.MotivationalWindow"
+                   x:DataType="vm:TimerViewModel"
+                   x:Name="Root"
+                   Classes="transparent"
+                   Width="360" Height="220">
 
-    <!-- Strip Fluent theme chrome (border/shadow) so the window is truly transparent -->
-    <Window.Template>
-        <ControlTemplate>
-            <ContentPresenter Content="{TemplateBinding Content}" />
-        </ControlTemplate>
-    </Window.Template>
+    <w:TimerWindowBase.Styles>
+        <Style Selector="Button.action">
+            <Setter Property="Width" Value="64" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.window">
+            <Setter Property="Width" Value="20" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+    </w:TimerWindowBase.Styles>
 
-    <Grid Background="Transparent">
-        <!-- Background gradient panel (flashes on phase end) -->
-        <Border x:Name="BackgroundPanel"
-                Background="{Binding WindowBackground}"
-                CornerRadius="4" Opacity="0.85" />
+    <w:TimerWindowBase.ContextMenu>
+        <w:TimerContextMenu />
+    </w:TimerWindowBase.ContextMenu>
 
-        <Grid Margin="16,8">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+    <Panel>
+        <Border x:Name="Card" CornerRadius="10" Background="#E61A1A2E" />
+        <Border CornerRadius="10" Classes="flash"
+                Classes.work="{Binding IsWorkEndedAlert}"
+                Classes.break="{Binding IsBreakEndedAlert}"
+                Classes.on="{Binding IsAlerting}" />
 
-            <!-- Top row: phase label + minimize/close -->
-            <Grid Grid.Row="0">
-                <TextBlock Text="{Binding StatusText}"
-                           Foreground="{Binding TextBrush}"
-                           FontSize="11" Opacity="0.8" />
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
-                            IsVisible="{Binding ControlsVisible}">
-                    <Button Content="_" ToolTip.Tip="Minimize"
-                            Width="16" Height="16" Padding="0"
-                            Click="OnMinimizeClick"
-                            Foreground="{Binding TextBrush}"
-                            Background="Transparent" BorderThickness="0"
-                            FontSize="10" Cursor="Hand" />
-                    <Button Content="x" ToolTip.Tip="Close"
-                            Width="16" Height="16" Padding="0"
-                            Click="OnCloseClick"
-                            Foreground="{Binding TextBrush}"
-                            Background="Transparent" BorderThickness="0"
-                            FontSize="10" Cursor="Hand" />
+        <Grid Margin="16,10,16,10" RowDefinitions="Auto,*,Auto,Auto,Auto">
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                <TextBlock x:Name="StatusLabel" Text="{Binding StatusText}"
+                           Foreground="{Binding #Root.TextBrush}"
+                           FontSize="11" FontWeight="Medium" Opacity="0.8" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            Classes="controls" Classes.concealed="{Binding !#Root.ControlsVisible}">
+                    <Button Classes="chrome window" Content="–" ToolTip.Tip="Hide (Ctrl+H)" Click="OnMinimizeClick" />
+                    <Button Classes="chrome window" Content="×" ToolTip.Tip="Quit (Ctrl+Q)" Command="{Binding QuitCommand}" />
                 </StackPanel>
             </Grid>
 
-            <!-- Quote -->
             <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="4">
-                <TextBlock Text="{Binding QuoteText}"
-                           Foreground="{Binding TextBrush}"
-                           FontSize="14" TextWrapping="Wrap"
-                           HorizontalAlignment="Center"
-                           TextAlignment="Center"
-                           Opacity="0.9" />
-                <TextBlock Text="{Binding QuoteSource}"
-                           Foreground="{Binding TextBrush}"
-                           FontSize="10" HorizontalAlignment="Center"
-                           Opacity="0.6" />
+                <TextBlock x:Name="QuoteText" Foreground="{Binding #Root.TextBrush}"
+                           FontSize="14" TextWrapping="Wrap" TextAlignment="Center"
+                           HorizontalAlignment="Center" Opacity="0.92" />
+                <TextBlock x:Name="QuoteSource" Foreground="{Binding #Root.TextBrush}"
+                           FontSize="10" HorizontalAlignment="Center" Opacity="0.6" />
             </StackPanel>
 
-            <!-- Timer row -->
-            <StackPanel Grid.Row="2" Orientation="Horizontal"
-                        Effect="{Binding TimerShadowEffect}"
-                        HorizontalAlignment="Center" Spacing="2" Margin="0,4">
-                <TextBlock Text="{Binding TimerMinutes}"
-                           Foreground="{Binding TextBrush}"
-                           FontSize="36" FontWeight="Light"
-                           VerticalAlignment="Center" />
-                <TextBlock Text=":"
-                           Foreground="{Binding TextBrush}"
-                           FontSize="36" FontWeight="Light"
-                           VerticalAlignment="Center" />
-                <TextBlock Text="{Binding TimerSeconds}"
-                           Foreground="{Binding TextBrush}"
-                           FontSize="36" FontWeight="Light"
-                           VerticalAlignment="Center" />
-            </StackPanel>
+            <TextBlock Grid.Row="2" x:Name="TimeLabel" Classes="digits"
+                       Text="{Binding TimeText}"
+                       Foreground="{Binding #Root.TextBrush}"
+                       FontFamily="{StaticResource TimerFont}"
+                       FontWeight="Light" FontSize="40"
+                       HorizontalAlignment="Center" Margin="0,2" />
 
-            <!-- Controls row -->
-            <StackPanel Grid.Row="3" Orientation="Horizontal"
-                        HorizontalAlignment="Center" Spacing="8"
-                        IsVisible="{Binding ControlsVisible}">
-                <Button IsVisible="{Binding SkipVisible}"
-                        Command="{Binding SkipCommand}"
-                        Content="SKIP" Height="20" Width="50"
-                        Foreground="{Binding TextBrush}"
-                        Background="Transparent" BorderThickness="0"
-                        FontSize="11" Cursor="Hand" Padding="0" />
-                <Button IsVisible="{Binding StartVisible}"
-                        Command="{Binding StartCommand}"
-                        Content="START" Height="20" Width="50"
-                        Foreground="{Binding TextBrush}"
-                        Background="Transparent" BorderThickness="0"
-                        FontSize="11" Cursor="Hand" Padding="0" />
-                <Button IsVisible="{Binding PauseVisible}"
-                        Command="{Binding PauseCommand}"
-                        Content="PAUSE" Height="20" Width="50"
-                        Foreground="{Binding TextBrush}"
-                        Background="Transparent" BorderThickness="0"
-                        FontSize="11" Cursor="Hand" Padding="0" />
-                <Button IsVisible="{Binding StopVisible}"
-                        Command="{Binding StopCommand}"
-                        Content="STOP" Height="20" Width="50"
-                        Foreground="{Binding TextBrush}"
-                        Background="Transparent" BorderThickness="0"
-                        FontSize="11" Cursor="Hand" Padding="0" />
+            <ProgressBar Grid.Row="3" x:Name="ProgressLine"
+                         Minimum="0" Maximum="1" Value="{Binding Progress}"
+                         Height="3" MinHeight="3" CornerRadius="2"
+                         Foreground="{Binding #Root.TextBrush}" Background="#22FFFFFF"
+                         Margin="40,0,40,6" />
+
+            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6"
+                        Classes="controls" Classes.concealed="{Binding !#Root.ControlsVisible}">
+                <Button Classes="chrome action" Content="SKIP" ToolTip.Tip="Skip the break (S)"
+                        Command="{Binding SkipCommand}" IsVisible="{Binding CanSkip}" />
+                <Button Classes="chrome action" Content="{Binding StartLabel}" ToolTip.Tip="{Binding StartTooltip}"
+                        Command="{Binding StartCommand}" IsVisible="{Binding CanStart}" />
+                <Button Classes="chrome action" Content="PAUSE" ToolTip.Tip="Pause (Space)"
+                        Command="{Binding PauseCommand}" IsVisible="{Binding CanPause}" />
+                <Button Classes="chrome action" Content="STOP" ToolTip.Tip="{Binding StopTooltip}"
+                        Command="{Binding StopCommand}" IsVisible="{Binding CanStop}" />
             </StackPanel>
         </Grid>
-    </Grid>
-</Window>
+    </Panel>
+</w:TimerWindowBase>

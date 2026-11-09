@@ -5,90 +5,110 @@ using YAPA.Shared.Contracts;
 
 namespace YAPA.Avalonia.Specifics;
 
+/// <summary>
+/// Appearance of the timer window. The component name "YapaTheme" and the key
+/// names are kept from the original app so existing settings files still apply.
+/// </summary>
 public sealed class AvaloniaYapaThemeSettings : IPluginSettings, INotifyPropertyChanged
 {
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    private void Notify([CallerMemberName] string? n = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
+    public const int DefaultWidth = 200;
 
     private readonly ISettingsForComponent _s;
 
-    public AvaloniaYapaThemeSettings(ISettings settings)
-        => _s = settings.GetSettingsForComponent("YapaTheme");
+    public AvaloniaYapaThemeSettings(ISettings settings) => _s = settings.GetSettingsForComponent("YapaTheme");
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void Set(object value, [CallerMemberName] string name = "")
+    {
+        _s.Update(name, value);
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
 
     public int Width
     {
-        get => _s.Get(nameof(Width), 200);
-        set { _s.Update(nameof(Width), value); Notify(); }
+        get => _s.Get(nameof(Width), DefaultWidth);
+        set => Set(value);
     }
 
     public double ClockOpacity
     {
         get => _s.Get(nameof(ClockOpacity), 1.0);
-        set { _s.Update(nameof(ClockOpacity), value); Notify(); }
+        set => Set(value);
     }
 
     public double ShadowOpacity
     {
         get => _s.Get(nameof(ShadowOpacity), 0.6);
-        set { _s.Update(nameof(ShadowOpacity), value); Notify(); }
+        set => Set(value);
     }
 
     public Color TextColor
     {
         get => ParseColor(_s.Get(nameof(TextColor), "White"), Colors.White);
-        set { _s.Update(nameof(TextColor), value.ToString()); Notify(); }
+        set => Set(value.ToString());
     }
 
     public Color ShadowColor
     {
         get => ParseColor(_s.Get(nameof(ShadowColor), "Black"), Colors.Black);
-        set { _s.Update(nameof(ShadowColor), value.ToString()); Notify(); }
+        set => Set(value.ToString());
     }
 
     public bool DisableFlashingAnimation
     {
         get => _s.Get(nameof(DisableFlashingAnimation), false);
-        set { _s.Update(nameof(DisableFlashingAnimation), value); Notify(); }
+        set => Set(value);
     }
 
     public bool ShowStatusText
     {
         get => _s.Get(nameof(ShowStatusText), true);
-        set { _s.Update(nameof(ShowStatusText), value); Notify(); }
+        set => Set(value);
+    }
+
+    public bool ShowProgress
+    {
+        get => _s.Get(nameof(ShowProgress), true);
+        set => Set(value);
     }
 
     public bool HideSeconds
     {
         get => _s.Get(nameof(HideSeconds), false);
-        set { _s.Update(nameof(HideSeconds), value); Notify(); }
+        set => Set(value);
     }
 
+    /// <summary>True: controls appear only while the pointer is over the timer.</summary>
     public bool HideButtons
     {
         get => _s.Get(nameof(HideButtons), false);
-        set { _s.Update(nameof(HideButtons), value); Notify(); }
+        set => Set(value);
     }
 
     public bool MinimizeToTray
     {
         get => _s.Get(nameof(MinimizeToTray), true);
-        set { _s.Update(nameof(MinimizeToTray), value); Notify(); }
+        set => Set(value);
     }
 
-    public int DigitSpacing
+    public void ResetToDefaults()
     {
-        get => _s.Get(nameof(DigitSpacing), 36);
-        set { _s.Update(nameof(DigitSpacing), value); Notify(); }
+        Width = DefaultWidth;
+        ClockOpacity = 1.0;
+        ShadowOpacity = 0.6;
+        TextColor = Colors.White;
+        ShadowColor = Colors.Black;
+        DisableFlashingAnimation = false;
+        ShowStatusText = true;
+        ShowProgress = true;
+        HideSeconds = false;
+        HideButtons = false;
+        MinimizeToTray = true;
     }
 
     public void DeferChanges() => _s.DeferChanges();
 
     private static Color ParseColor(string? s, Color fallback)
-    {
-        if (string.IsNullOrWhiteSpace(s)) return fallback;
-        try { return Color.Parse(s); }
-        catch { return fallback; }
-    }
+        => !string.IsNullOrWhiteSpace(s) && Color.TryParse(s, out var c) ? c : fallback;
 }

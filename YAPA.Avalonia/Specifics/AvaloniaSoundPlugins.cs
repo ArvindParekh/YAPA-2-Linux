@@ -1,54 +1,39 @@
-using System.ComponentModel;
 using System.IO;
 using YAPA.Shared.Common;
 using YAPA.Shared.Contracts;
 
 namespace YAPA.Avalonia.Specifics;
 
-/// <summary>
-/// Plays tick/ding sounds when the pomodoro phase changes.
-/// Mirrors YAPA.WPF SoundNotifications.
-/// </summary>
+// Interim adapters over the old process player; replaced by Audio/ integration.
 public sealed class AvaloniaSoundNotifications
 {
-    private readonly IPomodoroEngine _engine;
     private readonly AvaloniaSoundNotificationsSettings _settings;
     private readonly IMusicPlayer _player;
     private readonly PomodoroEngineSettings _engineSettings;
 
-    public AvaloniaSoundNotifications(
-        IPomodoroEngine engine,
-        AvaloniaSoundNotificationsSettings settings,
-        IMusicPlayer player,
-        PomodoroEngineSettings engineSettings)
+    public AvaloniaSoundNotifications(IPomodoroEngine engine, AvaloniaSoundNotificationsSettings settings, IMusicPlayer player, PomodoroEngineSettings engineSettings)
     {
-        _engine = engine;
         _settings = settings;
         _player = player;
         _engineSettings = engineSettings;
-
-        engine.PropertyChanged += OnEnginePropertyChanged;
+        engine.Transitioned += OnTransition;
     }
 
-    private void OnEnginePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnTransition(PomodoroTransition t)
     {
-        if (e.PropertyName != nameof(_engine.Phase)) return;
         if (_engineSettings.DisableSoundNotifications) return;
-
-        switch (_engine.Phase)
+        switch (t.Kind)
         {
-            case PomodoroPhase.Work:
-            case PomodoroPhase.Break:
-                PlayPath(_settings.PeriodStartSound);
+            case PomodoroTransitionKind.WorkStarted or PomodoroTransitionKind.BreakStarted or PomodoroTransitionKind.Resumed when !t.Automatic:
+                Play(_settings.PeriodStartSound);
                 break;
-            case PomodoroPhase.WorkEnded:
-            case PomodoroPhase.BreakEnded:
-                PlayPath(_settings.PeriodEndSound);
+            case PomodoroTransitionKind.WorkCompleted or PomodoroTransitionKind.BreakCompleted:
+                Play(_settings.PeriodEndSound);
                 break;
         }
     }
 
-    private void PlayPath(string path)
+    private void Play(string path)
     {
         if (!File.Exists(path)) return;
         _player.Stop();
@@ -57,10 +42,6 @@ public sealed class AvaloniaSoundNotifications
     }
 }
 
-/// <summary>
-/// Plays per-phase background music songs.
-/// Mirrors YAPA.WPF MusicPlayer plugin.
-/// </summary>
 public sealed class AvaloniaBackgroundMusic
 {
     private readonly IPomodoroEngine _engine;
@@ -68,49 +49,27 @@ public sealed class AvaloniaBackgroundMusic
     private readonly IMusicPlayer _player;
     private readonly PomodoroEngineSettings _engineSettings;
 
-    public AvaloniaBackgroundMusic(
-        IPomodoroEngine engine,
-        AvaloniaMusicPlayerSettings settings,
-        IMusicPlayer player,
-        PomodoroEngineSettings engineSettings)
+    public AvaloniaBackgroundMusic(IPomodoroEngine engine, AvaloniaMusicPlayerSettings settings, IMusicPlayer player, PomodoroEngineSettings engineSettings)
     {
         _engine = engine;
         _settings = settings;
         _player = player;
         _engineSettings = engineSettings;
-
-        engine.PropertyChanged += OnEnginePropertyChanged;
+        engine.Transitioned += OnTransition;
     }
 
-    private void OnEnginePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnTransition(PomodoroTransition t)
     {
-        if (e.PropertyName != nameof(_engine.Phase)) return;
+        _player.Stop();
         if (_engineSettings.DisableSoundNotifications) return;
 
-        _player.Stop();
-
-        string? song = null;
-        bool repeat = false;
-
-        switch (_engine.Phase)
+        (string? song, bool repeat) = _engine.Phase switch
         {
-            case PomodoroPhase.Work:
-                song = _settings.WorkSong;
-                repeat = _settings.RepeatWorkSong;
-                break;
-            case PomodoroPhase.Break:
-                if (_engine.Index == _engineSettings.PomodorosBeforeLongBreak)
-                {
-                    song = _settings.SessionBreakSong;
-                    repeat = _settings.RepeatSessionBreakSong;
-                }
-                else
-                {
-                    song = _settings.BreakSong;
-                    repeat = _settings.RepeatBreakSong;
-                }
-                break;
-        }
+            PomodoroPhase.Work => (_settings.WorkSong, _settings.RepeatWorkSong),
+            PomodoroPhase.Break when _engine.IsLongBreak => (_settings.SessionBreakSong, _settings.RepeatSessionBreakSong),
+            PomodoroPhase.Break => (_settings.BreakSong, _settings.RepeatBreakSong),
+            _ => (null, false),
+        };
 
         if (!string.IsNullOrEmpty(song) && File.Exists(song))
         {

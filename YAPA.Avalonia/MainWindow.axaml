@@ -1,168 +1,101 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="YAPA.Avalonia.MainWindow"
-        x:CompileBindings="False"
-        Classes="transparent"
-        Title="YAPA"
-        Width="130" Height="60"
-        WindowDecorations="None"
-        ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaTitleBarHeightHint="-1"
-        TransparencyLevelHint="Transparent"
-        Background="Transparent"
-        Topmost="True"
-        WindowStartupLocation="Manual"
-        ShowInTaskbar="True"
-        CanResize="False"
-        Opened="OnOpened"
-        Closing="OnWindowClosing"
-        PointerPressed="OnPointerPressed"
-        PointerEntered="OnPointerEntered"
-        PointerExited="OnPointerExited"
-        KeyDown="OnKeyDown">
+<w:TimerWindowBase xmlns="https://github.com/avaloniaui"
+                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                   xmlns:w="using:YAPA.Avalonia.Windows"
+                   xmlns:vm="using:YAPA.Avalonia.ViewModels"
+                   x:Class="YAPA.Avalonia.MainWindow"
+                   x:DataType="vm:TimerViewModel"
+                   x:Name="Root"
+                   Classes="transparent"
+                   Width="200" Height="92">
 
-    <!-- Strip Fluent theme chrome (border/shadow) so the window is truly transparent -->
-    <Window.Template>
-        <ControlTemplate>
-            <ContentPresenter Content="{TemplateBinding Content}" />
-        </ControlTemplate>
-    </Window.Template>
+    <!--
+      Classic YAPA 1.0 look: big digits, a narrow column of text buttons.
+      Everything is laid out on a fixed 260x120 design canvas and scaled by the
+      Viewbox, so the "size" setting is just the window width.
+    -->
+    <w:TimerWindowBase.Styles>
+        <Style Selector="Button.action">
+            <Setter Property="Width" Value="62" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,1" />
+        </Style>
+        <Style Selector="Button.window">
+            <Setter Property="Width" Value="22" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+    </w:TimerWindowBase.Styles>
 
-    <Grid Background="Transparent">
-        <Viewbox Stretch="Uniform">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+    <w:TimerWindowBase.ContextMenu>
+        <w:TimerContextMenu />
+    </w:TimerWindowBase.ContextMenu>
 
-                <!-- Timer digit row spans both grid rows -->
-                <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="2"
-                            Background="{Binding FlashBackground}"
-                            Effect="{Binding TimerShadowEffect}"
-                            Orientation="Horizontal">
-                    <TextBlock Width="{Binding DigitSpacing}" FontSize="60"
-                               Foreground="{Binding TextBrush}"
-                               IsVisible="{Binding HundredsVisible}"
-                               HorizontalAlignment="Right" VerticalAlignment="Center"
-                               Text="{Binding DigitH}" />
-                    <TextBlock Width="{Binding DigitSpacing}" FontSize="60"
-                               Foreground="{Binding TextBrush}"
-                               HorizontalAlignment="Right" VerticalAlignment="Center"
-                               Text="{Binding TensMinutes}" />
-                    <TextBlock Width="{Binding DigitSpacing}" FontSize="60"
-                               Foreground="{Binding TextBrush}"
-                               HorizontalAlignment="Right" VerticalAlignment="Center"
-                               Text="{Binding OnesMinutes}" />
-                    <TextBlock FontSize="60"
-                               Foreground="{Binding TextBrush}"
-                               IsVisible="{Binding ShowSeconds}"
-                               HorizontalAlignment="Right" VerticalAlignment="Center"
-                               Text=":" />
-                    <TextBlock Width="{Binding DigitSpacing}" FontSize="60"
-                               Foreground="{Binding TextBrush}"
-                               IsVisible="{Binding ShowSeconds}"
-                               HorizontalAlignment="Right" VerticalAlignment="Center"
-                               Text="{Binding TensSeconds}" />
-                    <TextBlock Width="{Binding DigitSpacing}" FontSize="60"
-                               Foreground="{Binding TextBrush}"
-                               IsVisible="{Binding ShowSeconds}"
-                               HorizontalAlignment="Right" VerticalAlignment="Center"
-                               Text="{Binding OnesSeconds}" />
-                </StackPanel>
+    <!-- Transparent (not null) background: the whole window is a drag handle. -->
+    <Panel Background="Transparent">
+    <Viewbox Stretch="Uniform">
+        <Grid Width="260" Height="120" ColumnDefinitions="*,Auto" RowDefinitions="Auto,*,Auto">
 
-                <!-- Phase status label -->
-                <TextBlock Text="{Binding StatusText}"
-                           IsVisible="{Binding StatusTextVisible}"
-                           Grid.Row="0" Grid.Column="0"
-                           VerticalAlignment="Top"
-                           Foreground="{Binding TextBrush}"
-                           FontSize="10" />
+            <TextBlock Grid.Row="0" Grid.Column="0"
+                       x:Name="StatusLabel"
+                       Text="{Binding StatusText}"
+                       Foreground="{Binding #Root.TextBrush}"
+                       FontSize="13" FontWeight="Medium" Opacity="0.85"
+                       Margin="6,2,0,0" VerticalAlignment="Center" />
 
-                <!-- Minimize / close -->
-                <StackPanel Grid.Row="0" Grid.Column="1"
-                            IsVisible="{Binding ControlsVisible}"
-                            Orientation="Horizontal" HorizontalAlignment="Right"
-                            VerticalAlignment="Top">
-                    <Button Content="_"
-                            ToolTip.Tip="Minimize"
-                            Width="15" Height="15"
-                            Click="OnMinimizeClick"
-                            Foreground="{Binding TextBrush}"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            FontSize="10"
-                            Cursor="Hand"
-                            Padding="0" />
-                    <Button Content="x"
-                            ToolTip.Tip="Close"
-                            Width="15" Height="15"
-                            Click="OnCloseClick"
-                            Foreground="{Binding TextBrush}"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            FontSize="10"
-                            Cursor="Hand"
-                            Padding="0" />
-                </StackPanel>
+            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal"
+                        HorizontalAlignment="Right" Margin="0,2,2,0"
+                        Classes="controls" Classes.concealed="{Binding !#Root.ControlsVisible}">
+                <Button Classes="chrome window" Content="–" ToolTip.Tip="Hide (Ctrl+H)" Click="OnMinimizeClick" />
+                <Button Classes="chrome window" Content="×" ToolTip.Tip="Quit (Ctrl+Q)" Command="{Binding QuitCommand}" />
+            </StackPanel>
 
-                <!-- Phase control buttons -->
-                <StackPanel Grid.Row="1" Grid.Column="1"
-                            IsVisible="{Binding ControlsVisible}"
-                            VerticalAlignment="Center">
-                    <Button IsVisible="{Binding SkipVisible}"
-                            Command="{Binding SkipCommand}"
-                            Content="SKIP"
-                            ToolTip.Tip="Skip break"
-                            Height="15" Width="38"
-                            Foreground="{Binding TextBrush}"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            FontSize="11" Cursor="Hand"
-                            Padding="0" />
-                    <Button IsVisible="{Binding StartVisible}"
-                            Command="{Binding StartCommand}"
-                            Content="START"
-                            ToolTip.Tip="Start Pomodoro"
-                            Height="15" Width="38"
-                            Foreground="{Binding TextBrush}"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            FontSize="11" Cursor="Hand"
-                            Padding="0" />
-                    <Button IsVisible="{Binding PauseVisible}"
-                            Command="{Binding PauseCommand}"
-                            Content="PAUSE"
-                            ToolTip.Tip="Pause Pomodoro"
-                            Height="15" Width="38"
-                            Foreground="{Binding TextBrush}"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            FontSize="11" Cursor="Hand"
-                            Padding="0" />
-                    <Button IsVisible="{Binding StopVisible}"
-                            Command="{Binding StopCommand}"
-                            Content="STOP"
-                            ToolTip.Tip="Stop Pomodoro"
-                            Height="15" Width="38"
-                            Foreground="{Binding TextBrush}"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            FontSize="11" Cursor="Hand"
-                            Padding="0" />
-                    <TextBlock Text="{Binding Counter}"
-                               Foreground="{Binding TextBrush}"
-                               FontSize="8"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               Width="10" Height="10"
-                               ToolTip.Tip="Current period" />
-                </StackPanel>
-            </Grid>
-        </Viewbox>
-    </Grid>
-</Window>
+            <Panel Grid.Row="1" Grid.Column="0" Margin="2,0,2,0">
+                <Border x:Name="FlashBorder" CornerRadius="10"
+                        Classes="flash"
+                        Classes.work="{Binding IsWorkEndedAlert}"
+                        Classes.break="{Binding IsBreakEndedAlert}"
+                        Classes.on="{Binding IsAlerting}" />
+                <Viewbox Stretch="Uniform" StretchDirection="DownOnly" Margin="2,0">
+                    <TextBlock x:Name="TimeLabel" Classes="digits"
+                               Text="{Binding TimeText}"
+                               Foreground="{Binding #Root.TextBrush}"
+                               FontFamily="{StaticResource TimerFont}"
+                               FontWeight="Light"
+                               FontSize="84"
+                               LineHeight="84"
+                               VerticalAlignment="Center" />
+                </Viewbox>
+            </Panel>
+
+            <StackPanel Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="0,0,2,0"
+                        Classes="controls" Classes.concealed="{Binding !#Root.ControlsVisible}">
+                <Button Classes="chrome action" Content="SKIP" ToolTip.Tip="Skip the break (S)"
+                        Command="{Binding SkipCommand}" IsVisible="{Binding CanSkip}" />
+                <Button Classes="chrome action" Content="{Binding StartLabel}" ToolTip.Tip="{Binding StartTooltip}"
+                        Command="{Binding StartCommand}" IsVisible="{Binding CanStart}" />
+                <Button Classes="chrome action" Content="PAUSE" ToolTip.Tip="Pause (Space)"
+                        Command="{Binding PauseCommand}" IsVisible="{Binding CanPause}" />
+                <Button Classes="chrome action" Content="STOP" ToolTip.Tip="{Binding StopTooltip}"
+                        Command="{Binding StopCommand}" IsVisible="{Binding CanStop}" />
+            </StackPanel>
+
+            <TextBlock Grid.Row="2" Grid.Column="1"
+                       Text="{Binding CounterText}"
+                       ToolTip.Tip="{Binding CounterTooltip}"
+                       Foreground="{Binding #Root.TextBrush}"
+                       FontSize="12" Opacity="0.8"
+                       HorizontalAlignment="Center" Margin="0,0,2,4" />
+
+            <ProgressBar Grid.Row="2" Grid.Column="0"
+                         x:Name="ProgressLine"
+                         Minimum="0" Maximum="1" Value="{Binding Progress}"
+                         Height="3" MinHeight="3" CornerRadius="2"
+                         Foreground="{Binding #Root.TextBrush}"
+                         Background="#22FFFFFF"
+                         Margin="8,0,8,6" VerticalAlignment="Center" />
+        </Grid>
+    </Viewbox>
+    </Panel>
+</w:TimerWindowBase>

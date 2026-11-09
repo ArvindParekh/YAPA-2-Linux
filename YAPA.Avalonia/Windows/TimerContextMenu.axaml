@@ -1,0 +1,17 @@
+<ContextMenu xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:YAPA.Avalonia.ViewModels"
+             x:Class="YAPA.Avalonia.Windows.TimerContextMenu"
+             x:DataType="vm:TimerViewModel">
+    <MenuItem Header="{Binding StartMenuText}" Command="{Binding StartCommand}" IsVisible="{Binding CanStart}" InputGesture="Space" />
+    <MenuItem Header="Pause" Command="{Binding PauseCommand}" IsVisible="{Binding CanPause}" InputGesture="Space" />
+    <MenuItem Header="Skip break" Command="{Binding SkipCommand}" IsVisible="{Binding CanSkip}" InputGesture="S" />
+    <MenuItem Header="{Binding StopMenuText}" Command="{Binding StopCommand}" IsVisible="{Binding CanStop}" InputGesture="Escape" />
+    <MenuItem Header="Reset cycle" Command="{Binding ResetCommand}" IsEnabled="{Binding CanReset}" />
+    <Separator />
+    <MenuItem Header="Statistics…" Command="{Binding OpenStatisticsCommand}" InputGesture="Ctrl+I" />
+    <MenuItem Header="Settings…" Command="{Binding OpenSettingsCommand}" InputGesture="Ctrl+OemComma" />
+    <Separator />
+    <MenuItem Header="Hide to tray" Command="{Binding HideToTrayCommand}" InputGesture="Ctrl+H" />
+    <MenuItem Header="Quit YAPA" Command="{Binding QuitCommand}" InputGesture="Ctrl+Q" />
+</ContextMenu>

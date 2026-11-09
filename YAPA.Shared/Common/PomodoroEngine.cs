@@ -1,9 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
-using System.Linq;
-using System.Threading.Tasks;
 using YAPA.Shared.Contracts;
-using System.Collections.Generic;
 
 namespace YAPA.Shared.Common
 {
@@ -11,579 +8,473 @@ namespace YAPA.Shared.Common
     {
         public PomodoroProfile PomodoroProfile { get; set; }
         public string ProfileName { get; set; }
+
+        /// <summary>Seconds elapsed in the interval when the snapshot was taken.</summary>
         public int PausedTime { get; set; }
+
+        /// <summary>UTC time the snapshot was taken.</summary>
         public DateTime StartDate { get; set; }
         public PomodoroPhase Phase { get; set; }
+
+        /// <summary>Only meaningful when <see cref="Phase"/> is Pause. Absent in snapshots from older builds (treated as Work).</summary>
+        public PomodoroPhase? PausedPhase { get; set; }
         public int PomodoroIndex { get; set; }
     }
 
+    /// <summary>
+    /// The pomodoro state machine.
+    ///
+    ///   NotStarted ─start→ Work ─(time up)→ WorkEnded ─start→ Break ─(time up)→ BreakEnded ─start→ Work …
+    ///                       │  ↑                                 │  ↑
+    ///                     pause│start                          pause│start
+    ///                       ↓  │                                 ↓  │
+    ///                       Pause (PausedPhase = Work)           Pause (PausedPhase = Break)
+    ///
+    /// Elapsed time is accumulated in segments on a monotonic clock: each pause
+    /// folds the running segment into <see cref="_accumulated"/>. All methods are
+    /// expected to be called on the UI thread; the timer ticks there too.
+    /// </summary>
     public class PomodoroEngine : IPomodoroEngine, IPlugin
     {
+        /// <summary>
+        /// Pause between "work ended" and an auto-started break, so the completion
+        /// sound and flash register before the break takes over.
+        /// </summary>
+        public static readonly TimeSpan AutoStartDelay = TimeSpan.FromSeconds(1.5);
+
         private readonly PomodoroEngineSettings _settings;
         private readonly ITimer _timer;
-        private readonly IDate _dateTime;
+        private readonly IClock _clock;
         private readonly IThreading _threading;
         private readonly IPomodoroRepository _repository;
 
-        public int Index => Current.Index;
+        private PomodoroPhase _phase = PomodoroPhase.NotStarted;
+        private PomodoroPhase _pausedPhase = PomodoroPhase.Work;
+        private int _index = 1;
+        private int _completedThisSession;
 
-        private int _completedPomodorosThisSession;
+        private TimeSpan _accumulated;
+        private TimeSpan _segmentStart;
+        private TimeSpan? _autoStartAt;
+        private int _lastNotifiedSecond = -1;
+
+        public PomodoroEngine(PomodoroEngineSettings settings, ITimer timer, IClock clock, IThreading threading, ISettings globalSettings, IPomodoroRepository repository)
+        {
+            _settings = settings;
+            _timer = timer;
+            _clock = clock;
+            _threading = threading;
+            _repository = repository;
+
+            _timer.Tick += OnTick;
+            globalSettings.PropertyChanged += OnGlobalSettingsChanged;
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        public event Action<PomodoroTransition> Transitioned;
+        public event Action OnPomodoroCompleted;
+
+        // ── State ────────────────────────────────────────────────────────────
+
+        public PomodoroPhase Phase => _phase;
+
+        public PomodoroPhase PausedPhase => _pausedPhase;
+
+        public int Index => Math.Min(_index, CycleLength);
+
+        public bool IsRunning => _phase == PomodoroPhase.Work || _phase == PomodoroPhase.Break;
+
+        public bool IsLongBreak => _index >= CycleLength;
+
+        public int WorkTime => Math.Max(1, _settings.WorkTime);
+
+        public int BreakTime => Math.Max(1, IsLongBreak ? _settings.LongBreakTime : _settings.BreakTime);
+
+        private int CycleLength => Math.Max(1, _settings.PomodorosBeforeLongBreak);
+
+        /// <summary>Whether the interval being timed (or about to be) is a break.</summary>
+        private bool InBreakInterval
+        {
+            get
+            {
+                switch (_phase)
+                {
+                    case PomodoroPhase.Break:
+                    case PomodoroPhase.BreakEnded:
+                        return true;
+                    case PomodoroPhase.Pause:
+                        return _pausedPhase == PomodoroPhase.Break;
+                    default:
+                        return false;
+                }
+            }
+        }
+
+        public int CurrentIntervalLength => InBreakInterval ? BreakTime : WorkTime;
+
+        public int Elapsed
+        {
+            get
+            {
+                var elapsed = _accumulated;
+                if (IsRunning)
+                {
+                    elapsed += _clock.Monotonic - _segmentStart;
+                }
+                else if (_phase == PomodoroPhase.WorkEnded || _phase == PomodoroPhase.BreakEnded)
+                {
+                    return CurrentIntervalLength;
+                }
+
+                var seconds = (int)Math.Floor(elapsed.TotalSeconds);
+                return Math.Max(0, Math.Min(seconds, CurrentIntervalLength));
+            }
+        }
+
+        public int Remaining => CurrentIntervalLength - Elapsed;
+
+        public int DisplayValue => _settings.CountBackwards ? Remaining : Elapsed;
+
+        public double Progress => CurrentIntervalLength <= 0 ? 0 : (double)Elapsed / CurrentIntervalLength;
+
         public int Counter
         {
             get
             {
-                int counter;
                 switch (_settings.Counter)
                 {
-                    case CounterEnum.PomodoroIndex:
-                        counter = Index;
-                        break;
                     case CounterEnum.CompletedToday:
-                        counter = _repository.CompletedToday();
-                        break;
+                        return _repository.CompletedToday();
                     case CounterEnum.CompletedThisSession:
-                        counter = _completedPomodorosThisSession;
-                        break;
+                        return _completedThisSession;
                     default:
-                        throw new ArgumentOutOfRangeException();
+                        return Index;
                 }
-
-                return counter;
             }
         }
 
-        private int _elapsedInPause;
-        public int Elapsed => Math.Min(_elapsedInPause + (int)(_endDate - _startDate).TotalSeconds, CurrentIntervalLength);
-        public int Remaining => CurrentIntervalLength - Elapsed;
+        // ── Commands ─────────────────────────────────────────────────────────
 
-        public int CurrentIntervalLength
+        public void Start() => Start(automatic: false);
+
+        private void Start(bool automatic)
         {
-            get
+            var from = _phase;
+            _autoStartAt = null;
+
+            switch (_phase)
             {
-                var length = 0;
-                switch (Phase)
-                {
-                    case PomodoroPhase.NotStarted:
-                    case PomodoroPhase.WorkEnded:
-                    case PomodoroPhase.Work:
-                    case PomodoroPhase.Pause:
-                        length = WorkTime;
-                        break;
-                    case PomodoroPhase.Break:
-                    case PomodoroPhase.BreakEnded:
-                        length = BreakTime;
-                        break;
-                }
-                return length;
-            }
-        }
-
-        public int DisplayValue => _settings.CountBackwards ? Remaining : Elapsed;
-
-        public int WorkTime => Current.WorkTime;
-
-        public int BreakTime => Current.BreakTime;
-
-        private PomodoroPhase _phase;
-        public PomodoroPhase Phase
-        {
-            get => _phase;
-            private set
-            {
-                if (_phase == value)
-                {
-                    return;
-                }
-                _phase = value;
-                NotifyPropertyChanged(nameof(Phase));
-                NotifyPropertyChanged(nameof(Counter));
-                NotifyPropertyChanged(nameof(IsRunning));
-            }
-        }
-
-        public event Func<bool> OnStarting;
-        public event Action OnStarted;
-        public event Action OnStopped;
-        public event Action OnPaused;
-
-        /// <summary>
-        /// Invoked when pomodoro work is completed
-        /// </summary>
-        public event Action OnPomodoroCompleted;
-
-        public bool IsRunning => Phase == PomodoroPhase.Break || Phase == PomodoroPhase.Work;
-
-        private DateTime _startDate;
-        private DateTime _endDate;
-
-        public void Start()
-        {
-            var cancelStart = OnStarting?.Invoke();
-            if (cancelStart.HasValue && cancelStart.Value)
-            {
-                return;
-            }
-
-            switch (Phase)
-            {
-                case PomodoroPhase.Pause:
                 case PomodoroPhase.NotStarted:
-                    Phase = PomodoroPhase.Work;
+                    BeginInterval(PomodoroPhase.Work, TimeSpan.Zero);
+                    Raise(PomodoroTransitionKind.WorkStarted, from, automatic);
                     break;
+
                 case PomodoroPhase.BreakEnded:
-                    Phase = PomodoroPhase.Work;
-                    Current = Current.NextPomodoro;
-                    _elapsedInPause = 0;
+                    AdvanceIndex();
+                    BeginInterval(PomodoroPhase.Work, TimeSpan.Zero);
+                    Raise(PomodoroTransitionKind.WorkStarted, from, automatic);
                     break;
+
                 case PomodoroPhase.WorkEnded:
-                    Phase = PomodoroPhase.Break;
-                    _elapsedInPause = 0;
+                    BeginInterval(PomodoroPhase.Break, TimeSpan.Zero);
+                    Raise(PomodoroTransitionKind.BreakStarted, from, automatic);
                     break;
+
+                case PomodoroPhase.Pause:
+                    _segmentStart = _clock.Monotonic;
+                    SetPhase(_pausedPhase);
+                    _timer.Start();
+                    NotifyTime(force: true);
+                    Raise(PomodoroTransitionKind.Resumed, from, automatic);
+                    break;
+
                 default:
-                    throw new InvalidOperationException($"Can't start pomodoro from phase: {Phase}");
+                    // Already running: starting again is meaningless, not an error.
+                    // Commands arrive from the tray, CLI and notifications, which can race the UI.
+                    return;
             }
-
-            _startDate = _endDate = _dateTime.DateTimeUtc();
-            _timer.Start();
-
-            OnStarted?.Invoke();
-        }
-
-        public void Stop()
-        {
-            ResetTo(Phase == PomodoroPhase.Break || Phase == PomodoroPhase.WorkEnded ? Current.NextPomodoro : Current);
-
-            OnStopped?.Invoke();
         }
 
         public void Pause()
         {
+            if (!IsRunning) return;
+
+            var from = _phase;
             _timer.Stop();
-            Phase = PomodoroPhase.Pause;
-            _elapsedInPause = Elapsed;
-            _startDate = _endDate = _dateTime.DateTimeUtc();
-            OnPaused?.Invoke();
+            _accumulated += _clock.Monotonic - _segmentStart;
+            _pausedPhase = _phase;
+            SetPhase(PomodoroPhase.Pause);
+            NotifyTime(force: true);
+            Raise(PomodoroTransitionKind.Paused, from, false);
+        }
+
+        public void Stop()
+        {
+            var from = _phase;
+            var breakIsOver = false;
+
+            switch (_phase)
+            {
+                case PomodoroPhase.NotStarted:
+                    return;
+                case PomodoroPhase.Work:
+                    // Abandoned pomodoro: retry the same one, record nothing.
+                    break;
+                case PomodoroPhase.Pause:
+                    breakIsOver = _pausedPhase == PomodoroPhase.Break;
+                    break;
+                case PomodoroPhase.WorkEnded:
+                case PomodoroPhase.Break:
+                case PomodoroPhase.BreakEnded:
+                    // The pomodoro itself was completed; stopping ends (or skips) its break.
+                    breakIsOver = true;
+                    break;
+            }
+
+            var wasLongBreak = IsLongBreak;
+            if (breakIsOver) AdvanceIndex();
+            ResetInterval();
+            Raise(PomodoroTransitionKind.Stopped, from, false, wasLongBreak);
+        }
+
+        public void Skip()
+        {
+            var skippingBreak = _phase == PomodoroPhase.WorkEnded
+                || _phase == PomodoroPhase.Break
+                || _phase == PomodoroPhase.BreakEnded
+                || (_phase == PomodoroPhase.Pause && _pausedPhase == PomodoroPhase.Break);
+            if (!skippingBreak) return;
+
+            var from = _phase;
+            AdvanceIndex();
+            ResetInterval();
+            BeginInterval(PomodoroPhase.Work, TimeSpan.Zero);
+            Raise(PomodoroTransitionKind.WorkStarted, from, false);
         }
 
         public void Reset()
         {
-            ResetTo(_pom1);
+            var from = _phase;
+            if (from == PomodoroPhase.NotStarted && _index == 1) return;
+
+            SetIndex(1);
+            ResetInterval();
+            Raise(PomodoroTransitionKind.Reset, from, false);
         }
 
-        private void ResetTo(Pomodoro pom)
-        {
-            _timer.Stop();
-
-            switch (Phase)
-            {
-                case PomodoroPhase.Work:
-                    Phase = PomodoroPhase.WorkEnded;
-                    break;
-                case PomodoroPhase.Break:
-                    Phase = PomodoroPhase.BreakEnded;
-                    break;
-            }
-            Phase = PomodoroPhase.NotStarted;
-            _elapsedInPause = 0;
-
-            _startDate = _endDate = _dateTime.DateTimeUtc();
-
-            if (Current.Index != pom.Index)
-            {
-                Current = pom;
-            }
-
-            EverythingChanged();
-        }
-
-        private readonly Pomodoro _pom1;
-
-        private Pomodoro _current;
-
-        private Pomodoro Current
-        {
-            get => _current;
-            set
-            {
-                if (_current?.Index == value.Index)
-                {
-                    return;
-                }
-                _current = value;
-                NotifyPropertyChanged(nameof(Index));
-                NotifyPropertyChanged(nameof(WorkTime));
-                NotifyPropertyChanged(nameof(BreakTime));
-            }
-        }
-
-        public PomodoroEngine(PomodoroEngineSettings settings, ITimer timer, IDate dateTime, IThreading threading, ISettings globalSettings, IPomodoroRepository repository)
-        {
-            _settings = settings;
-            _timer = timer;
-            _dateTime = dateTime;
-            _threading = threading;
-            _repository = repository;
-            _timer.Tick += _timer_Tick;
-
-            var pomodoros = new List<Pomodoro>();
-
-            Pomodoro prev = null;
-            for (int i = 1; i <= Math.Max(_settings.PomodorosBeforeLongBreak, 2); i++)
-            {
-                var current = new Pomodoro(_settings) { Index = i };
-                if (prev != null)
-                {
-                    prev.NextPomodoro = current;
-                }
-
-                pomodoros.Add(current);
-                prev = current;
-            }
-
-            _pom1 = pomodoros.First();
-            var last = pomodoros.Last();
-            last.NextPomodoro = _pom1;
-
-            _startDate = _endDate = _dateTime.DateTimeUtc();
-
-            OnPomodoroCompleted += PomodoroEngine_OnPomodoroCompleted;
-
-            Current = _pom1;
-
-            globalSettings.PropertyChanged += _globalSettings_PropertyChanged;
-
-            var todayStart = _dateTime.DateTimeUtc().Date;
-            var todayEnd = _dateTime.DateTimeUtc().Date.AddDays(1).AddSeconds(-1);
-        }
-
-        private void _globalSettings_PropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == $"{nameof(PomodoroEngine)}.{nameof(_settings.WorkTime)}"
-                || e.PropertyName == $"{nameof(PomodoroEngine)}.{nameof(_settings.BreakTime)}"
-                || e.PropertyName == $"{nameof(PomodoroEngine)}.{nameof(_settings.LongBreakTime)}"
-                || e.PropertyName == $"{nameof(PomodoroEngine)}.{nameof(_settings.CountBackwards)}"
-                || e.PropertyName == $"{nameof(PomodoroEngine)}.{nameof(_settings.ActiveProfile)}"
-                || e.PropertyName == $"{nameof(PomodoroEngine)}.{nameof(_settings.Profiles)}")
-            {
-                NotifyPropertyChanged(nameof(DisplayValue));
-                NotifyPropertyChanged(nameof(WorkTime));
-                NotifyPropertyChanged(nameof(BreakTime));
-            }
-            else if (e.PropertyName == $"{nameof(PomodoroEngine)}.{nameof(_settings.Counter)}")
-            {
-                NotifyPropertyChanged(nameof(Counter));
-            }
-
-        }
-
-        private async void PomodoroEngine_OnPomodoroCompleted()
-        {
-            _completedPomodorosThisSession++;
-            NotifyPropertyChanged(nameof(Counter));
-
-            var delayBeforeStarting = 1.5;
-            if (!_settings.AutoStartBreak)
-            {
-                return;
-            }
-            await Task.Delay(TimeSpan.FromSeconds(delayBeforeStarting));
-            if (IsRunning == false)
-            {
-                var expectedWorkEndTime = _startDate.AddSeconds(WorkTime - _elapsedInPause);
-                Start();
-                _startDate = expectedWorkEndTime;
-            }
-        }
-        private async void PomodoroEngine_OnPomodoroBreakCompleted()
-        {
-            var delayBeforeStarting = 1.5;
-            if (!_settings.AutoStartWork)
-            {
-                return;
-            }
-            await Task.Delay(TimeSpan.FromSeconds(delayBeforeStarting));
-
-            Start();
-        }
-
-        private void _timer_Tick()
-        {
-            _endDate = _dateTime.DateTimeUtc();
-            NotifyPropertyChanged(nameof(Elapsed));
-            NotifyPropertyChanged(nameof(Remaining));
-            NotifyPropertyChanged(nameof(DisplayValue));
-
-            if (Phase == PomodoroPhase.Work && Elapsed >= WorkTime)
-            {
-                _timer.Stop();
-                Phase = PomodoroPhase.WorkEnded;
-                OnPomodoroCompleted?.Invoke();
-                NotifyPropertyChanged(nameof(Counter));
-            }
-            else if (Phase == PomodoroPhase.Break && Elapsed >= BreakTime)
-            {
-                _timer.Stop();
-                Phase = PomodoroPhase.BreakEnded;
-                PomodoroEngine_OnPomodoroBreakCompleted();
-            }
-        }
+        // ── Snapshot ─────────────────────────────────────────────────────────
 
         public PomodoroEngineSnapshot GetSnapshot()
         {
-            var snapshot = new PomodoroEngineSnapshot
+            _settings.Profiles.TryGetValue(_settings.ActiveProfile, out var profile);
+            return new PomodoroEngineSnapshot
             {
-                PomodoroProfile = _settings.Profiles[_settings.ActiveProfile],
+                PomodoroProfile = profile,
                 ProfileName = _settings.ActiveProfile,
                 PausedTime = Elapsed,
-                Phase = Phase,
-                StartDate = _dateTime.DateTimeUtc(),
-                PomodoroIndex = Index
+                Phase = _phase,
+                PausedPhase = _phase == PomodoroPhase.Pause ? _pausedPhase : (PomodoroPhase?)null,
+                StartDate = _clock.UtcNow,
+                PomodoroIndex = Index,
             };
-
-            return snapshot;
         }
 
+        /// <summary>
+        /// Restores a snapshot taken by a previous run. A running interval resumes
+        /// running; the time the app was closed is not counted.
+        /// </summary>
         public void LoadSnapshot(PomodoroEngineSnapshot snapshot)
         {
+            if (snapshot == null) return;
+
+            var from = _phase;
             _timer.Stop();
+            _autoStartAt = null;
 
-            if (string.IsNullOrEmpty(snapshot.ProfileName))
+            if (!string.IsNullOrEmpty(snapshot.ProfileName) && _settings.Profiles.ContainsKey(snapshot.ProfileName))
             {
-                var standartProfile = "Snapshot";
-
-                var currentProfiles = _settings.Profiles;
-                currentProfiles[standartProfile] = snapshot.PomodoroProfile;
-
-                _settings.Profiles = currentProfiles;
-                _settings.ActiveProfile = standartProfile;
-            }
-            else
-            {
-                var currentProfiles = _settings.Profiles;
-                currentProfiles[snapshot.ProfileName] = snapshot.PomodoroProfile;
-
-                _settings.Profiles = currentProfiles;
                 _settings.ActiveProfile = snapshot.ProfileName;
             }
 
-            _elapsedInPause = snapshot.PausedTime;
+            SetIndex(Math.Max(1, snapshot.PomodoroIndex));
+            _pausedPhase = snapshot.PausedPhase == PomodoroPhase.Break ? PomodoroPhase.Break : PomodoroPhase.Work;
+            _accumulated = TimeSpan.FromSeconds(Math.Max(0, snapshot.PausedTime));
+            _segmentStart = _clock.Monotonic;
 
-            if (snapshot.Phase == PomodoroPhase.Work ||
-                snapshot.Phase == PomodoroPhase.Break ||
-                (snapshot.Phase == PomodoroPhase.WorkEnded && _settings.AutoStartBreak))
-            {
-                _startDate = _endDate = snapshot.StartDate;
-                _timer.Start();
-            }
+            var phase = snapshot.Phase;
+            SetPhase(phase);
+            if (IsRunning) _timer.Start();
 
-            Phase = snapshot.Phase;
-
-            EverythingChanged();
+            NotifyAll();
+            Raise(PomodoroTransitionKind.Restored, from, false);
         }
 
-        private void EverythingChanged()
+        // ── Internals ────────────────────────────────────────────────────────
+
+        private void OnTick()
         {
-            NotifyPropertyChanged(nameof(Phase));
+            if (_phase == PomodoroPhase.WorkEnded && _autoStartAt.HasValue)
+            {
+                if (_clock.Monotonic >= _autoStartAt.Value) Start(automatic: true);
+                return;
+            }
+
+            if (!IsRunning)
+            {
+                _timer.Stop();
+                return;
+            }
+
+            var length = CurrentIntervalLength;
+            var elapsed = _accumulated + (_clock.Monotonic - _segmentStart);
+            if (elapsed.TotalSeconds >= length)
+            {
+                CompleteInterval();
+                return;
+            }
+
+            NotifyTime(force: false);
+        }
+
+        private void CompleteInterval()
+        {
+            var from = _phase;
+            _accumulated = TimeSpan.Zero;
+
+            if (from == PomodoroPhase.Work)
+            {
+                SetPhase(PomodoroPhase.WorkEnded);
+                _completedThisSession++;
+                NotifyTime(force: true);
+
+                if (_settings.AutoStartBreak)
+                {
+                    // Keep ticking so the delayed auto-start can fire.
+                    _autoStartAt = _clock.Monotonic + AutoStartDelay;
+                }
+                else
+                {
+                    _timer.Stop();
+                }
+
+                OnPomodoroCompleted?.Invoke();
+                NotifyPropertyChanged(nameof(Counter));
+                Raise(PomodoroTransitionKind.WorkCompleted, from, true);
+            }
+            else
+            {
+                _timer.Stop();
+                SetPhase(PomodoroPhase.BreakEnded);
+                NotifyTime(force: true);
+                var wasLongBreak = IsLongBreak;
+                Raise(PomodoroTransitionKind.BreakCompleted, from, true, wasLongBreak);
+
+                if (_settings.AutoStartWork)
+                {
+                    // No delay here: the break-completed cue is what tells the
+                    // user that work has begun.
+                    Start(automatic: true);
+                }
+            }
+        }
+
+        private void BeginInterval(PomodoroPhase phase, TimeSpan alreadyElapsed)
+        {
+            _accumulated = alreadyElapsed;
+            _segmentStart = _clock.Monotonic;
+            SetPhase(phase);
+            _timer.Start();
+            NotifyTime(force: true);
+        }
+
+        private void ResetInterval()
+        {
+            _timer.Stop();
+            _autoStartAt = null;
+            _accumulated = TimeSpan.Zero;
+            _pausedPhase = PomodoroPhase.Work;
+            SetPhase(PomodoroPhase.NotStarted);
+            NotifyAll();
+        }
+
+        private void AdvanceIndex() => SetIndex(_index >= CycleLength ? 1 : _index + 1);
+
+        private void SetIndex(int index)
+        {
+            if (_index == index) return;
+            _index = index;
+            NotifyPropertyChanged(nameof(Index));
+            NotifyPropertyChanged(nameof(IsLongBreak));
+            NotifyPropertyChanged(nameof(BreakTime));
             NotifyPropertyChanged(nameof(Counter));
+        }
+
+        private void SetPhase(PomodoroPhase phase)
+        {
+            if (_phase == phase) return;
+            _phase = phase;
+            NotifyPropertyChanged(nameof(Phase));
+            NotifyPropertyChanged(nameof(PausedPhase));
             NotifyPropertyChanged(nameof(IsRunning));
+            NotifyPropertyChanged(nameof(CurrentIntervalLength));
+            NotifyPropertyChanged(nameof(Counter));
+        }
+
+        private void Raise(PomodoroTransitionKind kind, PomodoroPhase from, bool automatic, bool? isLongBreak = null)
+        {
+            Transitioned?.Invoke(new PomodoroTransition(kind, from, _phase, isLongBreak ?? IsLongBreak, automatic));
+        }
+
+        /// <summary>
+        /// The timer ticks several times a second so the display never skips a
+        /// second; only announce time when the visible value actually changes.
+        /// </summary>
+        private void NotifyTime(bool force)
+        {
+            var second = Elapsed;
+            if (!force && second == _lastNotifiedSecond) return;
+            _lastNotifiedSecond = second;
             NotifyPropertyChanged(nameof(Elapsed));
             NotifyPropertyChanged(nameof(Remaining));
             NotifyPropertyChanged(nameof(DisplayValue));
-            NotifyPropertyChanged(nameof(Index));
-            NotifyPropertyChanged(nameof(WorkTime));
-            NotifyPropertyChanged(nameof(BreakTime));
-            NotifyPropertyChanged(nameof(DisplayValue));
+            NotifyPropertyChanged(nameof(Progress));
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        private void NotifyAll()
+        {
+            NotifyPropertyChanged(nameof(Phase));
+            NotifyPropertyChanged(nameof(PausedPhase));
+            NotifyPropertyChanged(nameof(IsRunning));
+            NotifyPropertyChanged(nameof(Index));
+            NotifyPropertyChanged(nameof(IsLongBreak));
+            NotifyPropertyChanged(nameof(WorkTime));
+            NotifyPropertyChanged(nameof(BreakTime));
+            NotifyPropertyChanged(nameof(CurrentIntervalLength));
+            NotifyPropertyChanged(nameof(Counter));
+            NotifyTime(force: true);
+        }
+
+        private void OnGlobalSettingsChanged(object sender, PropertyChangedEventArgs e)
+        {
+            var name = e.PropertyName ?? string.Empty;
+            if (!name.StartsWith(nameof(PomodoroEngine) + ".", StringComparison.Ordinal)) return;
+
+            switch (name.Substring(nameof(PomodoroEngine).Length + 1))
+            {
+                case nameof(PomodoroEngineSettings.Counter):
+                    NotifyPropertyChanged(nameof(Counter));
+                    break;
+                case nameof(PomodoroEngineSettings.Profiles):
+                case nameof(PomodoroEngineSettings.ActiveProfile):
+                case nameof(PomodoroEngineSettings.CountBackwards):
+                    NotifyAll();
+                    break;
+            }
+        }
 
         private void NotifyPropertyChanged(string property)
         {
-            _threading.RunOnUiThread(() =>
-            {
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
-            });
-        }
-    }
-
-    public class PomodoroEngineSettings : IPluginSettings
-    {
-        private readonly ISettingsForComponent _settings;
-
-        private static readonly Dictionary<string, PomodoroProfile> DefaultProfile;
-        private static string DefaultProfileName = "Pomodoro";
-
-        static PomodoroEngineSettings()
-        {
-            DefaultProfile = new Dictionary<string, PomodoroProfile>
-            {
-                [DefaultProfileName] = new PomodoroProfile
-                {
-                    AutoStartBreak = false,
-                    BreakTime = 5 * 60,
-                    LongBreakTime = 15 * 60,
-                    WorkTime = 25 * 60,
-                    PomodorosBeforeLongBreak = 4
-                }
-            };
-        }
-
-        public Dictionary<string, PomodoroProfile> Profiles
-        {
-            get => _settings.Get(nameof(Profiles), DefaultProfile);
-            set => _settings.Update(nameof(Profiles), value);
-        }
-
-        public string ActiveProfile
-        {
-            get => _settings.Get(nameof(ActiveProfile), DefaultProfileName);
-            set => _settings.Update(nameof(ActiveProfile), value);
-        }
-
-        public int WorkTime
-        {
-            get => Profiles[ActiveProfile].WorkTime;
-            set
-            {
-                var temp = new Dictionary<string, PomodoroProfile>(Profiles);
-                var profile = temp[ActiveProfile];
-                profile.WorkTime = value;
-                Profiles = temp;
-            }
-        }
-
-        public int BreakTime
-        {
-            get => Profiles[ActiveProfile].BreakTime;
-            set
-            {
-                var temp = new Dictionary<string, PomodoroProfile>(Profiles);
-                var profile = temp[ActiveProfile];
-                profile.BreakTime = value;
-                Profiles = temp;
-            }
-        }
-
-        public int LongBreakTime
-        {
-            get => Profiles[ActiveProfile].LongBreakTime;
-            set
-            {
-                var temp = new Dictionary<string, PomodoroProfile>(Profiles);
-                var profile = temp[ActiveProfile];
-                profile.LongBreakTime = value;
-                Profiles = temp;
-            }
-        }
-
-        public bool AutoStartBreak
-        {
-            get => Profiles[ActiveProfile].AutoStartBreak;
-            set
-            {
-                var temp = new Dictionary<string, PomodoroProfile>(Profiles);
-                var profile = temp[ActiveProfile];
-                profile.AutoStartBreak = value;
-                Profiles = temp;
-            }
-        }
-
-        public bool AutoStartWork
-        {
-            get => Profiles[ActiveProfile].AutoStartWork;
-            set
-            {
-                var temp = new Dictionary<string, PomodoroProfile>(Profiles);
-                var profile = temp[ActiveProfile];
-                profile.AutoStartWork = value;
-                Profiles = temp;
-            }
-        }
-
-        public int PomodorosBeforeLongBreak
-        {
-            get => Profiles[ActiveProfile].PomodorosBeforeLongBreak;
-            set
-            {
-                var temp = new Dictionary<string, PomodoroProfile>(Profiles);
-                var profile = temp[ActiveProfile];
-                profile.PomodorosBeforeLongBreak = value;
-                Profiles = temp;
-            }
-        }
-
-        public string FontFamily
-        {
-            get => _settings.Get(nameof(FontFamily), "Segoe UI Light.ttf");
-            set => _settings.Update(nameof(FontFamily), value);
-        }
-
-        public bool CountBackwards
-        {
-            get => _settings.Get(nameof(CountBackwards), false);
-            set => _settings.Update(nameof(CountBackwards), value);
-        }
-
-        public bool DisableSoundNotifications
-        {
-            get => _settings.Get(nameof(DisableSoundNotifications), false);
-            set => _settings.Update(nameof(DisableSoundNotifications), value);
-        }
-
-        public double Volume
-        {
-            get => _settings.Get(nameof(Volume), 0.5);
-            set => _settings.Update(nameof(Volume), value);
-        }
-
-        public CounterEnum Counter
-        {
-            get => _settings.Get(nameof(Counter), CounterEnum.PomodoroIndex);
-            set => _settings.Update(nameof(Counter), value);
-        }
-
-        public string ReleaseNotes
-        {
-            get => _settings.Get(nameof(ReleaseNotes), string.Empty, true);
-            set => _settings.Update(nameof(ReleaseNotes), value, true);
-        }
-
-        public PomodoroEngineSettings(ISettings settings)
-        {
-            _settings = settings.GetSettingsForComponent(nameof(PomodoroEngine));
-        }
-
-        public void DeferChanges()
-        {
-            _settings.DeferChanges();
-        }
-    }
-
-    public class PomodoroProfile
-    {
-        public int WorkTime { get; set; }
-        public int BreakTime { get; set; }
-        public int LongBreakTime { get; set; }
-        public bool AutoStartBreak { get; set; }
-        public bool AutoStartWork { get; set; }
-        public int PomodorosBeforeLongBreak { get; set; }
-    }
-
-    internal class Pomodoro
-    {
-        private readonly PomodoroEngineSettings _settings;
-
-        public int Index { get; set; }
-
-        public int WorkTime => _settings.WorkTime;
-
-        public int BreakTime => Index == _settings.PomodorosBeforeLongBreak ? _settings.LongBreakTime : _settings.BreakTime;
-
-        public Pomodoro NextPomodoro { get; set; }
-
-        public Pomodoro(PomodoroEngineSettings settings)
-        {
-            _settings = settings;
+            _threading.RunOnUiThread(() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property)));
         }
     }
 }

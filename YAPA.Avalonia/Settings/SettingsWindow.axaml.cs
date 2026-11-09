@@ -48,6 +48,8 @@ public partial class SettingsWindow : Window
         };
     }
 
+    public void Navigate(Services.SettingsPage page) { }
+
     private void OnSaveClick(object? sender, RoutedEventArgs e)
     {
         _settings.Save();

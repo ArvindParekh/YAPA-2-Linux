@@ -1,113 +1,84 @@
 using System;
+using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using YAPA.Avalonia.Platform;
-using YAPA.Avalonia.Specifics;
 using YAPA.Shared.Common;
 using YAPA.Shared.Contracts;
 
 namespace YAPA.Avalonia.Persistence;
 
 /// <summary>
-/// Saves the pomodoro engine state on shutdown and restores it on next launch,
-/// matching the snapshot behaviour of the WPF App.xaml.cs.
-///
-/// Step 3: auto-resume when /start is passed; interactive "Resume?" dialog is
-/// wired up in Step 4 once the main window is available.
+/// Carries the timer across restarts: saved on quit, restored on the next launch.
 /// </summary>
 public sealed class SnapshotService
 {
-    private readonly IPomodoroEngine _engine;
-    private readonly IDate _date;
-    private readonly IJson _json;
-    private readonly string _snapshotPath;
+    /// <summary>Beyond this, the cycle position is stale (e.g. yesterday's) and the day starts fresh.</summary>
+    private static readonly TimeSpan MaxAge = TimeSpan.FromHours(12);
 
-    public SnapshotService(IPomodoroEngine engine, IDate date, IJson json, IEnvironment environment)
+    private readonly IPomodoroEngine _engine;
+    private readonly IClock _clock;
+    private readonly IJson _json;
+    private readonly string _path;
+
+    public SnapshotService(IPomodoroEngine engine, IClock clock, IJson json)
     {
         _engine = engine;
-        _date = date;
+        _clock = clock;
         _json = json;
-
         AppPaths.EnsureCreated();
-        _snapshotPath = Path.Combine(AppPaths.DataDirectory, "snapshot.json");
+        _path = Path.Combine(AppPaths.DataDirectory, "snapshot.json");
     }
 
-    /// <summary>
-    /// Writes the engine snapshot to disk. Called just before the app exits.
-    /// </summary>
-    public void SaveSnapshot()
+    public void Save()
     {
         try
         {
-            var snapshot = _engine.GetSnapshot();
-            File.WriteAllText(_snapshotPath, _json.Serialize(snapshot));
+            AtomicFile.WriteAllText(_path, _json.Serialize(_engine.GetSnapshot()));
         }
-        catch { /* ignore I/O errors on shutdown */ }
+        catch (Exception e)
+        {
+            Trace.WriteLine($"[snapshot] save failed: {e.Message}");
+        }
     }
 
     /// <summary>
-    /// Loads the snapshot from disk and optionally resumes the engine.
-    /// <paramref name="startArgs"/> is the startup command-line argument array;
-    /// auto-resume happens when <see cref="CommandLineConstants.Start"/> is present.
-    /// Returns true if a snapshot was found and the caller should offer an interactive resume dialog.
+    /// Restores the previous session. An interval that was running comes back
+    /// paused rather than running: the user decides with one click whether to
+    /// carry on, and nothing ticks away while they weren't looking.
     /// </summary>
-    public (bool ShouldAskResume, PomodoroEngineSnapshot? Snapshot) TryLoadSnapshot(string[] startArgs)
+    /// <param name="resume">Resume immediately (the app was launched with <c>--start</c>).</param>
+    /// <returns>True if something was restored.</returns>
+    public bool Restore(bool resume)
     {
+        PomodoroEngineSnapshot? snapshot;
         try
         {
-            if (!File.Exists(_snapshotPath))
-                return (false, null);
-
-            var json = File.ReadAllText(_snapshotPath);
-            if (string.IsNullOrEmpty(json))
-                return (false, null);
-
-            var snapshot = _json.Deserialize<PomodoroEngineSnapshot>(json);
-            if (snapshot == null)
-                return (false, null);
-
-            if (snapshot.Phase != PomodoroPhase.Work && snapshot.Phase != PomodoroPhase.Pause)
-                return (false, null);
-
-            var startImmediately = startArgs
-                .Select(a => a.ToLowerInvariant())
-                .Contains(CommandLineConstants.Start);
-
-            if (startImmediately)
-            {
-                ApplySnapshot(snapshot);
-                return (false, null);
-            }
-
-            // Caller (the main window, Step 4) will show the "Resume?" dialog.
-            return (true, snapshot);
+            if (!File.Exists(_path)) return false;
+            snapshot = _json.Deserialize<PomodoroEngineSnapshot>(File.ReadAllText(_path));
+            File.Delete(_path);
         }
-        catch
+        catch (Exception e)
         {
-            return (false, null);
+            Trace.WriteLine($"[snapshot] unreadable, ignoring: {e.Message}");
+            return false;
         }
-        finally
-        {
-            DeleteSnapshotFile();
-        }
-    }
 
-    /// <summary>
-    /// Applies an already-loaded snapshot to the engine (used by the dialog path in Step 4).
-    /// </summary>
-    public void ApplySnapshot(PomodoroEngineSnapshot snapshot)
-    {
-        snapshot.StartDate = _date.DateTimeUtc();
+        if (snapshot == null) return false;
+
+        var age = _clock.UtcNow - DateTime.SpecifyKind(snapshot.StartDate, DateTimeKind.Utc);
+        if (age < TimeSpan.Zero || age > MaxAge) return false;
+        if (snapshot.Phase == PomodoroPhase.NotStarted && snapshot.PomodoroIndex <= 1) return false;
+
+        if (snapshot.Phase is PomodoroPhase.Work or PomodoroPhase.Break)
+        {
+            snapshot.PausedPhase = snapshot.Phase;
+            snapshot.Phase = PomodoroPhase.Pause;
+        }
+
         _engine.LoadSnapshot(snapshot);
-    }
+        if (resume && _engine.Phase == PomodoroPhase.Pause) _engine.Start();
 
-    private void DeleteSnapshotFile()
-    {
-        try
-        {
-            if (File.Exists(_snapshotPath))
-                File.Delete(_snapshotPath);
-        }
-        catch { /* ignore */ }
+        Trace.WriteLine($"[snapshot] restored {snapshot.Phase} at {snapshot.PausedTime}s, pomodoro {snapshot.PomodoroIndex}");
+        return true;
     }
 }

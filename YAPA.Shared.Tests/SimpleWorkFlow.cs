@@ -14,9 +14,9 @@ namespace YAPA.Shared.Tests
         public void SimpleWorkflowThroughAllPomodoros()
         {
             var timerSub = new TimerMock();
-            var engineSettings = new PomodoroEngineSettings(Substitute.For<ISettings>());
+            var globalSettings = TestSettings.Create();
+            var engineSettings = new PomodoroEngineSettings(globalSettings);
             var threading = Substitute.For<IThreading>();
-            var globalSettings = Substitute.For<ISettings>();
             var repository = Substitute.For<IPomodoroRepository>();
             var dateTime = new DateMock();
 
@@ -37,9 +37,9 @@ namespace YAPA.Shared.Tests
 
             var profiles = new Dictionary<string, PomodoroProfile> {[profileName] = profile};
 
-            engineSettings.Profiles.Returns(profiles);
-            engineSettings.ActiveProfile.Returns(profileName);
-            engineSettings.CountBackwards.Returns(false);
+            engineSettings.Profiles = profiles;
+            engineSettings.ActiveProfile = profileName;
+            engineSettings.CountBackwards = false;
 
             dateTime.DateToReturn = baseDate;
 
@@ -341,9 +341,9 @@ namespace YAPA.Shared.Tests
         public void SimpleWorkflowThroughAllPomodoros_CountBackwards()
         {
             var timerSub = new TimerMock();
-            var engineSettings = new PomodoroEngineSettings(Substitute.For<ISettings>());
+            var globalSettings = TestSettings.Create();
+            var engineSettings = new PomodoroEngineSettings(globalSettings);
             var dateTime = new DateMock();
-            var globalSettings = Substitute.For<ISettings>();
             var threading = Substitute.For<IThreading>();
             var repository = Substitute.For<IPomodoroRepository>();
 
@@ -364,10 +364,10 @@ namespace YAPA.Shared.Tests
 
             var profiles = new Dictionary<string, PomodoroProfile> { [profileName] = profile };
 
-            engineSettings.Profiles.Returns(profiles);
-            engineSettings.ActiveProfile.Returns(profileName);
+            engineSettings.Profiles = profiles;
+            engineSettings.ActiveProfile = profileName;
 
-            engineSettings.CountBackwards.Returns(true);
+            engineSettings.CountBackwards = true;
 
             dateTime.DateToReturn = baseDate;
 
@@ -669,8 +669,8 @@ namespace YAPA.Shared.Tests
         public void SimpleWorkflowThroughAllPomodoros_AutoStartBreak()
         {
             var timerSub = new TimerMock();
-            var engineSettings = new PomodoroEngineSettings(Substitute.For<ISettings>());
-            var globalSettings = Substitute.For<ISettings>();
+            var globalSettings = TestSettings.Create();
+            var engineSettings = new PomodoroEngineSettings(globalSettings);
             var dateTime = new DateMock();
             var threading = Substitute.For<IThreading>();
             var repository = Substitute.For<IPomodoroRepository>();
@@ -693,10 +693,10 @@ namespace YAPA.Shared.Tests
 
             var profiles = new Dictionary<string, PomodoroProfile> { [profileName] = profile };
 
-            engineSettings.Profiles.Returns(profiles);
-            engineSettings.ActiveProfile.Returns(profileName);
+            engineSettings.Profiles = profiles;
+            engineSettings.ActiveProfile = profileName;
 
-            engineSettings.CountBackwards.Returns(false);
+            engineSettings.CountBackwards = false;
 
             dateTime.DateToReturn = baseDate;
 
@@ -732,8 +732,9 @@ namespace YAPA.Shared.Tests
             Assert.AreEqual(workTime, engine.Elapsed);
             Assert.AreEqual(1, engine.Index);
 
+            baseDate = baseDate.Add(PomodoroEngine.AutoStartDelay);
+            dateTime.DateToReturn = baseDate;
             timerSub.PerformTick();
-            Timeout.WaitPhaseChange(engine, PomodoroPhase.Break).Wait();
 
             Assert.AreEqual(PomodoroPhase.Break, engine.Phase);
             Assert.AreEqual(breakTime, engine.Remaining);
@@ -791,8 +792,9 @@ namespace YAPA.Shared.Tests
             Assert.AreEqual(workTime, engine.Elapsed);
             Assert.AreEqual(2, engine.Index);
 
+            baseDate = baseDate.Add(PomodoroEngine.AutoStartDelay);
+            dateTime.DateToReturn = baseDate;
             timerSub.PerformTick();
-            Timeout.WaitPhaseChange(engine, PomodoroPhase.Break).Wait();
             Assert.AreEqual(PomodoroPhase.Break, engine.Phase);
             Assert.AreEqual(breakTime, engine.Remaining);
             Assert.AreEqual(0, engine.DisplayValue);
@@ -849,8 +851,9 @@ namespace YAPA.Shared.Tests
             Assert.AreEqual(workTime, engine.Elapsed);
             Assert.AreEqual(3, engine.Index);
 
+            baseDate = baseDate.Add(PomodoroEngine.AutoStartDelay);
+            dateTime.DateToReturn = baseDate;
             timerSub.PerformTick();
-            Timeout.WaitPhaseChange(engine, PomodoroPhase.Break).Wait();
 
             Assert.AreEqual(PomodoroPhase.Break, engine.Phase);
             Assert.AreEqual(breakTime, engine.Remaining);
@@ -908,8 +911,9 @@ namespace YAPA.Shared.Tests
             Assert.AreEqual(workTime, engine.Elapsed);
             Assert.AreEqual(4, engine.Index);
 
+            baseDate = baseDate.Add(PomodoroEngine.AutoStartDelay);
+            dateTime.DateToReturn = baseDate;
             timerSub.PerformTick();
-            Timeout.WaitPhaseChange(engine, PomodoroPhase.Break).Wait();
 
             Assert.AreEqual(PomodoroPhase.Break, engine.Phase);
             Assert.AreEqual(longBreakTime, engine.Remaining);
@@ -968,8 +972,9 @@ namespace YAPA.Shared.Tests
             Assert.AreEqual(workTime, engine.Elapsed);
             Assert.AreEqual(1, engine.Index);
 
+            baseDate = baseDate.Add(PomodoroEngine.AutoStartDelay);
+            dateTime.DateToReturn = baseDate;
             timerSub.PerformTick();
-            Timeout.WaitPhaseChange(engine, PomodoroPhase.Break).Wait();
 
             Assert.AreEqual(PomodoroPhase.Break, engine.Phase);
             Assert.AreEqual(breakTime, engine.Remaining);
@@ -1002,8 +1007,8 @@ namespace YAPA.Shared.Tests
         public void SimpleWorkflowThroughAllPomodoros_AutoStartBreak_ManuallyStarting()
         {
             var timerSub = new TimerMock();
-            var engineSettings = new PomodoroEngineSettings(Substitute.For<ISettings>());
-            var globalSettings = Substitute.For<ISettings>();
+            var globalSettings = TestSettings.Create();
+            var engineSettings = new PomodoroEngineSettings(globalSettings);
             var dateTime = new DateMock();
             var threading = Substitute.For<IThreading>();
             var repository = Substitute.For<IPomodoroRepository>();
@@ -1025,10 +1030,10 @@ namespace YAPA.Shared.Tests
 
             var profiles = new Dictionary<string, PomodoroProfile> { [profileName] = profile };
 
-            engineSettings.Profiles.Returns(profiles);
-            engineSettings.ActiveProfile.Returns(profileName);
+            engineSettings.Profiles = profiles;
+            engineSettings.ActiveProfile = profileName;
 
-            engineSettings.CountBackwards.Returns(false);
+            engineSettings.CountBackwards = false;
 
             dateTime.DateToReturn = baseDate;
 
@@ -1160,8 +1165,8 @@ namespace YAPA.Shared.Tests
         public void SimpleWorkflowThroughAllPomodoros_PauseAndStop()
         {
             var timerSub = new TimerMock();
-            var engineSettings = new PomodoroEngineSettings(Substitute.For<ISettings>());
-            var globalSettings = Substitute.For<ISettings>();
+            var globalSettings = TestSettings.Create();
+            var engineSettings = new PomodoroEngineSettings(globalSettings);
             var dateTime = new DateMock();
             var threading = Substitute.For<IThreading>();
             var repository = Substitute.For<IPomodoroRepository>();
@@ -1183,10 +1188,10 @@ namespace YAPA.Shared.Tests
 
             var profiles = new Dictionary<string, PomodoroProfile> { [profileName] = profile };
 
-            engineSettings.Profiles.Returns(profiles);
-            engineSettings.ActiveProfile.Returns(profileName);
+            engineSettings.Profiles = profiles;
+            engineSettings.ActiveProfile = profileName;
 
-            engineSettings.CountBackwards.Returns(false);
+            engineSettings.CountBackwards = false;
 
             dateTime.DateToReturn = baseDate;
 
