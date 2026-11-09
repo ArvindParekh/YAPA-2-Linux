@@ -41,15 +41,20 @@ if ! command -v dotnet >/dev/null 2>&1; then
 fi
 
 # ── A running instance must quit first: its files are about to be replaced ──
-if pgrep -u "$USER" -f 'yapa2/YAPA\.Avalonia' >/dev/null 2>&1; then
-    if [[ -x "$PREFIX_BIN/yapa2" ]] && "$PREFIX_BIN/yapa2" --quit >/dev/null 2>&1; then
-        sleep 1
-    fi
-    if pgrep -u "$USER" -f 'yapa2/YAPA\.Avalonia' >/dev/null 2>&1; then
-        echo "YAPA 2 is running. Quit it (tray icon → Quit) and run this again." >&2
-        echo "Your timer state is saved on quit and restored on the next launch." >&2
-        exit 1
-    fi
+# Ask it over IPC first (works however it was launched); fall back to the
+# process list for builds that predate the IPC channel.
+running() {
+    pgrep -u "$USER" -f '(yapa2/YAPA\.Avalonia|/bin/yapa2)( |$)' >/dev/null 2>&1
+}
+if [[ -x "$PREFIX_BIN/yapa2" ]] && "$PREFIX_BIN/yapa2" --status >/dev/null 2>&1; then
+    echo "==> Quitting the running YAPA 2 (its timer is saved and restored after the upgrade)"
+    "$PREFIX_BIN/yapa2" --quit >/dev/null 2>&1 || true
+    for _ in $(seq 1 25); do running || break; sleep 0.2; done
+fi
+if running; then
+    echo "YAPA 2 is running. Quit it (tray icon → Quit) and run this again." >&2
+    echo "Your timer state is saved on quit and restored on the next launch." >&2
+    exit 1
 fi
 
 # ── Build ────────────────────────────────────────────────────────────────────
