@@ -22,9 +22,6 @@
         </Style>
     </w:TimerWindowBase.Styles>
 
-    <w:TimerWindowBase.ContextMenu>
-        <w:TimerContextMenu />
-    </w:TimerWindowBase.ContextMenu>
 
     <Panel>
         <Border x:Name="Card" CornerRadius="10" Background="#E61A1A2E" />
@@ -40,7 +37,8 @@
                            FontSize="11" FontWeight="Medium" Opacity="0.8" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal"
                             Classes="controls" Classes.concealed="{Binding !#Root.ControlsVisible}">
-                    <Button Classes="chrome window" Content="–" Click="OnMinimizeClick" />
+                    <Button x:Name="MenuButton" Classes="chrome window" Content="⋯" Click="OnMenuClick" />
+                <Button Classes="chrome window" Content="–" Click="OnMinimizeClick" />
                     <Button Classes="chrome window" Content="×" Command="{Binding QuitCommand}" />
                 </StackPanel>
             </Grid>

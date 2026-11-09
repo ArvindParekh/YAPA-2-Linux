@@ -71,6 +71,8 @@ public sealed partial class TimerViewModel : ObservableObject
     [ObservableProperty] private string _stopMenuText = "Stop";
     [ObservableProperty] private bool _canSkip;
     [ObservableProperty] private bool _canReset;
+    [ObservableProperty] private bool _canLongBreak;
+    [ObservableProperty] private string _longBreakMenuText = "Take long break now";
 
     /// <summary>One-line summary for the tray tooltip and accessibility.</summary>
     [ObservableProperty] private string _summary = "YAPA 2";
@@ -97,6 +99,9 @@ public sealed partial class TimerViewModel : ObservableObject
 
     [RelayCommand]
     private void Reset() => _engine.Reset();
+
+    [RelayCommand]
+    private void LongBreak() => _engine.StartLongBreak();
 
     [RelayCommand]
     private void OpenSettings() => _navigator.ShowSettings();
@@ -185,6 +190,8 @@ public sealed partial class TimerViewModel : ObservableObject
         StopMenuText = stoppingBreak ? "End break" : "Abandon pomodoro";
         CanSkip = phase is PomodoroPhase.WorkEnded or PomodoroPhase.Break or PomodoroPhase.BreakEnded || pausedBreak;
         CanReset = !(phase == PomodoroPhase.NotStarted && _engine.Index == 1);
+        CanLongBreak = _engine.CanStartLongBreak;
+        LongBreakMenuText = phase is PomodoroPhase.Break || pausedBreak ? "Make this a long break" : "Take long break now";
 
         var flashing = !_theme.DisableFlashingAnimation;
         Alert = phase switch
@@ -204,6 +211,7 @@ public sealed partial class TimerViewModel : ObservableObject
         StopCommand.NotifyCanExecuteChanged();
         SkipCommand.NotifyCanExecuteChanged();
         ResetCommand.NotifyCanExecuteChanged();
+        LongBreakCommand.NotifyCanExecuteChanged();
     }
 
     private void UpdateTime(int totalSeconds)

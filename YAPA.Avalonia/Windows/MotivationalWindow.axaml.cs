@@ -1,3 +1,4 @@
+using Avalonia.Controls;
 using System.ComponentModel;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -47,4 +48,8 @@ public partial class MotivationalWindow : TimerWindowBase
     }
 
     private void OnMinimizeClick(object? sender, RoutedEventArgs e) => MinimizeOrHide();
+
+    private void OnMenuClick(object? sender, RoutedEventArgs e) => OpenActionsMenu(MenuButton);
+
+    protected override Control MenuAnchor => MenuButton;
 }

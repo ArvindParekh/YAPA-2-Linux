@@ -133,6 +133,60 @@ public class UiSmokeTests
     });
 
     [TestMethod]
+    public void Right_click_opens_settings() => OnUi(() =>
+    {
+        var bs = App.Bootstrapper!;
+        var engine = bs.Resolve<IPomodoroEngine>();
+        engine.Reset();
+        var window = new MainWindow();
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        // Right-click on the digits area.
+        window.MouseDown(new Point(60, 50), global::Avalonia.Input.MouseButton.Right);
+        window.MouseUp(new Point(60, 50), global::Avalonia.Input.MouseButton.Right);
+        Dispatcher.UIThread.RunJobs();
+        var navigator = bs.Resolve<YAPA.Avalonia.Services.AppNavigator>();
+        Assert.IsNotNull(navigator.SettingsWindowForTests, "right-click should open settings");
+        navigator.SettingsWindowForTests!.Close();
+        Dispatcher.UIThread.RunJobs();
+
+        // The ⋯ actions menu is a native popup, which the headless platform can't
+        // create; it is exercised on a real X server instead.
+        Assert.IsNotNull(window.FindControl<Button>("MenuButton"));
+        window.Close();
+    });
+
+    [TestMethod]
+    public void Actions_menu_gets_the_context_menu_template() => OnUi(() =>
+    {
+        // Regression: the ContextMenu subclass matched no control theme, so it
+        // opened as an empty popup that never appeared.
+        var menu = new TimerContextMenu();
+        var host = new Window { Content = menu };
+        host.Show();
+        Dispatcher.UIThread.RunJobs();
+        Assert.IsNotNull(menu.Template, "TimerContextMenu must pick up the Fluent ContextMenu template");
+        host.Close();
+    });
+
+    [TestMethod]
+    public void L_takes_the_long_break_now() => OnUi(() =>
+    {
+        var engine = App.Bootstrapper!.Resolve<IPomodoroEngine>();
+        engine.Reset();
+        var window = new MainWindow();
+        window.Show();
+        window.KeyPress(global::Avalonia.Input.Key.L, global::Avalonia.Input.RawInputModifiers.None,
+            global::Avalonia.Input.PhysicalKey.L, "l");
+        Assert.AreEqual(PomodoroPhase.Break, engine.Phase);
+        Assert.IsTrue(engine.IsLongBreak);
+        Render(window, "timer-classic-long-break");
+        engine.Reset();
+        window.Close();
+    });
+
+    [TestMethod]
     public void Keyboard_space_toggles_the_timer() => OnUi(() =>
     {
         var engine = App.Bootstrapper!.Resolve<IPomodoroEngine>();

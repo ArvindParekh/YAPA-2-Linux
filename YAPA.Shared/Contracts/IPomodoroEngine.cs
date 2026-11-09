@@ -50,6 +50,15 @@ namespace YAPA.Shared.Contracts
         /// <summary>Skips the (remaining) break and starts the next pomodoro immediately.</summary>
         void Skip();
 
+        /// <summary>
+        /// Takes the long break now instead of waiting for the end of the cycle:
+        /// from idle, after work, during or after a short break. When it ends the
+        /// cycle starts over at pomodoro 1. No-op during work.
+        /// </summary>
+        void StartLongBreak();
+
+        bool CanStartLongBreak { get; }
+
         /// <summary>Back to the first pomodoro of the cycle.</summary>
         void Reset();
 

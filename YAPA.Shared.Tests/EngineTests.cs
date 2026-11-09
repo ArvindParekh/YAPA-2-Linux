@@ -387,5 +387,117 @@ namespace YAPA.Shared.Tests
             engineSettings.Profiles[PomodoroEngineSettings.DefaultProfileName].WorkTime = 1;
             Assert.AreEqual(25 * 60, engineSettings.WorkTime);
         }
+
+        // ── Long break on demand ─────────────────────────────────────────────
+
+        [TestMethod]
+        public void Long_break_after_two_pomodoros_then_the_cycle_starts_over()
+        {
+            Create(cycle: 4);
+            _engine.Start(); Elapse(Work); _engine.Skip();   // pomodoro 2
+            Elapse(Work);
+            _engine.Start(); Elapse(ShortBreak);            // "break over" after 2 sessions
+            Assert.AreEqual(PomodoroPhase.BreakEnded, _engine.Phase);
+            Assert.IsTrue(_engine.CanStartLongBreak);
+
+            _engine.StartLongBreak();
+            Assert.AreEqual(PomodoroPhase.Break, _engine.Phase);
+            Assert.IsTrue(_engine.IsLongBreak);
+            Assert.AreEqual(LongBreak, _engine.CurrentIntervalLength);
+            Assert.AreEqual(2, _engine.Index, "the counter doesn't pretend the cycle was finished");
+            var t = _transitions.Last();
+            Assert.AreEqual(PomodoroTransitionKind.BreakStarted, t.Kind);
+            Assert.IsTrue(t.IsLongBreak);
+
+            Elapse(LongBreak);
+            Assert.AreEqual(PomodoroPhase.BreakEnded, _engine.Phase);
+            Assert.IsTrue(_transitions.Last().IsLongBreak);
+            _engine.Start();
+            Assert.AreEqual(1, _engine.Index, "an early long break closes the cycle");
+            Assert.IsFalse(_engine.IsLongBreak);
+            Assert.AreEqual(Work, _engine.CurrentIntervalLength);
+        }
+
+        [TestMethod]
+        public void A_running_short_break_stretches_into_a_long_one_keeping_elapsed_time()
+        {
+            Create();
+            _engine.Start(); Elapse(Work);
+            _engine.Start(); Elapse(120);
+            _engine.StartLongBreak();
+
+            Assert.AreEqual(PomodoroPhase.Break, _engine.Phase);
+            Assert.AreEqual(LongBreak, _engine.CurrentIntervalLength);
+            Assert.AreEqual(120, _engine.Elapsed);
+            Assert.IsFalse(_engine.CanStartLongBreak, "already the long break");
+            Elapse(LongBreak - 120);
+            Assert.AreEqual(PomodoroPhase.BreakEnded, _engine.Phase);
+        }
+
+        [TestMethod]
+        public void A_paused_short_break_resumes_as_the_long_break()
+        {
+            Create();
+            _engine.Start(); Elapse(Work);
+            _engine.Start(); Elapse(60);
+            _engine.Pause();
+            _engine.StartLongBreak();
+
+            Assert.AreEqual(PomodoroPhase.Break, _engine.Phase);
+            Assert.IsTrue(_engine.IsLongBreak);
+            Assert.AreEqual(60, _engine.Elapsed);
+        }
+
+        [TestMethod]
+        public void Long_break_instead_of_the_short_one_right_after_work()
+        {
+            Create();
+            _engine.Start(); Elapse(Work);
+            _engine.StartLongBreak();
+            Assert.AreEqual(LongBreak, _engine.CurrentIntervalLength);
+            _engine.Stop();
+            Assert.AreEqual(PomodoroPhase.NotStarted, _engine.Phase);
+            Assert.AreEqual(1, _engine.Index);
+            Assert.IsFalse(_engine.IsLongBreak);
+        }
+
+        [TestMethod]
+        public void Long_break_from_idle_and_skip_returns_to_pomodoro_one()
+        {
+            Create();
+            _engine.Start(); Elapse(Work); _engine.Skip(); _engine.Stop(); // idle at pomodoro 2
+            _engine.StartLongBreak();
+            Assert.AreEqual(PomodoroPhase.Break, _engine.Phase);
+            _engine.Skip();
+            Assert.AreEqual(PomodoroPhase.Work, _engine.Phase);
+            Assert.AreEqual(1, _engine.Index);
+        }
+
+        [TestMethod]
+        public void Long_break_is_not_offered_during_work()
+        {
+            Create();
+            _engine.Start();
+            Assert.IsFalse(_engine.CanStartLongBreak);
+            _engine.StartLongBreak();
+            Assert.AreEqual(PomodoroPhase.Work, _engine.Phase);
+            _engine.Pause();
+            Assert.IsFalse(_engine.CanStartLongBreak, "a paused pomodoro is still work");
+        }
+
+        [TestMethod]
+        public void Requested_long_break_survives_a_restart()
+        {
+            Create();
+            _engine.Start(); Elapse(Work); _engine.Skip(); Elapse(Work);
+            _engine.StartLongBreak(); Elapse(30); _engine.Pause();
+            var snapshot = _engine.GetSnapshot();
+
+            Create();
+            _engine.LoadSnapshot(snapshot);
+            Assert.IsTrue(_engine.IsLongBreak);
+            Assert.AreEqual(LongBreak - 30, _engine.Remaining);
+            Assert.AreEqual(2, _engine.Index);
+        }
     }
 }

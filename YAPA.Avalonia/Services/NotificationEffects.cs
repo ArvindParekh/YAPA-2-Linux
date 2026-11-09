@@ -17,6 +17,7 @@ public sealed class NotificationEffects : IDisposable
     private const string StartBreak = "start-break";
     private const string SkipBreak = "skip-break";
     private const string StartWork = "start-work";
+    private const string LongBreak = "long-break";
     private const string ShowTimer = "default";
 
     private readonly IPomodoroEngine _engine;
@@ -79,13 +80,14 @@ public sealed class NotificationEffects : IDisposable
                 [new NotificationAction(SkipBreak, "Skip break"), new NotificationAction(ShowTimer, "Show timer")]);
         }
 
+        // Offer the long break early unless it's already the long break's turn.
+        NotificationAction[] actions = longBreak
+            ? [new(StartBreak, "Start long break"), new(SkipBreak, "Skip break"), new(ShowTimer, "Show timer")]
+            : [new(StartBreak, "Start break"), new(LongBreak, "Long break"), new(SkipBreak, "Skip break"), new(ShowTimer, "Show timer")];
+
         return new DesktopNotification("Pomodoro complete",
             $"Time for a {Minutes(_engine.BreakTime)} {(longBreak ? "long break" : "break")}.",
-            [
-                new NotificationAction(StartBreak, "Start break"),
-                new NotificationAction(SkipBreak, "Skip break"),
-                new NotificationAction(ShowTimer, "Show timer"),
-            ],
+            actions,
             Persistent: true);
     }
 
@@ -98,7 +100,11 @@ public sealed class NotificationEffects : IDisposable
         }
 
         return new DesktopNotification("Break's over", "Ready for the next pomodoro?",
-            [new NotificationAction(StartWork, "Start pomodoro"), new NotificationAction(ShowTimer, "Show timer")],
+            [
+                new NotificationAction(StartWork, "Start pomodoro"),
+                new NotificationAction(LongBreak, "Long break"),
+                new NotificationAction(ShowTimer, "Show timer"),
+            ],
             Persistent: true);
     }
 
@@ -115,6 +121,9 @@ public sealed class NotificationEffects : IDisposable
                     break;
                 case SkipBreak:
                     _engine.Skip();
+                    break;
+                case LongBreak:
+                    _engine.StartLongBreak();
                     break;
                 case ShowTimer:
                     _navigator.ShowTimer();

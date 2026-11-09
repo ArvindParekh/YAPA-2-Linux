@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Platform;
@@ -30,7 +31,7 @@ public abstract class TimerWindowBase : Window
     private readonly ISettings _settings;
     private bool _pointerInside;
     private bool _restoringPosition;
-    private bool _menuHooked; // Opened fires on every Show after a Hide
+    private readonly TimerContextMenu _actionsMenu = new();
 
     protected TimerWindowBase()
     {
@@ -54,6 +55,10 @@ public abstract class TimerWindowBase : Window
         using (var icon = AssetLoader.Open(new Uri("avares://YAPA.Avalonia/Assets/pomoTray.ico")))
             Icon = new WindowIcon(icon);
 
+        _actionsMenu.DataContext = ViewModel;
+        _actionsMenu.Opened += (_, _) => RefreshControls();
+        _actionsMenu.Closed += (_, _) => RefreshControls();
+
         _settleTimer = new DispatcherTimer { Interval = SettleDelay };
         _settleTimer.Tick += (_, _) => { _settleTimer.Stop(); OnPositionSettled(); };
 
@@ -72,6 +77,9 @@ public abstract class TimerWindowBase : Window
     protected AvaloniaYapaThemeSettings Appearance { get; }
     protected GeneralSettings General { get; }
     private IWindowPlacementGuard PlacementGuard { get; }
+
+    /// <summary>Where the actions menu opens from when invoked by keyboard (the ⋯ button).</summary>
+    protected abstract Control MenuAnchor { get; }
 
     /// <summary>Settings component that stores this theme's position.</summary>
     protected abstract string PositionKey { get; }
@@ -107,7 +115,7 @@ public abstract class TimerWindowBase : Window
     }
 
     protected void RefreshControls()
-        => ControlsVisible = !Appearance.HideButtons || _pointerInside || ContextMenu?.IsOpen == true;
+        => ControlsVisible = !Appearance.HideButtons || _pointerInside || _actionsMenu.IsOpen;
 
     protected override void OnPointerEntered(PointerEventArgs e)
     {
@@ -132,12 +140,30 @@ public abstract class TimerWindowBase : Window
         base.OnPointerPressed(e);
         if (e.Handled) return;
 
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        var button = e.GetCurrentPoint(this).Properties;
+        if (button.IsLeftButtonPressed)
         {
             // Controls mark their presses handled, so this only fires on the background.
             BeginMoveDrag(e);
             e.Handled = true;
         }
+        else if (button.IsRightButtonPressed)
+        {
+            // As in the original YAPA: right-click anywhere opens settings.
+            // Every other action is on the ⋯ menu, in the tray, or a key away.
+            ViewModel.OpenSettingsCommand.Execute(null);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>The ⋯ button (and the Menu key) open the actions menu below it.</summary>
+    protected void OpenActionsMenu(Control anchor)
+    {
+        // Opening a ContextMenu that isn't attached to any control silently does
+        // nothing on X11, so attach it to the ⋯ button (right-clicking ⋯ opens it too).
+        if (!ReferenceEquals(anchor.ContextMenu, _actionsMenu)) anchor.ContextMenu = _actionsMenu;
+        _actionsMenu.Placement = PlacementMode.BottomEdgeAlignedRight;
+        _actionsMenu.Open(anchor);
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -156,6 +182,13 @@ public abstract class TimerWindowBase : Window
                 break;
             case Key.S when !ctrl && ViewModel.CanSkip:
                 ViewModel.SkipCommand.Execute(null);
+                break;
+            case Key.L when !ctrl && ViewModel.CanLongBreak:
+                ViewModel.LongBreakCommand.Execute(null);
+                break;
+            case Key.Apps:
+            case Key.F10 when e.KeyModifiers.HasFlag(KeyModifiers.Shift):
+                OpenActionsMenu(MenuAnchor);
                 break;
             case Key.OemComma when ctrl:
                 ViewModel.OpenSettingsCommand.Execute(null);
@@ -198,12 +231,6 @@ public abstract class TimerWindowBase : Window
         // Not OnPositionSettled() here: on X11 Position only updates once the WM
         // confirms the move, and saving now would persist a stale value. The
         // PositionChanged that follows the move triggers the settle check.
-        if (!_menuHooked && ContextMenu is { } menu)
-        {
-            _menuHooked = true;
-            menu.Opened += (_, _) => RefreshControls();
-            menu.Closed += (_, _) => RefreshControls();
-        }
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)

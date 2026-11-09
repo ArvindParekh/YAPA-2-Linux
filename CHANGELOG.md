@@ -25,6 +25,10 @@ A ground-up revival of the Linux port.
 - Digits jittered and clipped. They now use tabular figures, and the digit-spacing workaround is gone.
 
 ### Added
+- Long break on demand: <kbd>L</kbd>, the ⋯ menu, the tray, `--long-break`, or the notification button.
+  It starts the cycle over afterwards, and a running short break turns into the long one without losing the time already rested.
+- The timer stays visible through Show Desktop; the tray restores a minimized timer in one click.
+- Right-click opens settings again, as in the original; every other action is on a ⋯ button.
 - A distinct, soft sound for every event, with a per-event choice of built-in sounds or your own files.
 - Desktop notifications with *Start break* / *Skip break* / *Start pomodoro* buttons.
 - A statistics window: streaks, daily goal, year heatmap, two-week chart.

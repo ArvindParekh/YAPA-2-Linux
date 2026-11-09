@@ -41,4 +41,8 @@ public partial class MainWindow : TimerWindowBase
     }
 
     private void OnMinimizeClick(object? sender, RoutedEventArgs e) => MinimizeOrHide();
+
+    private void OnMenuClick(object? sender, RoutedEventArgs e) => OpenActionsMenu(MenuButton);
+
+    protected override Control MenuAnchor => MenuButton;
 }

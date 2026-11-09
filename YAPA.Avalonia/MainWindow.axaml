@@ -32,9 +32,6 @@
         </Style>
     </w:TimerWindowBase.Styles>
 
-    <w:TimerWindowBase.ContextMenu>
-        <w:TimerContextMenu />
-    </w:TimerWindowBase.ContextMenu>
 
     <!-- Transparent (not null) background: the whole window is a drag handle. -->
     <Panel Background="Transparent">
@@ -51,6 +48,7 @@
             <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal"
                         HorizontalAlignment="Right" Margin="0,2,2,0"
                         Classes="controls" Classes.concealed="{Binding !#Root.ControlsVisible}">
+                <Button x:Name="MenuButton" Classes="chrome window" Content="⋯" Click="OnMenuClick" />
                 <Button Classes="chrome window" Content="–" Click="OnMinimizeClick" />
                 <Button Classes="chrome window" Content="×" Command="{Binding QuitCommand}" />
             </StackPanel>

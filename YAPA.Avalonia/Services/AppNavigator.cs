@@ -34,6 +34,8 @@ public sealed class AppNavigator : IAppNavigator
 
     public TimerWindowBase? TimerWindow => _timer;
 
+    internal SettingsWindow? SettingsWindowForTests => _settings;
+
     public void ShowTimer()
     {
         var timer = EnsureTimer();

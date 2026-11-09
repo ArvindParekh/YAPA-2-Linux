@@ -6,6 +6,7 @@
     <MenuItem Header="{Binding StartMenuText}" Command="{Binding StartCommand}" IsVisible="{Binding CanStart}" InputGesture="Space" />
     <MenuItem Header="Pause" Command="{Binding PauseCommand}" IsVisible="{Binding CanPause}" InputGesture="Space" />
     <MenuItem Header="Skip break" Command="{Binding SkipCommand}" IsVisible="{Binding CanSkip}" InputGesture="S" />
+    <MenuItem Header="{Binding LongBreakMenuText}" Command="{Binding LongBreakCommand}" IsVisible="{Binding CanLongBreak}" InputGesture="L" />
     <MenuItem Header="{Binding StopMenuText}" Command="{Binding StopCommand}" IsVisible="{Binding CanStop}" InputGesture="Escape" />
     <MenuItem Header="Reset cycle" Command="{Binding ResetCommand}" IsEnabled="{Binding CanReset}" />
     <Separator />

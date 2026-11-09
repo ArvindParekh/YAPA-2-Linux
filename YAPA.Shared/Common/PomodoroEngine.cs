@@ -19,6 +19,9 @@ namespace YAPA.Shared.Common
         /// <summary>Only meaningful when <see cref="Phase"/> is Pause. Absent in snapshots from older builds (treated as Work).</summary>
         public PomodoroPhase? PausedPhase { get; set; }
         public int PomodoroIndex { get; set; }
+
+        /// <summary>The user asked for the long break early (see <see cref="PomodoroEngine.StartLongBreak"/>).</summary>
+        public bool LongBreakRequested { get; set; }
     }
 
     /// <summary>
@@ -51,6 +54,7 @@ namespace YAPA.Shared.Common
         private PomodoroPhase _phase = PomodoroPhase.NotStarted;
         private PomodoroPhase _pausedPhase = PomodoroPhase.Work;
         private int _index = 1;
+        private bool _longBreakRequested;
         private int _completedThisSession;
 
         private TimeSpan _accumulated;
@@ -84,7 +88,7 @@ namespace YAPA.Shared.Common
 
         public bool IsRunning => _phase == PomodoroPhase.Work || _phase == PomodoroPhase.Break;
 
-        public bool IsLongBreak => _index >= CycleLength;
+        public bool IsLongBreak => _longBreakRequested || _index >= CycleLength;
 
         public int WorkTime => Math.Max(1, _settings.WorkTime);
 
@@ -252,11 +256,67 @@ namespace YAPA.Shared.Common
             Raise(PomodoroTransitionKind.WorkStarted, from, false);
         }
 
+        public bool CanStartLongBreak
+        {
+            get
+            {
+                switch (_phase)
+                {
+                    case PomodoroPhase.NotStarted:
+                    case PomodoroPhase.WorkEnded:
+                    case PomodoroPhase.BreakEnded:
+                        return true;
+                    case PomodoroPhase.Break:
+                        return !IsLongBreak;
+                    case PomodoroPhase.Pause:
+                        return _pausedPhase == PomodoroPhase.Break;
+                    default:
+                        return false;
+                }
+            }
+        }
+
+        public void StartLongBreak()
+        {
+            if (!CanStartLongBreak) return;
+
+            var from = _phase;
+            _autoStartAt = null;
+            _longBreakRequested = true;
+
+            if (_phase == PomodoroPhase.Break || _phase == PomodoroPhase.Pause)
+            {
+                // Stretch the break that's already under way; time already rested counts.
+                if (_phase == PomodoroPhase.Pause)
+                {
+                    _segmentStart = _clock.Monotonic;
+                    SetPhase(PomodoroPhase.Break);
+                    _timer.Start();
+                }
+                NotifyPropertyChanged(nameof(IsLongBreak));
+                NotifyPropertyChanged(nameof(BreakTime));
+                NotifyPropertyChanged(nameof(CurrentIntervalLength));
+                NotifyPropertyChanged(nameof(CanStartLongBreak));
+                NotifyTime(force: true);
+            }
+            else
+            {
+                // From idle or just after an interval: no index advance here, because the
+                // long break ends the cycle and the next advance resets it to 1.
+                BeginInterval(PomodoroPhase.Break, TimeSpan.Zero);
+                NotifyPropertyChanged(nameof(IsLongBreak));
+                NotifyPropertyChanged(nameof(BreakTime));
+            }
+
+            Raise(PomodoroTransitionKind.BreakStarted, from, false, isLongBreak: true);
+        }
+
         public void Reset()
         {
             var from = _phase;
             if (from == PomodoroPhase.NotStarted && _index == 1) return;
 
+            _longBreakRequested = false;
             SetIndex(1);
             ResetInterval();
             Raise(PomodoroTransitionKind.Reset, from, false);
@@ -276,6 +336,7 @@ namespace YAPA.Shared.Common
                 PausedPhase = _phase == PomodoroPhase.Pause ? _pausedPhase : (PomodoroPhase?)null,
                 StartDate = _clock.UtcNow,
                 PomodoroIndex = Index,
+                LongBreakRequested = _longBreakRequested,
             };
         }
 
@@ -297,6 +358,7 @@ namespace YAPA.Shared.Common
             }
 
             SetIndex(Math.Max(1, snapshot.PomodoroIndex));
+            _longBreakRequested = snapshot.LongBreakRequested;
             _pausedPhase = snapshot.PausedPhase == PomodoroPhase.Break ? PomodoroPhase.Break : PomodoroPhase.Work;
             _accumulated = TimeSpan.FromSeconds(Math.Max(0, snapshot.PausedTime));
             _segmentStart = _clock.Monotonic;
@@ -397,7 +459,18 @@ namespace YAPA.Shared.Common
             NotifyAll();
         }
 
-        private void AdvanceIndex() => SetIndex(_index >= CycleLength ? 1 : _index + 1);
+        private void AdvanceIndex()
+        {
+            if (_longBreakRequested)
+            {
+                // An early long break closes the cycle just like the scheduled one.
+                _longBreakRequested = false;
+                if (_index == 1) NotifyPropertyChanged(nameof(IsLongBreak));
+                SetIndex(1);
+                return;
+            }
+            SetIndex(_index >= CycleLength ? 1 : _index + 1);
+        }
 
         private void SetIndex(int index)
         {
@@ -418,6 +491,7 @@ namespace YAPA.Shared.Common
             NotifyPropertyChanged(nameof(IsRunning));
             NotifyPropertyChanged(nameof(CurrentIntervalLength));
             NotifyPropertyChanged(nameof(Counter));
+            NotifyPropertyChanged(nameof(CanStartLongBreak));
         }
 
         private void Raise(PomodoroTransitionKind kind, PomodoroPhase from, bool automatic, bool? isLongBreak = null)

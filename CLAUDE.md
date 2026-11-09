@@ -62,6 +62,11 @@ arguments to the user's running instance.
 - Mutter deletes `_NET_WM_STATE` and `_NET_WM_DESKTOP` when a window is hidden.
   `WindowShellIntegration.Apply` re-sets them before every show (it is a property edit
   while the window is withdrawn) and after map (EWMH client messages).
+- Subclassing an Avalonia control (other than Window) needs
+  `StyleKeyOverride => typeof(BaseControl)`. Otherwise no control theme matches,
+  and the control renders nothing. The actions menu shipped broken this way.
+- Mutter ends Show Desktop when any new window maps, popups and tooltips included,
+  except for DOCK windows and their transients. So the timer has no hover tooltips.
 - Avalonia installs its own Xlib error handler. Anything chaining to the previous
   handler must hold it as a plain `Delegate`, because marshaling hands back
   Avalonia's delegate type.

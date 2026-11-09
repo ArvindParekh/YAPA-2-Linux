@@ -176,6 +176,7 @@ public sealed partial class AboutPageViewModel : SettingsPageViewModel
         ("Space", "Start, pause or resume"),
         ("Esc", "Stop: abandon the pomodoro, or end the break"),
         ("S", "Skip the break"),
+        ("L", "Take the long break now"),
         ("Ctrl+,", "Settings"),
         ("Ctrl+I", "Statistics"),
         ("Ctrl+H", "Hide to tray"),

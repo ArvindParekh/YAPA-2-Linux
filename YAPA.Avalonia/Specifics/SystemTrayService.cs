@@ -22,6 +22,7 @@ public sealed class SystemTrayService : IDisposable
     private readonly NativeMenuItem _start = new("Start pomodoro");
     private readonly NativeMenuItem _pause = new("Pause");
     private readonly NativeMenuItem _skip = new("Skip break");
+    private readonly NativeMenuItem _longBreak = new("Take long break now");
     private readonly NativeMenuItem _stop = new("Stop");
     private readonly NativeMenuItem _reset = new("Reset cycle");
     private bool _disposed;
@@ -67,6 +68,7 @@ public sealed class SystemTrayService : IDisposable
         _start.Click += (_, _) => _vm.StartCommand.Execute(null);
         _pause.Click += (_, _) => _vm.PauseCommand.Execute(null);
         _skip.Click += (_, _) => _vm.SkipCommand.Execute(null);
+        _longBreak.Click += (_, _) => _vm.LongBreakCommand.Execute(null);
         _stop.Click += (_, _) => _vm.StopCommand.Execute(null);
         _reset.Click += (_, _) => _vm.ResetCommand.Execute(null);
 
@@ -83,6 +85,7 @@ public sealed class SystemTrayService : IDisposable
         menu.Add(_start);
         menu.Add(_pause);
         menu.Add(_skip);
+        menu.Add(_longBreak);
         menu.Add(_stop);
         menu.Add(_reset);
         menu.Add(new NativeMenuItemSeparator());
@@ -100,6 +103,7 @@ public sealed class SystemTrayService : IDisposable
         if (e.PropertyName == nameof(TimerViewModel.Summary)) _tray.ToolTipText = _vm.Summary;
         else if (e.PropertyName is nameof(TimerViewModel.CanStart) or nameof(TimerViewModel.CanPause)
                  or nameof(TimerViewModel.CanSkip) or nameof(TimerViewModel.CanStop) or nameof(TimerViewModel.CanReset)
+                 or nameof(TimerViewModel.CanLongBreak) or nameof(TimerViewModel.LongBreakMenuText)
                  or nameof(TimerViewModel.StartMenuText) or nameof(TimerViewModel.StopMenuText))
             Refresh();
     }
@@ -112,6 +116,8 @@ public sealed class SystemTrayService : IDisposable
         _start.IsVisible = _vm.CanStart;
         _pause.IsVisible = _vm.CanPause;
         _skip.IsVisible = _vm.CanSkip;
+        _longBreak.Header = _vm.LongBreakMenuText;
+        _longBreak.IsVisible = _vm.CanLongBreak;
         _stop.Header = _vm.StopMenuText;
         _stop.IsVisible = _vm.CanStop;
         _reset.IsEnabled = _vm.CanReset;

@@ -22,7 +22,7 @@ rebuilt on Avalonia and tuned for GNOME.
 - **Statistics**: today, this week, streaks, a daily goal, a year heatmap and a two-week chart.
 - **Plays well with GNOME**:
   - Stays clear of the dock and top bar, where GNOME on X11 would swallow its clicks.
-  - Shows on every workspace and stays on top.
+  - Shows on every workspace, stays on top, and stays put through Show Desktop (Super+D).
   - Hides from Alt+Tab unless you want it there.
   - Lives in the tray and can launch at login.
 - **Honest time**: time asleep never counts as work, and an interrupted pomodoro is
@@ -52,12 +52,19 @@ The tray icon on GNOME needs the AppIndicator extension. Ubuntu ships it enabled
 | | |
 |---|---|
 | Drag anywhere | move the timer |
-| Right-click | every action, Statistics, Settings |
+| Right-click | settings |
+| ⋯ button (or <kbd>Menu</kbd>) | every action, Statistics, Quit |
 | <kbd>Space</kbd> | start / pause / resume |
 | <kbd>Esc</kbd> | stop: abandon the pomodoro, or end the break |
 | <kbd>S</kbd> | skip the break |
+| <kbd>L</kbd> | take the long break now |
 | <kbd>Ctrl</kbd>+<kbd>,</kbd> / <kbd>Ctrl</kbd>+<kbd>I</kbd> | settings / statistics |
 | <kbd>Ctrl</kbd>+<kbd>H</kbd> / <kbd>Ctrl</kbd>+<kbd>Q</kbd> | hide to tray / quit |
+
+**Long break whenever you need it.** Done two pomodoros and need the long one
+now? Press <kbd>L</kbd>, use the ⋯ menu or tray, or the notification's *Long break*
+button. It works from idle, after work, and during or after a short break (time
+already rested counts). When it ends, the cycle starts over at pomodoro 1.
 
 **Stop vs. finish.** Stopping a pomodoro abandons it: it isn't recorded, and the
 same pomodoro starts over. Stopping during a break ends the break.
@@ -70,7 +77,7 @@ GNOME Settings → Keyboard → View and Customise Shortcuts → Custom Shortcut
 ### Command line
 
 ```text
-yapa2 --start | --pause | --toggle | --stop | --skip | --reset
+yapa2 --start | --pause | --toggle | --stop | --skip | --long-break | --reset
 yapa2 --show | --hide | --toggle-window | --settings | --stats
 yapa2 --status [--json]     # e.g. "Work 12:34"
 yapa2 --quit

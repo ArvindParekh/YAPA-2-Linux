@@ -99,6 +99,10 @@ public class CommandLineTests
     }
 
     [TestMethod]
+    public void Long_break_command_parses()
+        => CollectionAssert.AreEqual(new[] { AppCommand.LongBreak }, CommandLine.Parse(["--long-break"]).Commands.ToArray());
+
+    [TestMethod]
     public void Unknown_arguments_are_reported_not_fatal()
     {
         var parsed = CommandLine.Parse(["--bogus", "--skip"]);
@@ -358,6 +362,30 @@ public class NotificationEffectsTests
             && n.Actions.Any(a => a.Key == "start-break")
             && n.Actions.Any(a => a.Key == "skip-break")
             && n.Body.Contains("5 minutes")));
+    }
+
+    [TestMethod]
+    public void Break_over_offers_the_long_break()
+    {
+        var (rig, notifier, _) = Create();
+        rig.Engine.Start();
+        rig.Elapse(25 * 60);
+        rig.Engine.Start();
+        rig.Elapse(5 * 60);
+        notifier.Received(1).ShowAsync(Arg.Is<DesktopNotification>(n =>
+            n.Title == "Break's over" && n.Actions.Any(a => a.Key == "long-break")));
+    }
+
+    [TestMethod]
+    public void Long_break_is_not_offered_when_it_is_already_due()
+    {
+        var rig = new Rig("""{"PomodoroEngine":{"Profiles":{"Pomodoro":{"WorkTime":1500,"BreakTime":300,"LongBreakTime":900,"PomodorosBeforeLongBreak":1}}}}""");
+        var notifier = Substitute.For<IDesktopNotifier>();
+        _ = new NotificationEffects(rig.Engine, rig.EngineSettings, new GeneralSettings(rig.Settings), notifier, Substitute.For<IAppNavigator>());
+        rig.Engine.Start();
+        rig.Elapse(25 * 60);
+        notifier.Received(1).ShowAsync(Arg.Is<DesktopNotification>(n =>
+            n.Actions.All(a => a.Key != "long-break") && n.Actions.Any(a => a.Label == "Start long break")));
     }
 
     [TestMethod]
