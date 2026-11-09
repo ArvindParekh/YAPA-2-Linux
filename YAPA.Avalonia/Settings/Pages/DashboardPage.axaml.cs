@@ -8,6 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using YAPA.Shared.Contracts;
+using YAPA.Shared.Statistics;
 
 namespace YAPA.Avalonia.Settings.Pages;
 
@@ -53,33 +54,31 @@ public partial class DashboardPage : UserControl, INotifyPropertyChanged
 
     private async Task LoadAsync()
     {
-        var today = _repo.CompletedToday();
-        var now = DateTime.Now;
-        var days = new List<DaySummary>();
-        int max = 1;
-
-        for (int i = 6; i >= 0; i--)
+        var (today, week) = await Task.Run(() =>
         {
-            var day = now.Date.AddDays(-i);
-            var count = await Task.Run(() => _repo.After(day).Count());
-            if (count > max) max = count;
-            days.Add(new DaySummary
-            {
-                Day = i == 0 ? "Today" : day.ToString("ddd dd"),
-                Count = count,
-                MaxCount = 0, // placeholder
-            });
-        }
+            var timeZone = TimeZoneInfo.Local;
+            var nowUtc = DateTime.UtcNow;
+            var todayLocal = LocalCalendar.DateOf(nowUtc, timeZone);
 
-        // Re-create with correct MaxCount
-        var finalDays = new List<DaySummary>();
-        foreach (var d in days)
-            finalDays.Add(new DaySummary { Day = d.Day, Count = d.Count, MaxCount = max });
+            // A week plus a day of slack either side; DailyTotals buckets by exact local date.
+            var daily = DailyTotals.From(_repo.Between(nowUtc.AddDays(-8), nowUtc.AddDays(1)), timeZone);
+            return (daily[todayLocal].Count, daily.Range(todayLocal.AddDays(-6), todayLocal));
+        });
+
+        var max = Math.Max(1, week.Max(d => d.Count));
+        var summaries = week
+            .Select((d, i) => new DaySummary
+            {
+                Day = i == week.Count - 1 ? "Today" : d.Date.ToString("ddd dd"),
+                Count = d.Count,
+                MaxCount = max,
+            })
+            .ToList();
 
         Dispatcher.UIThread.Post(() =>
         {
             CompletedToday = today;
-            WeekSummary = finalDays;
+            WeekSummary = summaries;
         });
     }
 

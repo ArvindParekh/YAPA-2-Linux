@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using YAPA.Shared.Contracts;
+using YAPA.Shared.Statistics;
 
 namespace YAPA.Shared.Common
 {
@@ -22,44 +23,28 @@ namespace YAPA.Shared.Common
 
         public PomodoroDashboardModel GetPomodoros(int numberOfMonths, string profileFilter)
         {
-            var today = DateTime.Now.Date;
+            var timeZone = TimeZoneInfo.Local;
+            var nowUtc = DateTime.UtcNow;
+            var today = LocalCalendar.DateOf(nowUtc, timeZone);
+            var fromDate = LocalCalendar.StartOfMonth(today.AddMonths(-numberOfMonths));
 
-            var date = today.Date.AddMonths(numberOfMonths * -1);
-            var fromDate = new DateTime(date.Year, date.Month, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+            // One day of slack covers any UTC offset; DailyTotals then buckets by exact local date.
+            var fromUtc = fromDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddDays(-1);
+            var captured = _itemRepository.Between(fromUtc, nowUtc.AddDays(1));
+            var daily = DailyTotals.From(captured, timeZone, profileFilter);
 
-            var totalDays = (int)Math.Truncate((today - fromDate).TotalDays);
-            var emptyPomodoros = Enumerable.Range(0, totalDays).Select(x => new PomodoroEntity { Count = 0, DateTime = fromDate.AddDays(x) }).ToList();
-            var capturedPomodoros = _itemRepository.After(fromDate);
-
-            var distinctProfiles = capturedPomodoros.Select(_ => _.ProfileName).Distinct().ToList();
-
-            if (string.IsNullOrEmpty(profileFilter) == false)
+            return new PomodoroDashboardModel
             {
-                capturedPomodoros = capturedPomodoros.Where(_ => _.ProfileName == profileFilter).ToList();
-            }
-
-            var joinedPomodoros = capturedPomodoros.ToList().Union(emptyPomodoros)
-                .GroupBy(c =>
-                {
-                    var local = c.DateTime.TryToLocalTime();
-                    return new Tuple<int, int, int>(local.Year, local.Month, local.Day);
-                },
-                    c => new { c.Count, WorkTime = c.DurationMin },
-                    (time, ints) =>
-                    new PomodoroGithubDashboardModel
+                DashboardItems = daily.Range(fromDate, today)
+                    .Select(d => new PomodoroGithubDashboardModel
                     {
-                        DateTime = new DateTime(time.Item1, time.Item2, time.Item3, 0, 0, 0, DateTimeKind.Local),
-                        Count = ints.Sum(x => x.Count),
-                        DurationMin = ints.Sum(x => x.WorkTime)
-                    });
-
-            var result = new PomodoroDashboardModel
-            {
-                DashboardItems = joinedPomodoros.OrderBy(x => x.DateTime.Date),
-                Profiles = distinctProfiles
+                        DateTime = d.Date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Local),
+                        Count = d.Count,
+                        DurationMin = d.FocusMinutes
+                    })
+                    .ToList(),
+                Profiles = captured.Select(_ => _.ProfileName).Distinct().ToList()
             };
-
-            return result;
         }
 
         private void _engine_OnPomodoroCompleted()
