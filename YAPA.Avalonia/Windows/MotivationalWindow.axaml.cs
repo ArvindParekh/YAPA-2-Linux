@@ -20,10 +20,10 @@ public partial class MotivationalWindow : TimerWindowBase
 
     protected override void OnAppearanceChanged()
     {
-        StatusLabel.IsVisible = Theme.ShowStatusText;
-        ProgressLine.IsVisible = Theme.ShowProgress;
-        TimeLabel.Effect = Theme.ShadowOpacity > 0
-            ? new DropShadowEffect { Color = Theme.ShadowColor, Opacity = Theme.ShadowOpacity, BlurRadius = 6, OffsetX = 1, OffsetY = 1 }
+        StatusLabel.IsVisible = Appearance.ShowStatusText;
+        ProgressLine.IsVisible = Appearance.ShowProgress;
+        TimeLabel.Effect = Appearance.ShadowOpacity > 0
+            ? new DropShadowEffect { Color = Appearance.ShadowColor, Opacity = Appearance.ShadowOpacity, BlurRadius = 6, OffsetX = 1, OffsetY = 1 }
             : null;
     }
 

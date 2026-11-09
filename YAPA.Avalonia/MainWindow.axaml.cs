@@ -21,18 +21,18 @@ public partial class MainWindow : TimerWindowBase
 
     protected override void OnAppearanceChanged()
     {
-        var width = Math.Max(MinimumWidth, Theme.Width);
+        var width = Math.Max(MinimumWidth, Appearance.Width);
         Width = width;
         Height = Math.Round(width * AspectRatio);
 
-        StatusLabel.IsVisible = Theme.ShowStatusText;
-        ProgressLine.IsVisible = Theme.ShowProgress;
+        StatusLabel.IsVisible = Appearance.ShowStatusText;
+        ProgressLine.IsVisible = Appearance.ShowProgress;
 
-        TimeLabel.Effect = Theme.ShadowOpacity > 0
+        TimeLabel.Effect = Appearance.ShadowOpacity > 0
             ? new DropShadowEffect
             {
-                Color = Theme.ShadowColor,
-                Opacity = Theme.ShadowOpacity,
+                Color = Appearance.ShadowColor,
+                Opacity = Appearance.ShadowOpacity,
                 BlurRadius = 6,
                 OffsetX = 1.5,
                 OffsetY = 1.5,

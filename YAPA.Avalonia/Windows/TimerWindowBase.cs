@@ -36,7 +36,7 @@ public abstract class TimerWindowBase : Window
     {
         var bs = App.Bootstrapper!;
         ViewModel = bs.Resolve<TimerViewModel>();
-        Theme = bs.Resolve<AvaloniaYapaThemeSettings>();
+        Appearance = bs.Resolve<AvaloniaYapaThemeSettings>();
         General = bs.Resolve<GeneralSettings>();
         _settings = bs.Resolve<ISettings>();
         PlacementGuard = bs.Resolve<IWindowPlacementGuard>();
@@ -61,7 +61,7 @@ public abstract class TimerWindowBase : Window
         _hideControlsTimer.Tick += (_, _) => { _hideControlsTimer.Stop(); RefreshControls(); };
 
         PositionChanged += (_, _) => { if (!_restoringPosition) _settleTimer.Restart(); };
-        Theme.PropertyChanged += OnThemeSettingChanged;
+        Appearance.PropertyChanged += OnThemeSettingChanged;
         General.PropertyChanged += OnGeneralSettingChanged;
         PlacementGuard.ZonesChanged += OnPlacementZonesChanged;
 
@@ -69,7 +69,7 @@ public abstract class TimerWindowBase : Window
     }
 
     protected TimerViewModel ViewModel { get; }
-    protected AvaloniaYapaThemeSettings Theme { get; }
+    protected AvaloniaYapaThemeSettings Appearance { get; }
     protected GeneralSettings General { get; }
     private IWindowPlacementGuard PlacementGuard { get; }
 
@@ -89,8 +89,8 @@ public abstract class TimerWindowBase : Window
 
     private void ApplyCommonAppearance()
     {
-        TextBrush = new SolidColorBrush(Theme.TextColor);
-        Opacity = Math.Clamp(Theme.ClockOpacity, 0.2, 1.0);
+        TextBrush = new SolidColorBrush(Appearance.TextColor);
+        Opacity = Math.Clamp(Appearance.ClockOpacity, 0.2, 1.0);
         OnAppearanceChanged();
     }
 
@@ -107,7 +107,7 @@ public abstract class TimerWindowBase : Window
     }
 
     protected void RefreshControls()
-        => ControlsVisible = !Theme.HideButtons || _pointerInside || ContextMenu?.IsOpen == true;
+        => ControlsVisible = !Appearance.HideButtons || _pointerInside || ContextMenu?.IsOpen == true;
 
     protected override void OnPointerEntered(PointerEventArgs e)
     {
@@ -178,7 +178,7 @@ public abstract class TimerWindowBase : Window
     /// <summary>The "_" button: tray when there is one, otherwise a normal minimize.</summary>
     protected void MinimizeOrHide()
     {
-        if (Theme.MinimizeToTray) ViewModel.HideToTrayCommand.Execute(null);
+        if (Appearance.MinimizeToTray) ViewModel.HideToTrayCommand.Execute(null);
         else WindowState = WindowState.Minimized;
     }
 
@@ -214,7 +214,7 @@ public abstract class TimerWindowBase : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        Theme.PropertyChanged -= OnThemeSettingChanged;
+        Appearance.PropertyChanged -= OnThemeSettingChanged;
         General.PropertyChanged -= OnGeneralSettingChanged;
         PlacementGuard.ZonesChanged -= OnPlacementZonesChanged;
         _settleTimer.Stop();
