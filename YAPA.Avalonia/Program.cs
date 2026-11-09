@@ -31,8 +31,6 @@ internal static class Program
         foreach (var unknown in parsed.Unknown)
             Console.Error.WriteLine($"yapa2: ignoring unknown argument '{unknown}' (see --help)");
 
-        Diagnostics.Logging.Initialize();
-
         var channel = InstanceChannel.TryBecomePrimary();
         if (channel == null)
         {
@@ -55,6 +53,9 @@ internal static class Program
             return parsed.Commands.Contains(AppCommand.Quit) ? 0 : 3;
         }
 
+        // Only the primary instance logs: CLI clients like `--status` are short-lived
+        // and would otherwise interleave writes into the same file.
+        Diagnostics.Logging.Initialize();
         Channel = channel;
         StartupCommandLine = parsed;
         try
