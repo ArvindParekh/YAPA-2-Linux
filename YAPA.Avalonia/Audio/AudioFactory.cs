@@ -13,6 +13,12 @@ public static class AudioFactory
     public const string InProcessBackendName = "PulseAudio (in-process)";
 
     /// <summary>
+    /// YAPA_SILENT_AUDIO=1 replaces every player with a silent one. Used by the
+    /// test suite, which drives the real settings UI and must never make noise.
+    /// </summary>
+    public static bool Silenced => Environment.GetEnvironmentVariable("YAPA_SILENT_AUDIO") == "1";
+
+    /// <summary>
     /// Linux: in-process PulseAudio, falling back to pw-play / paplay / aplay per cue if the
     /// library is missing or the server refuses the connection. macOS: afplay.
     /// Windows: silent (the WPF build is the Windows app).
@@ -21,6 +27,8 @@ public static class AudioFactory
     {
         try
         {
+            if (Silenced)
+                return new NullCuePlayer("silenced (YAPA_SILENT_AUDIO)");
             if (OperatingSystem.IsWindows())
                 return new NullCuePlayer("not supported on Windows");
 
@@ -45,7 +53,7 @@ public static class AudioFactory
     {
         try
         {
-            if (OperatingSystem.IsWindows())
+            if (Silenced || OperatingSystem.IsWindows())
                 return new NullMusicPlayer();
 
             var resolver = ExecutableResolver.Default;

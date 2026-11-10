@@ -141,7 +141,7 @@
                             <Button Content="{Binding PreviewLabel}" Command="{Binding TogglePreviewCommand}" IsEnabled="{Binding CanPreview}" MinWidth="80" />
                         </StackPanel>
                     </c:SettingRow>
-                    <c:SettingRow Title="Your recording" Description="Any audio file; it loops for the whole pomodoro" IsVisible="{Binding IsFile}">
+                    <c:SettingRow Title="Your recording" Description="{Binding FileName}" IsVisible="{Binding IsFile}">
                         <Button Content="Choose another…" Command="{Binding ChooseFileCommand}" />
                     </c:SettingRow>
                     <c:SettingRow Title="Ambience volume" IsVisible="{Binding HasSound}">

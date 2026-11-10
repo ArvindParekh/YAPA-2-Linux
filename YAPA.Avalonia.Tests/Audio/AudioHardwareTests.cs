@@ -191,7 +191,12 @@ public class AudioHardwareTests
         WavWriter.WritePcm16(wav, new PcmBuffer(new float[48000 * 2 * 3], 48000, 2));
         try
         {
-            var player = (ProcessAudioPlayer)AudioFactory.CreateMusicPlayer();
+            // These tests exist to touch the real audio stack (with silent files), so they
+            // opt out of the suite-wide YAPA_SILENT_AUDIO for the factory call.
+            Environment.SetEnvironmentVariable("YAPA_SILENT_AUDIO", null);
+            ProcessAudioPlayer player;
+            try { player = (ProcessAudioPlayer)AudioFactory.CreateMusicPlayer(); }
+            finally { Environment.SetEnvironmentVariable("YAPA_SILENT_AUDIO", "1"); }
             player.Play(wav, loop: true, volume: 0.5);
             Assert.IsTrue(Wait.Until(() => ChildrenOfThisProcess().Any()), "player did not start");
             TestContext.WriteLine($"playing with {player.CurrentPlayerName}; children: {string.Join(", ", ChildrenOfThisProcess())}");

@@ -57,16 +57,28 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
     private readonly Thread? _thread;
     private readonly object _gate = new();
     private volatile bool _disposed;
-    private bool _streamFailed;
+    /// <summary>No in-process stream is possible at all (no libpulse).</summary>
+    private readonly bool _noStream;
+
+    /// <summary>
+    /// After a failed connection, use the looped-recording fallback until this time, then
+    /// try the stream again. The server may simply not be up yet (YAPA launched at login
+    /// a moment before PipeWire), so one failure must not demote the whole run.
+    /// </summary>
+    private DateTime _streamRetryAt = DateTime.MinValue;
+    private readonly TimeSpan RetryAfter;
+    private AmbienceMix _lastMix = AmbienceMix.Silent;
+    private bool _active;
     private string? _playingFile;
     private string? _fallbackLoop;
 
-    internal AmbiencePlayer(IBackgroundMusicPlayer filePlayer, Func<ICueOutputStream?>? openStream)
+    internal AmbiencePlayer(IBackgroundMusicPlayer filePlayer, Func<ICueOutputStream?>? openStream, TimeSpan? retryAfter = null)
     {
+        RetryAfter = retryAfter ?? TimeSpan.FromSeconds(30);
         _filePlayer = filePlayer;
         _openStream = openStream ?? (() => null);
-        _streamFailed = openStream == null;
-        if (!_streamFailed)
+        _noStream = openStream == null;
+        if (!_noStream)
         {
             _thread = new Thread(Run) { IsBackground = true, Name = "YAPA ambience", Priority = ThreadPriority.AboveNormal };
             _thread.Start();
@@ -75,6 +87,7 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
 
     public static IAmbiencePlayer Create(IBackgroundMusicPlayer filePlayer)
     {
+        if (AudioFactory.Silenced) return new NullAmbiencePlayer();
         Func<ICueOutputStream?>? open = null;
         if (PulseSimpleNative.TryLoad(out _))
         {
@@ -88,20 +101,33 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
         return new AmbiencePlayer(filePlayer, open);
     }
 
-    public string BackendDescription => _streamFailed ? "media player (looped recording)" : AudioFactory.InProcessBackendName;
+    private bool UsingFallback => _noStream || DateTime.UtcNow < _streamRetryAt;
+
+    public string BackendDescription => UsingFallback ? "media player (looped recording)" : AudioFactory.InProcessBackendName;
 
     public void Play(AmbienceMix mix, bool restartTicks)
     {
         if (_disposed) return;
         lock (_gate)
         {
+            _lastMix = mix;
+            _active = true;
             UpdateFile(mix);
             var generatedBed = mix.Sound is AmbientSound.File ? AmbientSound.None : mix.Sound;
 
-            if (_streamFailed)
+            if (UsingFallback)
             {
                 PlayFallbackLoop(mix with { Sound = generatedBed });
                 return;
+            }
+
+            // Back on the stream after a fallback period: the loop must stop or both would play.
+            if (_fallbackLoop != null)
+            {
+                _filePlayer.Stop();
+                _fallbackLoop = null;
+                _playingFile = null;
+                UpdateFile(mix);
             }
 
             _mixer.Set(
@@ -118,6 +144,7 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
     {
         lock (_gate)
         {
+            _active = false;
             _filePlayer.Stop();
             _playingFile = null;
             _fallbackLoop = null;
@@ -185,9 +212,21 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
                 stream = _openStream();
                 if (stream == null)
                 {
-                    lock (_gate) _streamFailed = true;
-                    AudioLog.Info("ambience: no in-process audio, falling back to a looped recording");
-                    return;
+                    lock (_gate)
+                    {
+                        _streamRetryAt = DateTime.UtcNow + RetryAfter;
+                        AudioLog.Info($"ambience: sound server unavailable, using a looped recording; retrying in {RetryAfter.TotalSeconds:0} s");
+                        // Silence the mixer (it has nowhere to play) and hand over to the fallback.
+                        _mixer.Set(active: false, AmbientSound.None, 0, 0);
+                        if (_active)
+                        {
+                            var generatedBed = _lastMix.Sound is AmbientSound.File ? AmbientSound.None : _lastMix.Sound;
+                            PlayFallbackLoop(_lastMix with { Sound = generatedBed });
+                        }
+                    }
+                    _retryTimer ??= new Timer(_ => RetryStream(), null, Timeout.Infinite, Timeout.Infinite);
+                    _retryTimer.Change(RetryAfter, Timeout.InfiniteTimeSpan);
+                    continue;
                 }
             }
 
@@ -205,16 +244,39 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
         stream?.Dispose();
     }
 
+    private Timer? _retryTimer;
+
+    /// <summary>Retry period over: if something is playing, move it back onto the stream.</summary>
+    private void RetryStream()
+    {
+        AmbienceMix mix;
+        lock (_gate)
+        {
+            if (!_active || _disposed) return;
+            mix = _lastMix;
+        }
+        Play(mix, restartTicks: false);
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        _retryTimer?.Dispose();
         _wake.Set();
         _filePlayer.Stop();
         _thread?.Join(TimeSpan.FromSeconds(1));
         _filePlayer.Dispose();
         _wake.Dispose();
     }
+}
+
+public sealed class NullAmbiencePlayer : IAmbiencePlayer
+{
+    public void Play(AmbienceMix mix, bool restartTicks) { }
+    public void Stop() { }
+    public string BackendDescription => "none";
+    public void Dispose() { }
 }
 
 /// <summary>A seamless recording of a generated mix, for players that can only loop a file.</summary>

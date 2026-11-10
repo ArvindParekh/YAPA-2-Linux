@@ -10,7 +10,7 @@ namespace YAPA.Avalonia.Persistence;
 /// <summary>
 /// Carries the timer across restarts: saved on quit, restored on the next launch.
 /// </summary>
-public sealed class SnapshotService
+public sealed class SnapshotService : IDisposable
 {
     /// <summary>Beyond this, the cycle position is stale (e.g. yesterday's) and the day starts fresh.</summary>
     private static readonly TimeSpan MaxAge = TimeSpan.FromHours(12);
@@ -20,6 +20,15 @@ public sealed class SnapshotService
     private readonly IJson _json;
     private readonly string _path;
 
+    /// <summary>
+    /// How often a running timer is checkpointed. A crash, kill -9 or power cut never
+    /// reaches the save-on-quit path, so without this they lose the whole session.
+    /// </summary>
+    public static readonly TimeSpan CheckpointInterval = TimeSpan.FromSeconds(15);
+
+    private readonly System.Threading.Timer _checkpoint;
+    private int _restoring;
+
     public SnapshotService(IPomodoroEngine engine, IClock clock, IJson json)
     {
         _engine = engine;
@@ -27,6 +36,19 @@ public sealed class SnapshotService
         _json = json;
         AppPaths.EnsureCreated();
         _path = Path.Combine(AppPaths.DataDirectory, "snapshot.json");
+
+        // Every state change is saved at once; elapsed time in between, periodically.
+        _engine.Transitioned += _ => { if (_restoring == 0) Save(); };
+        _checkpoint = new System.Threading.Timer(_ => Checkpoint(), null, CheckpointInterval, CheckpointInterval);
+    }
+
+    private void Checkpoint()
+    {
+        // The engine belongs to the UI thread; read it there.
+        global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (_engine.IsRunning) Save();
+        });
     }
 
     public void Save()
@@ -64,7 +86,20 @@ public sealed class SnapshotService
         }
 
         if (snapshot == null) return false;
+        System.Threading.Interlocked.Exchange(ref _restoring, 1);
+        try
+        {
+            return RestoreSnapshot(snapshot, resume);
+        }
+        finally
+        {
+            System.Threading.Interlocked.Exchange(ref _restoring, 0);
+            Save(); // the file was consumed above; put the current state back on disk
+        }
+    }
 
+    private bool RestoreSnapshot(PomodoroEngineSnapshot snapshot, bool resume)
+    {
         var age = _clock.UtcNow - DateTime.SpecifyKind(snapshot.StartDate, DateTimeKind.Utc);
         if (age < TimeSpan.Zero || age > MaxAge) return false;
         if (snapshot.Phase == PomodoroPhase.NotStarted && snapshot.PomodoroIndex <= 1) return false;
@@ -81,4 +116,6 @@ public sealed class SnapshotService
         Trace.WriteLine($"[snapshot] restored {snapshot.Phase} at {snapshot.PausedTime}s, pomodoro {snapshot.PomodoroIndex}");
         return true;
     }
+
+    public void Dispose() => _checkpoint.Dispose();
 }

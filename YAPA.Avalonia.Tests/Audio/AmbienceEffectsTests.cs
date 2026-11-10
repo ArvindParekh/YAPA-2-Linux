@@ -192,4 +192,24 @@ public class AmbiencePlayerTests
             System.IO.File.Delete(file);
         }
     }
+
+    [TestMethod]
+    public void Server_not_up_yet_falls_back_then_moves_to_the_stream()
+    {
+        // Launched at login a moment before PipeWire: the first open fails.
+        var attempts = 0;
+        var stream = new RecordingStream();
+        var music = Substitute.For<IBackgroundMusicPlayer>();
+        using var player = new AmbiencePlayer(music, () => ++attempts == 1 ? null : stream, retryAfter: TimeSpan.FromMilliseconds(300));
+
+        player.Play(new AmbienceMix(AmbientSound.SoftRain, null, 1, false, 0), restartTicks: true);
+        SpinWait.SpinUntil(() => music.ReceivedCalls().Any(c => c.GetMethodInfo().Name == "Play"), 5000);
+        music.Received().Play(Arg.Is<string>(p => p.EndsWith(".wav")), true, Arg.Any<double>());
+
+        // After the retry period it plays through the stream, and the fallback stops.
+        SpinWait.SpinUntil(() => { lock (stream.Samples) return stream.Samples.Count > 48_000; }, 5000);
+        Assert.IsTrue(attempts >= 2, "retried the stream");
+        music.Received().Stop();
+        lock (stream.Samples) Assert.IsTrue(stream.Samples.Count > 48_000, "streaming after the retry");
+    }
 }

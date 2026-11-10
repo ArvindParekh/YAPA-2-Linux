@@ -41,7 +41,14 @@ arguments to the user's running instance.
 - Never kill, restart or send commands to the user's installed instance
   (`/usr/local/lib/yapa2` or `~/.local/lib/yapa2`). Never write to `~/.config/YAPA2`
   or `~/.local/share/YAPA2`.
-- Don't play audible test sounds; verify audio paths with silent buffers.
+- Don't play audible test sounds; verify audio paths with silent buffers. The test suite
+  sets `YAPA_SILENT_AUDIO=1`, which turns every player into a silent one.
+- Test the real app, not just units. A feature is done only after it has been used
+  end to end in a running instance (isolated `YAPA_HOME`, nested GNOME Shell for UI
+  clicks). A binding loop in the ambience picker shipped because only the pieces were tested.
+- The machine has 15 GB and runs GNOME, Claude, Slack and browsers. A nested gnome-shell
+  plus build servers got the real GNOME Shell OOM-killed once. Check `free -h` first,
+  and run `dotnet build-server shutdown` after building.
 - Keep `YAPA.Shared` free of UI/platform dependencies so the engine stays unit-testable.
 - Time in the engine is measured on a monotonic clock, so time asleep never counts as work.
   Wall-clock time is only used for timestamps of history records.

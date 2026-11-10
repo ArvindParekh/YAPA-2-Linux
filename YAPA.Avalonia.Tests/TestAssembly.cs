@@ -19,6 +19,8 @@ public static class TestAssembly
     {
         Home = Path.Combine(Path.GetTempPath(), "yapa-tests-" + Guid.NewGuid().ToString("N")[..8]);
         Environment.SetEnvironmentVariable("YAPA_HOME", Home);
+        // The UI tests click through real settings, which preview sounds: keep them silent.
+        Environment.SetEnvironmentVariable("YAPA_SILENT_AUDIO", "1");
         if (!YAPA.Avalonia.Platform.AppPaths.IsIsolated || !YAPA.Avalonia.Platform.AppPaths.DataDirectory.StartsWith(Home))
             throw new InvalidOperationException("AppPaths was initialised before the test sandbox; refusing to run against real user data.");
     }

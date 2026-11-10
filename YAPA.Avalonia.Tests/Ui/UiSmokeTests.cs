@@ -6,6 +6,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using YAPA.Avalonia.Bootstrap;
 using YAPA.Avalonia.Settings;
@@ -112,6 +113,86 @@ public class UiSmokeTests
         Render(window, "settings-sounds-ambience");
         window.Close();
         ambience.ResetToDefaults();
+    });
+
+    /// <summary>
+    /// Drives every dropdown, switch, slider and number box on every settings page through
+    /// the real controls and bindings, the way a user would. A binding feedback loop (like
+    /// the one that crashed the app when choosing a background sound) recurses until the
+    /// stack overflows; that can't be caught, so it takes the test run down. Loud and clear.
+    /// </summary>
+    [TestMethod]
+    public void Every_settings_control_can_be_operated() => OnUi(() =>
+    {
+        var window = new SettingsWindow();
+        window.Show();
+        try
+        {
+            foreach (var page in window.Pages)
+            {
+                window.SelectedPage = page;
+                Dispatcher.UIThread.RunJobs();
+
+                var controls = window.GetVisualDescendants().ToList();
+                foreach (var combo in controls.OfType<ComboBox>())
+                {
+                    var count = combo.ItemCount;
+                    var original = combo.SelectedIndex;
+                    for (var i = 0; i < count; i++)
+                    {
+                        combo.SelectedIndex = i;
+                        Dispatcher.UIThread.RunJobs();
+                    }
+                    combo.SelectedIndex = original;
+                    Dispatcher.UIThread.RunJobs();
+                }
+
+                foreach (var toggle in window.GetVisualDescendants().OfType<ToggleSwitch>().ToList())
+                {
+                    var original = toggle.IsChecked;
+                    toggle.IsChecked = !original;
+                    Dispatcher.UIThread.RunJobs();
+                    toggle.IsChecked = original;
+                    Dispatcher.UIThread.RunJobs();
+                }
+
+                foreach (var slider in window.GetVisualDescendants().OfType<Slider>().ToList())
+                {
+                    var original = slider.Value;
+                    slider.Value = slider.Minimum;
+                    slider.Value = slider.Maximum;
+                    slider.Value = original;
+                    Dispatcher.UIThread.RunJobs();
+                }
+
+                foreach (var number in window.GetVisualDescendants().OfType<NumericUpDown>().ToList())
+                {
+                    var original = number.Value;
+                    number.Value = number.Maximum;
+                    number.Value = number.Minimum;
+                    number.Value = original;
+                    Dispatcher.UIThread.RunJobs();
+                }
+
+                page.Reset();
+                Dispatcher.UIThread.RunJobs();
+            }
+
+            // The specific crash: choosing a background sound.
+            var ambience = App.Bootstrapper!.Resolve<YAPA.Avalonia.Audio.Ambience.AmbienceSettings>();
+            window.Navigate(YAPA.Avalonia.Services.SettingsPage.Sounds);
+            Dispatcher.UIThread.RunJobs();
+            var picker = window.GetVisualDescendants().OfType<ComboBox>()
+                .First(c => c.Items.OfType<string>().Contains("Steady rain"));
+            picker.SelectedIndex = 2;
+            Dispatcher.UIThread.RunJobs();
+            Assert.AreEqual(YAPA.Avalonia.Audio.Ambience.AmbientSound.SteadyRain, ambience.Sound);
+            Assert.AreEqual(2, picker.SelectedIndex);
+        }
+        finally
+        {
+            window.Close();
+        }
     });
 
     [TestMethod]

@@ -416,3 +416,39 @@ public class NotificationEffectsTests
         notifier.DidNotReceive().ShowAsync(Arg.Any<DesktopNotification>());
     }
 }
+
+[TestClass]
+[DoNotParallelize]
+public class CrashRecoveryTests
+{
+    [TestMethod]
+    public void A_crash_mid_pomodoro_is_recoverable_without_a_clean_quit()
+    {
+        // First run: start a pomodoro, work 10 minutes, then "crash" (no Save, no quit).
+        var first = new Rig();
+        using (var snapshots = new YAPA.Avalonia.Persistence.SnapshotService(first.Engine, first.Clock, new NewtonsoftJson()))
+        {
+            first.Engine.Start();
+            first.Elapse(600);
+            first.Engine.Pause(); // any transition is saved immediately
+        }
+
+        // Next launch, a minute later.
+        var second = new Rig();
+        second.Clock.UtcNow = first.Clock.UtcNow.AddMinutes(1);
+        using var restore = new YAPA.Avalonia.Persistence.SnapshotService(second.Engine, second.Clock, new NewtonsoftJson());
+        Assert.IsTrue(restore.Restore(resume: false), "the session survives the crash");
+        Assert.AreEqual(PomodoroPhase.Pause, second.Engine.Phase);
+        Assert.AreEqual(600, second.Engine.Elapsed);
+    }
+
+    [TestMethod]
+    public void Starting_a_pomodoro_is_on_disk_immediately()
+    {
+        var rig = new Rig();
+        using var snapshots = new YAPA.Avalonia.Persistence.SnapshotService(rig.Engine, rig.Clock, new NewtonsoftJson());
+        rig.Engine.Start();
+        var path = System.IO.Path.Combine(YAPA.Avalonia.Platform.AppPaths.DataDirectory, "snapshot.json");
+        StringAssert.Contains(System.IO.File.ReadAllText(path), "\"Phase\": 1", "Work is saved the moment it starts");
+    }
+}

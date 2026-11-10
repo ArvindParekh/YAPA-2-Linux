@@ -19,6 +19,23 @@ public interface IFilePicker
     Task<string?> PickAudioFileAsync(string title);
 }
 
+/// <summary>A file picker that fails (no desktop portal, a crashed dialog) behaves like a cancel.</summary>
+internal static class SafePick
+{
+    public static async Task<string?> Run(Func<IFilePicker?> picker, string title)
+    {
+        try
+        {
+            return picker() is { } p ? await p.PickAudioFileAsync(title) : null;
+        }
+        catch (Exception e)
+        {
+            System.Diagnostics.Trace.WriteLine($"[settings] file picker failed: {e.Message}");
+            return null;
+        }
+    }
+}
+
 public sealed record SoundOption(string Label, SoundRef Sound, bool IsCustomPrompt = false)
 {
     public override string ToString() => Label;
@@ -96,7 +113,7 @@ public sealed partial class CueRowViewModel : ObservableObject
 
     private async Task ChooseFileAsync()
     {
-        var path = _picker() is { } picker ? await picker.PickAudioFileAsync($"Sound for “{Label}”") : null;
+        var path = await SafePick.Run(_picker, $"Sound for “{Label}”");
         if (path != null)
         {
             _settings.Set(Cue, SoundRef.File(path));
@@ -125,8 +142,7 @@ public sealed partial class MusicRowViewModel(string label, Func<string?> get, A
     [RelayCommand]
     private async Task Browse()
     {
-        if (picker() is not { } p) return;
-        var path = await p.PickAudioFileAsync($"Music while “{Label}”");
+        var path = await SafePick.Run(picker, $"Music while “{Label}”");
         if (path == null) return;
         set(path);
         Refresh();
@@ -257,32 +273,56 @@ public sealed partial class AmbienceSectionViewModel : ObservableObject
         _picker = picker;
     }
 
-    public IReadOnlyList<string> Options => Choices.Select(c => c == YAPA.Avalonia.Audio.Ambience.AmbientSound.File
-        ? (string.IsNullOrEmpty(_s.FilePath) ? "Your own file…" : $"Your file: {Path.GetFileName(_s.FilePath)}")
-        : YAPA.Avalonia.Audio.Ambience.AmbienceGenerators.DisplayName(c)).ToList();
+    /// <summary>
+    /// Built once. The list must be the same instance every time it is read: a fresh list
+    /// makes the ComboBox reset its selection, which re-enters SelectedIndex, which used to
+    /// refresh the list again, until the stack overflowed and took the app down.
+    /// </summary>
+    public IReadOnlyList<string> Options { get; } = Choices
+        .Select(c => c == YAPA.Avalonia.Audio.Ambience.AmbientSound.File
+            ? "Your own file…"
+            : YAPA.Avalonia.Audio.Ambience.AmbienceGenerators.DisplayName(c))
+        .ToList();
 
     public int SelectedIndex
     {
         get => Array.IndexOf(Choices, _s.Sound);
         set
         {
-            if (value < 0 || value >= Choices.Length) return;
+            // Re-entrancy guard: controls echo values back while they update.
+            if (value < 0 || value >= Choices.Length || value == SelectedIndex) return;
             var choice = Choices[value];
             if (choice == YAPA.Avalonia.Audio.Ambience.AmbientSound.File && string.IsNullOrEmpty(_s.FilePath))
             {
+                // Show the real current sound again right away; it only becomes "your file"
+                // once a file is actually picked. Posted, so it runs after the ComboBox has
+                // finished its own selection change.
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(SelectedIndex)));
                 _ = ChooseFileAsync();
                 return;
             }
             _s.Sound = choice;
-            Changed();
+            OnPropertyChanged();
+            OnSoundChanged();
         }
     }
 
     public bool HasSound => _s.Sound != YAPA.Avalonia.Audio.Ambience.AmbientSound.None;
     public bool IsFile => _s.Sound == YAPA.Avalonia.Audio.Ambience.AmbientSound.File;
+    public string FileName => string.IsNullOrEmpty(_s.FilePath) ? "No file chosen" : Path.GetFileName(_s.FilePath);
 
     public double Volume { get => _s.Volume; set { _s.Volume = Math.Round(value, 2); OnPropertyChanged(); } }
-    public bool Ticking { get => _s.Ticking; set { _s.Ticking = value; Changed(); } }
+    public bool Ticking
+    {
+        get => _s.Ticking;
+        set
+        {
+            if (value == _s.Ticking) return;
+            _s.Ticking = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanPreview));
+        }
+    }
     public double TickVolume { get => _s.TickVolume; set { _s.TickVolume = Math.Round(value, 2); OnPropertyChanged(); } }
     public bool DuringBreaks { get => _s.DuringBreaks; set { _s.DuringBreaks = value; OnPropertyChanged(); } }
 
@@ -309,19 +349,25 @@ public sealed partial class AmbienceSectionViewModel : ObservableObject
 
     private async Task ChooseFileAsync()
     {
-        var path = _picker() is { } p ? await p.PickAudioFileAsync("Ambience recording (it loops)") : null;
+        var path = await SafePick.Run(_picker, "Ambience recording (it loops)");
         if (path != null)
         {
             _s.FilePath = path;
             _s.Sound = YAPA.Avalonia.Audio.Ambience.AmbientSound.File;
         }
-        Changed();
+        // Either way the ComboBox may be showing "Your own file…" without a file: re-sync it.
+        OnPropertyChanged(nameof(SelectedIndex));
+        OnPropertyChanged(nameof(FileName));
+        OnSoundChanged();
     }
 
-    public void Refresh() => Changed();
+    /// <summary>After a reset: every value may have changed. Safe now that Options is stable.</summary>
+    public void Refresh() => OnPropertyChanged(string.Empty);
 
-    private void Changed()
+    private void OnSoundChanged()
     {
-        OnPropertyChanged(string.Empty);
+        OnPropertyChanged(nameof(HasSound));
+        OnPropertyChanged(nameof(IsFile));
+        OnPropertyChanged(nameof(CanPreview));
     }
 }
