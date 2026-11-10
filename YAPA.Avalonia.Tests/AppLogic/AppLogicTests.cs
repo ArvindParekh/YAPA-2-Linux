@@ -56,12 +56,13 @@ internal sealed class Rig
     public readonly ManualTimer Timer = new();
     public readonly ManualClock Clock = new();
     public readonly PomodoroEngine Engine;
+    public readonly IPomodoroRepository Repository = Substitute.For<IPomodoroRepository>();
 
     public Rig(string settingsJson = "{}")
     {
         Settings = new JsonYapaSettings(new MemoryEnvironment { Settings = settingsJson }, new NewtonsoftJson());
         EngineSettings = new PomodoroEngineSettings(Settings);
-        Engine = new PomodoroEngine(EngineSettings, Timer, Clock, new Inline(), Settings, Substitute.For<IPomodoroRepository>());
+        Engine = new PomodoroEngine(EngineSettings, Timer, Clock, new Inline(), Settings, Repository);
     }
 
     public void Elapse(int seconds)
@@ -252,11 +253,53 @@ public class SoundSettingsTests
 [TestClass]
 public class TimerViewModelTests
 {
-    private static (Rig, TimerViewModel) Create()
+    private static (Rig, TimerViewModel) Create(string settingsJson = "{}")
     {
-        var rig = new Rig();
-        var vm = new TimerViewModel(rig.Engine, rig.EngineSettings, new AvaloniaYapaThemeSettings(rig.Settings), Substitute.For<IAppNavigator>(), new YAPA.Avalonia.Audio.Ambience.AmbienceSettings(rig.Settings));
+        var rig = new Rig(settingsJson);
+        var vm = new TimerViewModel(rig.Engine, rig.EngineSettings, new AvaloniaYapaThemeSettings(rig.Settings), Substitute.For<IAppNavigator>(),
+            new YAPA.Avalonia.Audio.Ambience.AmbienceSettings(rig.Settings), new GeneralSettings(rig.Settings));
         return (rig, vm);
+    }
+
+    [TestMethod]
+    public void Todays_count_shows_against_the_daily_goal()
+    {
+        var (rig, vm) = Create(@"{""PomodoroEngine"":{""Counter"":1},""General"":{""DailyGoal"":12}}");
+        rig.Repository.CompletedToday().Returns(2);
+        vm.Refresh();
+        Assert.AreEqual("2/12", vm.CounterText);
+        Assert.AreEqual("2 of 12 pomodoros done today", vm.CounterTooltip);
+
+        rig.Repository.CompletedToday().Returns(13);
+        vm.Refresh();
+        Assert.AreEqual("13/12", vm.CounterText, "past the goal it keeps counting");
+    }
+
+    [TestMethod]
+    public void A_new_goal_shows_at_once()
+    {
+        var rig = new Rig(@"{""PomodoroEngine"":{""Counter"":1}}");
+        var general = new GeneralSettings(rig.Settings);
+        var vm = new TimerViewModel(rig.Engine, rig.EngineSettings, new AvaloniaYapaThemeSettings(rig.Settings), Substitute.For<IAppNavigator>(),
+            new YAPA.Avalonia.Audio.Ambience.AmbienceSettings(rig.Settings), general);
+        Assert.AreEqual("0/8", vm.CounterText, "the default goal");
+        general.DailyGoal = 12;
+        Assert.AreEqual("0/12", vm.CounterText);
+        general.DailyGoal = 0;
+        Assert.AreEqual("0", vm.CounterText, "no goal, no denominator");
+    }
+
+    [TestMethod]
+    public void The_goal_is_not_shown_beside_other_counts()
+    {
+        var (rig, vm) = Create(@"{""General"":{""DailyGoal"":12}}");
+        Assert.AreEqual("1", vm.CounterText, "position in the cycle is not progress towards the day");
+
+        rig.EngineSettings.Counter = CounterEnum.CompletedThisSession;
+        Assert.AreEqual("0", vm.CounterText);
+
+        rig.EngineSettings.Counter = CounterEnum.CompletedToday;
+        Assert.AreEqual("0/12", vm.CounterText, "switching the counter applies live");
     }
 
     [TestMethod]

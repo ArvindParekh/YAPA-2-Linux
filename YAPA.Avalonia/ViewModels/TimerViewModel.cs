@@ -28,15 +28,21 @@ public sealed partial class TimerViewModel : ObservableObject
     private readonly IAppNavigator _navigator;
     private readonly PomodoroEngineSettings _engineSettings;
     private readonly YAPA.Avalonia.Audio.Ambience.AmbienceSettings _ambience;
+    private readonly GeneralSettings _general;
 
     public TimerViewModel(IPomodoroEngine engine, PomodoroEngineSettings engineSettings, AvaloniaYapaThemeSettings theme,
-        IAppNavigator navigator, YAPA.Avalonia.Audio.Ambience.AmbienceSettings ambience)
+        IAppNavigator navigator, YAPA.Avalonia.Audio.Ambience.AmbienceSettings ambience, GeneralSettings general)
     {
         _engine = engine;
         _engineSettings = engineSettings;
         _theme = theme;
         _navigator = navigator;
         _ambience = ambience;
+        _general = general;
+        _general.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(GeneralSettings.DailyGoal)) Refresh();
+        };
         _ambience.PropertyChanged += (_, _) => RefreshAmbience();
         RefreshAmbience();
 
@@ -191,9 +197,14 @@ public sealed partial class TimerViewModel : ObservableObject
         Phase = phase;
         IsBreakInterval = inBreak;
         Progress = _engine.Progress;
-        CounterText = _engine.Counter.ToString();
+        // The daily goal only means something next to today's count; "3/12" beside the
+        // position in the cycle or a since-launch count would read as progress it isn't.
+        var counter = _engine.Counter;
+        var goal = _engineSettings.Counter == CounterEnum.CompletedToday ? _general.DailyGoal : 0;
+        CounterText = goal > 0 ? $"{counter}/{goal}" : counter.ToString();
         CounterTooltip = _engineSettings.Counter switch
         {
+            CounterEnum.CompletedToday when goal > 0 => $"{counter} of {goal} pomodoros done today",
             CounterEnum.CompletedToday => "Pomodoros completed today",
             CounterEnum.CompletedThisSession => "Pomodoros completed since YAPA started",
             _ => $"Pomodoro {_engine.Index} of {Math.Max(1, _engineSettings.PomodorosBeforeLongBreak)} before the long break",

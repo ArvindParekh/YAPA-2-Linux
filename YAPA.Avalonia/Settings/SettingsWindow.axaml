@@ -214,7 +214,7 @@
                 <c:SettingRow Title="Pause while the screen is locked" Description="Resumes when you unlock. Sleep never counts as work either way.">
                     <ToggleSwitch IsChecked="{Binding PauseWhenLocked}" OnContent="" OffContent="" />
                 </c:SettingRow>
-                <c:SettingRow Title="Daily goal" Description="Pomodoros per day, shown in Statistics; 0 to hide">
+                <c:SettingRow Title="Daily goal" Description="Pomodoros per day, shown beside today's count and in Statistics; 0 to hide">
                     <NumericUpDown Classes="minutes" Minimum="0" Maximum="40" Value="{Binding DailyGoal}" />
                 </c:SettingRow>
             </StackPanel>
