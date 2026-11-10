@@ -138,7 +138,7 @@
                     <c:SettingRow Title="Background sound" Description="Rain and noise are generated live, so they never repeat. Fades in when a pomodoro starts.">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <ComboBox ItemsSource="{Binding Options}" SelectedIndex="{Binding SelectedIndex}" Width="220" />
-                            <Button Content="{Binding PreviewLabel}" Command="{Binding TogglePreviewCommand}" IsEnabled="{Binding CanPreview}" MinWidth="80" />
+                            <Button Content="{Binding PreviewLabel}" Command="{Binding TogglePreviewCommand}" IsEnabled="{Binding CanPreview}" Width="104" HorizontalContentAlignment="Center" />
                         </StackPanel>
                     </c:SettingRow>
                     <c:SettingRow Title="Recording" Description="{Binding FileName}" IsVisible="{Binding IsFile}" />
@@ -164,7 +164,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <CheckBox Content="Loop" IsChecked="{Binding Repeat}" IsVisible="{Binding IsFile}" />
                                     <ComboBox ItemsSource="{Binding Options}" SelectedIndex="{Binding SelectedIndex}" Width="220" />
-                                    <Button Content="{Binding PreviewLabel}" Command="{Binding TogglePreviewCommand}" IsEnabled="{Binding CanPreview}" MinWidth="80" />
+                                    <Button Content="{Binding PreviewLabel}" Command="{Binding TogglePreviewCommand}" IsEnabled="{Binding CanPreview}" Width="104" HorizontalContentAlignment="Center" />
                                 </StackPanel>
                             </c:SettingRow>
                         </DataTemplate>

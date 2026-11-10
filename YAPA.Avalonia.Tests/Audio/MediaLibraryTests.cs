@@ -99,8 +99,8 @@ public class MediaLibraryTests
     {
         var settings = new JsonYapaSettings(new MemoryEnvironment(), new NewtonsoftJson());
         var music = new AvaloniaMusicPlayerSettings(settings);
-        var effects = new SoundEffects(Substitute.For<IPomodoroEngine>(), new PomodoroEngineSettings(settings), new SoundSettings(settings), music);
-        var row = new MusicRowViewModel("During pomodoros", () => music.WorkSong, v => music.WorkSong = v,
+        var effects = new SoundEffects(Substitute.For<IPomodoroEngine>(), new PomodoroEngineSettings(settings), new SoundSettings(settings), music, settings);
+        var row = new MusicRowViewModel(MusicSlot.Work, "During pomodoros", () => music.WorkSong, v => music.WorkSong = v,
             () => music.RepeatWorkSong, v => music.RepeatWorkSong = v, () => null, effects);
         return (row, music);
     }

@@ -66,7 +66,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
 
     protected override void OnClosed(System.EventArgs e)
     {
-        foreach (var sounds in Pages.OfType<SoundsPageViewModel>()) sounds.EndPreviews();
+        foreach (var sounds in Pages.OfType<SoundsPageViewModel>()) { sounds.EndPreviews(); sounds.Detach(); }
         base.OnClosed(e);
     }
 

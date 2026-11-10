@@ -150,9 +150,12 @@ public sealed partial class MusicRowViewModel : ObservableObject
     private readonly SoundEffects _effects;
     private bool _rebuilding;
 
-    public MusicRowViewModel(string label, Func<string?> get, Action<string?> set, Func<bool> getRepeat, Action<bool> setRepeat,
+    private readonly MusicSlot _slot;
+
+    public MusicRowViewModel(MusicSlot slot, string label, Func<string?> get, Action<string?> set, Func<bool> getRepeat, Action<bool> setRepeat,
         Func<IFilePicker?> picker, SoundEffects effects)
     {
+        _slot = slot;
         Label = label;
         _get = get;
         _set = set;
@@ -161,9 +164,23 @@ public sealed partial class MusicRowViewModel : ObservableObject
         _picker = picker;
         _effects = effects;
         Options = BuildOptions();
+        _effects.MusicChanged += OnMusicChanged;
     }
 
     public string Label { get; }
+
+    /// <summary>This row's music is what the timer is playing right now, so there's nothing to audition.</summary>
+    public bool IsLive => _effects.LiveSlot == _slot && !_effects.IsPreviewingMusic;
+
+    private void OnMusicChanged()
+    {
+        OnPropertyChanged(nameof(IsLive));
+        OnPropertyChanged(nameof(PreviewLabel));
+        OnPropertyChanged(nameof(CanPreview));
+    }
+
+    /// <summary>The page is going away; the effects outlive it.</summary>
+    public void Detach() => _effects.MusicChanged -= OnMusicChanged;
 
     public IReadOnlyList<MediaOption> Options { get; private set; }
 
@@ -220,8 +237,8 @@ public sealed partial class MusicRowViewModel : ObservableObject
         set { _setRepeat(value); OnPropertyChanged(); }
     }
 
-    public bool CanPreview => SelectedIndex > 0;
-    public string PreviewLabel => _previewingThis ? "■ Stop" : "▶ Listen";
+    public bool CanPreview => _previewingThis || (SelectedIndex > 0 && !IsLive);
+    public string PreviewLabel => _previewingThis ? "■ Stop" : IsLive ? "Playing now" : "▶ Listen";
     private bool _previewingThis;
 
     [RelayCommand]
@@ -335,11 +352,11 @@ public sealed class SoundsPageViewModel : SettingsPageViewModel
         Cues = SoundSettings.All.Select(c => new CueRowViewModel(c, sounds, effects, () => FilePicker)).ToList();
         Music =
         [
-            new MusicRowViewModel("During pomodoros", () => music.WorkSong, v => music.WorkSong = v,
+            new MusicRowViewModel(MusicSlot.Work, "During pomodoros", () => music.WorkSong, v => music.WorkSong = v,
                 () => music.RepeatWorkSong, v => music.RepeatWorkSong = v, () => FilePicker, effects),
-            new MusicRowViewModel("During breaks", () => music.BreakSong, v => music.BreakSong = v,
+            new MusicRowViewModel(MusicSlot.Break, "During breaks", () => music.BreakSong, v => music.BreakSong = v,
                 () => music.RepeatBreakSong, v => music.RepeatBreakSong = v, () => FilePicker, effects),
-            new MusicRowViewModel("During the long break", () => music.SessionBreakSong, v => music.SessionBreakSong = v,
+            new MusicRowViewModel(MusicSlot.LongBreak, "During the long break", () => music.SessionBreakSong, v => music.SessionBreakSong = v,
                 () => music.RepeatSessionBreakSong, v => music.RepeatSessionBreakSong = v, () => FilePicker, effects),
         ];
         foreach (var row in Music)
@@ -362,8 +379,7 @@ public sealed class SoundsPageViewModel : SettingsPageViewModel
         get => !_engine.DisableSoundNotifications;
         set
         {
-            _engine.DisableSoundNotifications = !value;
-            if (!value) _effects.Music.Stop();
+            _engine.DisableSoundNotifications = !value; // SoundEffects stops or restarts the music
             Changed();
         }
     }
@@ -425,6 +441,13 @@ public sealed class SoundsPageViewModel : SettingsPageViewModel
         Ambience.EndPreview();
     }
 
+    /// <summary>The window closed: stop listening to the long-lived effects.</summary>
+    public void Detach()
+    {
+        foreach (var m in Music) m.Detach();
+        Ambience.Detach();
+    }
+
     protected override void ResetToDefaults()
     {
         _sounds.ResetToDefaults();
@@ -468,7 +491,17 @@ public sealed partial class AmbienceSectionViewModel : ObservableObject
         _effects = effects;
         _picker = picker;
         Options = BuildOptions();
+        _effects.Changed += OnEffectsChanged;
     }
+
+    private void OnEffectsChanged()
+    {
+        OnPropertyChanged(nameof(PreviewLabel));
+        OnPropertyChanged(nameof(CanPreview));
+    }
+
+    /// <summary>The page is going away; the effects outlive it.</summary>
+    public void Detach() => _effects.Changed -= OnEffectsChanged;
 
     /// <summary>
     /// The same instance on every read, replaced only by <see cref="Rebuild"/>. A fresh list
@@ -547,8 +580,12 @@ public sealed partial class AmbienceSectionViewModel : ObservableObject
     public double TickVolume { get => _s.TickVolume; set { _s.TickVolume = Math.Round(value, 2); OnPropertyChanged(); } }
     public bool DuringBreaks { get => _s.DuringBreaks; set { _s.DuringBreaks = value; OnPropertyChanged(); } }
 
-    public string PreviewLabel => _effects.IsPreviewing ? "■ Stop" : "▶ Try it";
-    public bool CanPreview => _s.HasAnything;
+    /// <summary>
+    /// During a pomodoro the ambience is already playing and follows every change here,
+    /// so auditioning it would add nothing.
+    /// </summary>
+    public string PreviewLabel => _effects.IsPreviewing ? "■ Stop" : _effects.IsLive ? "Playing now" : "▶ Try it";
+    public bool CanPreview => _effects.IsPreviewing || (_s.HasAnything && !_effects.IsLive);
 
     [RelayCommand]
     private void TogglePreview()

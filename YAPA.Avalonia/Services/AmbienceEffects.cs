@@ -62,12 +62,19 @@ public sealed class AmbienceEffects : IDisposable
 
     public bool IsPreviewing => _previewing;
 
+    /// <summary>The timer is playing the ambience right now (not a preview).</summary>
+    public bool IsLive => !_previewing && ShouldPlay;
+
+    /// <summary>Raised whenever what's playing may have changed, for the settings page's buttons.</summary>
+    public event Action? Changed;
+
     /// <summary>Plays the current settings now, timer or not, until <see cref="StopPreview"/>.</summary>
     public void Preview()
     {
         _previewing = true;
         // No timer to follow: tick on a beat that starts now.
         _player.Play(_settings.Mix(inBreak: false), new TickAnchor(_clock.Monotonic + TimeSpan.FromMilliseconds(400), 0));
+        Changed?.Invoke();
     }
 
     public void StopPreview()
@@ -88,13 +95,12 @@ public sealed class AmbienceEffects : IDisposable
     private void Apply(bool retime)
     {
         if (_previewing && !_engineSettings.DisableSoundNotifications)
-        {
             _player.Play(_settings.Mix(inBreak: false), null);
-            return;
-        }
-
-        if (ShouldPlay) _player.Play(_settings.Mix(inBreak: _engine.Phase == PomodoroPhase.Break), retime ? Anchor() : null);
-        else _player.Stop();
+        else if (ShouldPlay)
+            _player.Play(_settings.Mix(inBreak: _engine.Phase == PomodoroPhase.Break), retime ? Anchor() : null);
+        else
+            _player.Stop();
+        Changed?.Invoke();
     }
 
     /// <summary>Where the timer's next second falls; ticks are placed on it and every second after.</summary>

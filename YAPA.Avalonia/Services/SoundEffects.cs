@@ -19,16 +19,41 @@ public sealed class SoundEffects : IDisposable
     private readonly SoundSettings _sounds;
     private readonly AvaloniaMusicPlayerSettings _music;
 
-    public SoundEffects(IPomodoroEngine engine, PomodoroEngineSettings engineSettings, SoundSettings sounds, AvaloniaMusicPlayerSettings music)
+    private readonly ISettings _settings;
+
+    public SoundEffects(IPomodoroEngine engine, PomodoroEngineSettings engineSettings, SoundSettings sounds, AvaloniaMusicPlayerSettings music,
+        ISettings settings)
+        : this(engine, engineSettings, sounds, music, settings, AudioFactory.CreateCuePlayer(), AudioFactory.CreateMusicPlayer())
+    {
+    }
+
+    internal SoundEffects(IPomodoroEngine engine, PomodoroEngineSettings engineSettings, SoundSettings sounds, AvaloniaMusicPlayerSettings music,
+        ISettings settings, ISoundCuePlayer cues, IBackgroundMusicPlayer musicPlayer)
     {
         _engine = engine;
         _engineSettings = engineSettings;
         _sounds = sounds;
         _music = music;
-        Cues = AudioFactory.CreateCuePlayer();
-        Music = AudioFactory.CreateMusicPlayer();
+        _settings = settings;
+        Cues = cues;
+        Music = musicPlayer;
         _engine.Transitioned += OnTransition;
+        _settings.PropertyChanged += OnSettingChanged;
     }
+
+    /// <summary>Settings apply immediately: choosing new music mid-pomodoro plays it now.</summary>
+    private void OnSettingChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is { } name && (name.StartsWith("MusicPlayer.", StringComparison.Ordinal)
+                || name == "PomodoroEngine.DisableSoundNotifications"))
+            UpdateMusic();
+    }
+
+    /// <summary>Raised when what the music player is doing may have changed.</summary>
+    public event Action? MusicChanged;
+
+    /// <summary>Which phase's music is playing for the timer right now, if any.</summary>
+    public MusicSlot? LiveSlot { get; private set; }
 
     public ISoundCuePlayer Cues { get; }
     public IBackgroundMusicPlayer Music { get; }
@@ -41,7 +66,9 @@ public sealed class SoundEffects : IDisposable
     public void PreviewMusic(YAPA.Avalonia.Audio.Library.MediaItem item)
     {
         _musicPreview = true;
+        _playing = null;
         Music.Play(item.Location, loop: true, _engineSettings.Volume);
+        MusicChanged?.Invoke();
     }
 
     /// <summary>Ends an audition and goes back to what the timer's phase calls for.</summary>
@@ -50,6 +77,7 @@ public sealed class SoundEffects : IDisposable
         if (!_musicPreview) return;
         _musicPreview = false;
         Music.Stop();
+        _playing = null;
         UpdateMusic();
     }
 
@@ -59,7 +87,7 @@ public sealed class SoundEffects : IDisposable
     {
         if (_engineSettings.DisableSoundNotifications)
         {
-            Music.Stop();
+            UpdateMusic(); // stops it
             return;
         }
 
@@ -79,37 +107,60 @@ public sealed class SoundEffects : IDisposable
         UpdateMusic();
     }
 
+    /// <summary>What the timer last asked the player for, so unrelated changes don't restart it.</summary>
+    private (string Location, bool Loop)? _playing;
+
     private void UpdateMusic()
     {
-        var (song, loop) = _engine.Phase switch
+        var (slot, song, loop) = _engine.Phase switch
         {
-            PomodoroPhase.Work => (_music.WorkSong, _music.RepeatWorkSong),
-            PomodoroPhase.Break when _engine.IsLongBreak => (_music.SessionBreakSong, _music.RepeatSessionBreakSong),
-            PomodoroPhase.Break => (_music.BreakSong, _music.RepeatBreakSong),
-            _ => ((string?)null, false),
+            PomodoroPhase.Work => (MusicSlot.Work, _music.WorkSong, _music.RepeatWorkSong),
+            PomodoroPhase.Break when _engine.IsLongBreak => (MusicSlot.LongBreak, _music.SessionBreakSong, _music.RepeatSessionBreakSong),
+            PomodoroPhase.Break => (MusicSlot.Break, _music.BreakSong, _music.RepeatBreakSong),
+            _ => ((MusicSlot?)null, (string?)null, false),
         };
+        if (_engineSettings.DisableSoundNotifications) song = null;
 
-        if (_musicPreview) return; // the settings page is auditioning something
-        switch (YAPA.Avalonia.Audio.Library.MediaLibrary.Resolve(song))
+        var item = YAPA.Avalonia.Audio.Library.MediaLibrary.Resolve(song);
+        LiveSlot = item == null ? null : slot;
+        if (_musicPreview) // the settings page is auditioning something
         {
-            case null:
-                Music.Stop();
-                break;
-            case { Kind: YAPA.Avalonia.Audio.Library.MediaKind.Radio } radio:
-                // "Loop" for a stream means reconnect if it drops; the player's respawn
-                // guard stops it if the station is truly unreachable.
-                Music.Play(radio.Location, loop: true, _engineSettings.Volume);
-                break;
-            case var file:
-                Music.Play(file.Location, loop, _engineSettings.Volume);
-                break;
+            MusicChanged?.Invoke();
+            return;
         }
+
+        // "Loop" for a stream means reconnect if it drops; the player's respawn guard
+        // stops it if the station is truly unreachable.
+        (string Location, bool Loop)? wanted = item == null ? null
+            : (item.Location, item.Kind == YAPA.Avalonia.Audio.Library.MediaKind.Radio || loop);
+
+        // Same thing still playing (say, breaks and the long break share the rain, or
+        // another phase's choice changed): let it carry on rather than restart it.
+        if (wanted != null && wanted == _playing && Music.IsPlaying)
+        {
+            MusicChanged?.Invoke();
+            return;
+        }
+
+        _playing = wanted;
+        if (wanted is { } w) Music.Play(w.Location, w.Loop, _engineSettings.Volume);
+        else Music.Stop();
+        MusicChanged?.Invoke();
     }
 
     public void Dispose()
     {
         _engine.Transitioned -= OnTransition;
+        _settings.PropertyChanged -= OnSettingChanged;
         Music.Dispose();
         Cues.Dispose();
     }
+}
+
+/// <summary>The three phases that can have their own music.</summary>
+public enum MusicSlot
+{
+    Work,
+    Break,
+    LongBreak,
 }
