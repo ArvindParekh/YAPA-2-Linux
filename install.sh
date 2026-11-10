@@ -48,7 +48,12 @@ fi
 running() {
     pgrep -u "$USER" -x 'yapa2|YAPA\.Avalonia' >/dev/null 2>&1
 }
-if [[ -x "$PREFIX_BIN/yapa2" ]] && "$PREFIX_BIN/yapa2" --status >/dev/null 2>&1; then
+WAS_RUNNING=0
+RESUME=""
+if [[ -x "$PREFIX_BIN/yapa2" ]] && STATUS="$("$PREFIX_BIN/yapa2" --status --json 2>/dev/null)"; then
+    WAS_RUNNING=1
+    # A pomodoro or break in progress comes back running, not paused.
+    case "$STATUS" in *'"phase":"Work"'*|*'"phase":"Break"'*) RESUME="--start" ;; esac
     echo "==> Quitting the running YAPA 2 (its timer is saved and restored after the upgrade)"
     "$PREFIX_BIN/yapa2" --quit >/dev/null 2>&1 || true
     for _ in $(seq 1 25); do "$PREFIX_BIN/yapa2" --status >/dev/null 2>&1 || break; sleep 0.2; done
@@ -96,6 +101,11 @@ if [[ $MODE == user && -e /usr/local/lib/yapa2 ]]; then
     echo "      sudo rm -rf /usr/local/lib/yapa2 /usr/local/bin/yapa2"
 fi
 case ":$PATH:" in *":$PREFIX_BIN:"*) ;; *) echo "note: $PREFIX_BIN is not on your PATH; the launcher entry works regardless." ;; esac
+
+if [[ $WAS_RUNNING == 1 ]]; then
+    echo "==> Restarting YAPA 2${RESUME:+ and resuming your timer}"
+    setsid "$PREFIX_BIN/yapa2" $RESUME >/dev/null 2>&1 < /dev/null &
+fi
 
 echo
 echo "Installed YAPA 2. Start it from the app grid, or run: yapa2   (yapa2 --help for commands)"
