@@ -20,8 +20,9 @@ public sealed record AmbienceMix(AmbientSound Sound, string? FilePath, double Vo
 /// <summary>Background sound while a session runs: rain or noise, a ticking clock, or the user's own file.</summary>
 public interface IAmbiencePlayer : IDisposable
 {
-    /// <summary>Fades in (or updates live, if already playing). <paramref name="restartTicks"/> lines the beat up with "now".</summary>
-    void Play(AmbienceMix mix, bool restartTicks);
+    /// <summary>Fades in (or updates live, if already playing). <paramref name="ticks"/> says where the
+    /// timer's seconds fall, so ticks land on them; null keeps the previous timing.</summary>
+    void Play(AmbienceMix mix, TickAnchor? ticks);
 
     /// <summary>Fades out.</summary>
     void Stop();
@@ -105,7 +106,7 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
 
     public string BackendDescription => UsingFallback ? "media player (looped recording)" : AudioFactory.InProcessBackendName;
 
-    public void Play(AmbienceMix mix, bool restartTicks)
+    public void Play(AmbienceMix mix, TickAnchor? ticks)
     {
         if (_disposed) return;
         lock (_gate)
@@ -135,7 +136,7 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
                 sound: generatedBed,
                 bedGain: (float)VolumeCurve.ToGain(mix.Volume),
                 tickGain: mix.Ticking ? (float)VolumeCurve.ToGain(mix.TickVolume) : 0f,
-                restartTicks: restartTicks);
+                anchor: ticks);
             _wake.Set();
         }
     }
@@ -185,6 +186,7 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
         var buffer = new float[(int)(SampleRate * Block.TotalSeconds) * Channels];
         ICueOutputStream? stream = null;
         var silentSince = DateTime.MinValue;
+        TimeSpan? nextHeardAt = null;
 
         while (!_disposed)
         {
@@ -192,6 +194,7 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
             {
                 if (stream != null && DateTime.UtcNow - silentSince > CloseWhenIdleAfter)
                 {
+                    nextHeardAt = null;
                     stream.Drain();
                     stream.Dispose();
                     stream = null;
@@ -230,18 +233,36 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
                 }
             }
 
-            _mixer.Render(buffer);
+            _mixer.Render(buffer, NextHeardAt(stream, ref nextHeardAt));
             if (!stream.Write(buffer, out var error))
             {
                 AudioLog.Once("ambience-write", $"ambience stream write failed: {error}; reopening");
                 stream.Dispose();
                 stream = null;
+                nextHeardAt = null;
                 Thread.Sleep(500);
             }
             silentSince = DateTime.UtcNow;
         }
 
         stream?.Dispose();
+    }
+
+    private static readonly TimeSpan Resync = TimeSpan.FromMilliseconds(15);
+
+    /// <summary>
+    /// When the block about to be written will be heard. Blocks follow each other
+    /// exactly, so the timeline is advanced by one block each time; it is only snapped
+    /// back to "now + measured latency" when the two disagree by more than
+    /// <see cref="Resync"/> (start, underrun, device clock drift). A contiguous
+    /// timeline is what guarantees each tick is rendered exactly once.
+    /// </summary>
+    private static TimeSpan NextHeardAt(ICueOutputStream stream, ref TimeSpan? next)
+    {
+        var measured = System.Diagnostics.Stopwatch.GetElapsedTime(0) + (stream.Latency ?? StreamBuffer);
+        var heardAt = next is { } n && (n - measured).Duration() <= Resync ? n : measured;
+        next = heardAt + Block;
+        return heardAt;
     }
 
     private Timer? _retryTimer;
@@ -255,7 +276,7 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
             if (!_active || _disposed) return;
             mix = _lastMix;
         }
-        Play(mix, restartTicks: false);
+        Play(mix, ticks: null);
     }
 
     public void Dispose()
@@ -273,7 +294,7 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
 
 public sealed class NullAmbiencePlayer : IAmbiencePlayer
 {
-    public void Play(AmbienceMix mix, bool restartTicks) { }
+    public void Play(AmbienceMix mix, TickAnchor? ticks) { }
     public void Stop() { }
     public string BackendDescription => "none";
     public void Dispose() { }
@@ -314,7 +335,9 @@ internal static class AmbienceLoop
         {
             var ticks = new TickGenerator(SampleRate);
             var relative = mix.Volume > 0 ? (float)(VolumeCurve.ToGain(mix.TickVolume) / Math.Max(VolumeCurve.ToGain(mix.Volume), 1e-6)) : 1f;
-            ticks.MixInto(loop, mix.Sound == AmbientSound.None ? 0.9f : Math.Clamp(relative, 0f, 1.5f) * 0.9f);
+            // A file loop can't follow the timer, so its ticks simply start on the loop's first frame.
+            ticks.MixInto(loop, mix.Sound == AmbientSound.None ? 0.9f : Math.Clamp(relative, 0f, 1.5f) * 0.9f,
+                TimeSpan.Zero, new TickAnchor(TimeSpan.Zero, 0));
         }
 
         for (var i = 0; i < loop.Length; i++) loop[i] = MathF.Tanh(loop[i]);

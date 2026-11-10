@@ -30,6 +30,14 @@ namespace YAPA.Shared.Contracts
         bool IsRunning { get; }
 
         /// <summary>
+        /// Monotonic time (<see cref="IClock.Monotonic"/>) at which the displayed time next
+        /// changes, or null when nothing is running. Every later change is a whole number of
+        /// seconds after it, so this one value is enough to keep anything in step with the
+        /// display (the ticking clock uses it).
+        /// </summary>
+        TimeSpan? NextSecondAt { get; }
+
+        /// <summary>
         /// Raised synchronously after every state change, on the thread that caused it.
         /// Side effects (sounds, notifications, history) hang off this rather than
         /// off <see cref="Phase"/> changes, because the same phase can be reached

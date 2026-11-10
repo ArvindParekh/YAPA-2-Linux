@@ -499,5 +499,62 @@ namespace YAPA.Shared.Tests
             Assert.AreEqual(LongBreak - 30, _engine.Remaining);
             Assert.AreEqual(2, _engine.Index);
         }
+
+        // ── Second boundaries (display flip timing, ticking clock) ───────────
+
+        private void ElapseMs(int ms)
+        {
+            _clock.Advance(TimeSpan.FromMilliseconds(ms));
+            _timer.PerformTick();
+        }
+
+        [TestMethod]
+        public void Next_second_is_exactly_one_second_after_start()
+        {
+            Create();
+            Assert.IsNull(_engine.NextSecondAt, "nothing running");
+            _engine.Start();
+            Assert.AreEqual(_clock.Monotonic + TimeSpan.FromSeconds(1), _engine.NextSecondAt);
+            ElapseMs(400);
+            Assert.AreEqual(_clock.Monotonic + TimeSpan.FromMilliseconds(600), _engine.NextSecondAt);
+        }
+
+        [TestMethod]
+        public void After_resuming_a_fractional_second_the_next_flip_is_the_remainder()
+        {
+            // Regression: ticks restarted on a fresh 1 s beat at resume, but the display
+            // flips 0.4 s after resuming from 12.6 s, so they were off by 0.4 s for the rest.
+            Create();
+            _engine.Start();
+            ElapseMs(12_600);
+            _engine.Pause();
+            _clock.Advance(TimeSpan.FromMinutes(3));
+            _engine.Start();
+            Assert.AreEqual(_clock.Monotonic + TimeSpan.FromMilliseconds(400), _engine.NextSecondAt);
+            Assert.AreEqual(12, _engine.Elapsed);
+        }
+
+        [TestMethod]
+        public void The_timer_is_asked_to_tick_just_after_each_boundary()
+        {
+            Create();
+            _engine.Start();
+            Assert.IsTrue(_timer.LastScheduled is { } d && d > TimeSpan.FromMilliseconds(1000) && d < TimeSpan.FromMilliseconds(1010),
+                $"first tick scheduled for {_timer.LastScheduled}");
+            ElapseMs(1003);
+            Assert.AreEqual(1, _engine.Elapsed, "the scheduled tick sees the new second");
+            // 1.003 s in: the boundary is 997 ms away, plus the 3 ms "just past it" margin.
+            Assert.AreEqual(TimeSpan.FromMilliseconds(1000), _timer.LastScheduled, "aims at the next boundary, not a fixed interval");
+        }
+
+        [TestMethod]
+        public void Paused_timer_has_no_next_second()
+        {
+            Create();
+            _engine.Start();
+            ElapseMs(500);
+            _engine.Pause();
+            Assert.IsNull(_engine.NextSecondAt);
+        }
     }
 }

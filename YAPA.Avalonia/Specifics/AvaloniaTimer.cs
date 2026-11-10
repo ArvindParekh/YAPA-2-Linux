@@ -6,12 +6,17 @@ namespace YAPA.Avalonia.Specifics;
 
 public sealed class AvaloniaTimer : ITimer
 {
-    // Several ticks per second: the displayed second then flips within ~1/4 s of
-    // the real boundary, where a 1 s timer drifts against it and occasionally
-    // skips a digit. The engine only raises changes when the second changes.
-    private static readonly TimeSpan Interval = TimeSpan.FromMilliseconds(250);
+    // Used only until the engine asks for a specific instant (it does after every tick,
+    // aiming just past the next second boundary).
+    private static readonly TimeSpan DefaultInterval = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan Shortest = TimeSpan.FromMilliseconds(5);
+    private static readonly TimeSpan Longest = TimeSpan.FromSeconds(1.1);
 
     private DispatcherTimer? _timer;
+
+    // YAPA_TRACE_TIMING=1 logs how late each scheduled tick actually fired.
+    private static readonly bool TraceTiming = Environment.GetEnvironmentVariable("YAPA_TRACE_TIMING") == "1";
+    private TimeSpan _dueAt;
 
     public event Action? Tick;
 
@@ -19,15 +24,34 @@ public sealed class AvaloniaTimer : ITimer
     {
         // Created lazily so it binds to the UI dispatcher once Avalonia is running.
         _timer ??= CreateTimer();
-        _timer.Start();
+        if (!_timer.IsEnabled)
+        {
+            _timer.Interval = DefaultInterval;
+            _timer.Start();
+        }
     }
 
     public void Stop() => _timer?.Stop();
 
+    public void ScheduleNext(TimeSpan delay)
+    {
+        if (_timer is not { IsEnabled: true } timer) return;
+        // Setting Interval restarts the countdown from now, which is exactly the intent.
+        timer.Interval = delay < Shortest ? Shortest : delay > Longest ? Longest : delay;
+        if (TraceTiming) _dueAt = System.Diagnostics.Stopwatch.GetElapsedTime(0) + timer.Interval;
+    }
+
     private DispatcherTimer CreateTimer()
     {
-        var timer = new DispatcherTimer(DispatcherPriority.Render) { Interval = Interval };
-        timer.Tick += (_, _) => Tick?.Invoke();
+        // Render priority: the second flip is the most visible thing the app does, so it
+        // shouldn't wait behind background work.
+        var timer = new DispatcherTimer(DispatcherPriority.Render) { Interval = DefaultInterval };
+        timer.Tick += (_, _) =>
+        {
+            if (TraceTiming && _dueAt > TimeSpan.Zero)
+                System.Diagnostics.Trace.WriteLine($"[timing] tick {(System.Diagnostics.Stopwatch.GetElapsedTime(0) - _dueAt).TotalMilliseconds:+0.0;-0.0;0.0} ms vs schedule");
+            Tick?.Invoke();
+        };
         return timer;
     }
 }

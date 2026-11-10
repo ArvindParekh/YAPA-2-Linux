@@ -137,6 +137,26 @@ namespace YAPA.Shared.Common
 
         public int Remaining => CurrentIntervalLength - Elapsed;
 
+        public TimeSpan? NextSecondAt
+        {
+            get
+            {
+                if (!IsRunning) return null;
+                var now = _clock.Monotonic;
+                var elapsed = _accumulated + (now - _segmentStart);
+                var intoSecond = elapsed.Ticks % TimeSpan.TicksPerSecond;
+                return now + TimeSpan.FromTicks(TimeSpan.TicksPerSecond - intoSecond);
+            }
+        }
+
+        /// <summary>A hair past the boundary, so the tick reliably reads the new second.</summary>
+        private static readonly TimeSpan PastBoundary = TimeSpan.FromMilliseconds(3);
+
+        private void ScheduleNextTick()
+        {
+            if (NextSecondAt is { } next) _timer.ScheduleNext(next - _clock.Monotonic + PastBoundary);
+        }
+
         public int DisplayValue => _settings.CountBackwards ? Remaining : Elapsed;
 
         public double Progress => CurrentIntervalLength <= 0 ? 0 : (double)Elapsed / CurrentIntervalLength;
@@ -188,6 +208,7 @@ namespace YAPA.Shared.Common
                     _segmentStart = _clock.Monotonic;
                     SetPhase(_pausedPhase);
                     _timer.Start();
+                    ScheduleNextTick();
                     NotifyTime(force: true);
                     Raise(PomodoroTransitionKind.Resumed, from, automatic);
                     break;
@@ -396,6 +417,7 @@ namespace YAPA.Shared.Common
             }
 
             NotifyTime(force: false);
+            ScheduleNextTick();
         }
 
         private void CompleteInterval()
@@ -446,6 +468,7 @@ namespace YAPA.Shared.Common
             _segmentStart = _clock.Monotonic;
             SetPhase(phase);
             _timer.Start();
+            ScheduleNextTick();
             NotifyTime(force: true);
         }
 

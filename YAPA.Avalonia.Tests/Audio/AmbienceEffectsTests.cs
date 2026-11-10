@@ -17,9 +17,12 @@ internal sealed class FakeAmbiencePlayer : IAmbiencePlayer
     public AmbienceMix? Last;
     public bool Playing;
 
-    public void Play(AmbienceMix mix, bool restartTicks)
+    public TickAnchor? LastAnchor;
+
+    public void Play(AmbienceMix mix, TickAnchor? ticks)
     {
-        Calls.Add(restartTicks ? "play+restart" : "play");
+        Calls.Add(ticks.HasValue ? "play+retime" : "play");
+        if (ticks.HasValue) LastAnchor = ticks;
         Last = mix;
         Playing = true;
     }
@@ -42,7 +45,7 @@ public class AmbienceEffectsTests
         var rig = new Rig();
         var ambience = new AmbienceSettings(rig.Settings) { Sound = AmbientSound.SteadyRain, Ticking = true };
         var player = new FakeAmbiencePlayer();
-        var effects = new AmbienceEffects(rig.Engine, ambience, rig.EngineSettings, player, rig.Settings);
+        var effects = new AmbienceEffects(rig.Engine, ambience, rig.EngineSettings, player, rig.Settings, rig.Clock);
         player.Calls.Clear();
         return (rig, ambience, player, effects);
     }
@@ -53,12 +56,13 @@ public class AmbienceEffectsTests
         var (rig, _, player, _) = Create();
         rig.Engine.Start();
         Assert.IsTrue(player.Playing);
-        Assert.AreEqual("play+restart", player.Calls.Last(), "a new pomodoro restarts the tick beat");
+        Assert.AreEqual("play+retime", player.Calls.Last(), "a new pomodoro sets the tick timing");
+        Assert.AreEqual(rig.Engine.NextSecondAt, player.LastAnchor!.Value.NextBoundary, "ticks follow the engine's seconds");
 
         rig.Engine.Pause();
         Assert.IsFalse(player.Playing);
         rig.Engine.Start();
-        Assert.AreEqual("play+restart", player.Calls.Last(), "resuming lines the beat up again");
+        Assert.AreEqual("play+retime", player.Calls.Last(), "resuming re-times the ticks");
 
         rig.Elapse(25 * 60);
         Assert.IsFalse(player.Playing, "silence marks the end of the pomodoro");
@@ -86,7 +90,7 @@ public class AmbienceEffectsTests
         rig.Engine.Start();
         ambience.Sound = AmbientSound.Downpour;
         Assert.AreEqual(AmbientSound.Downpour, player.Last!.Sound);
-        Assert.AreEqual("play", player.Calls.Last(), "changing the sound doesn't reset the beat");
+        Assert.AreEqual("play", player.Calls.Last(), "changing the sound keeps the tick timing");
         ambience.Volume = 0.2;
         Assert.AreEqual(0.2, player.Last.Volume);
     }
@@ -158,7 +162,7 @@ public class AmbiencePlayerTests
         var stream = new RecordingStream();
         using var player = new AmbiencePlayer(Substitute.For<IBackgroundMusicPlayer>(), () => stream);
 
-        player.Play(new AmbienceMix(AmbientSound.SteadyRain, null, 1, true, 1), restartTicks: true);
+        player.Play(new AmbienceMix(AmbientSound.SteadyRain, null, 1, true, 1), new TickAnchor(System.Diagnostics.Stopwatch.GetElapsedTime(0), 0));
         SpinWait.SpinUntil(() => { lock (stream.Samples) return stream.Samples.Count > 48_000 * 2 * 3; }, 5000);
         float[] playing;
         lock (stream.Samples) playing = stream.Samples.ToArray();
@@ -182,7 +186,7 @@ public class AmbiencePlayerTests
         {
             var music = Substitute.For<IBackgroundMusicPlayer>();
             using var player = new AmbiencePlayer(music, () => new RecordingStream());
-            player.Play(new AmbienceMix(AmbientSound.File, file, 0.6, false, 0), restartTicks: false);
+            player.Play(new AmbienceMix(AmbientSound.File, file, 0.6, false, 0), null);
             music.Received(1).Play(file, true, 0.6);
             player.Stop();
             music.Received().Stop();
@@ -202,7 +206,7 @@ public class AmbiencePlayerTests
         var music = Substitute.For<IBackgroundMusicPlayer>();
         using var player = new AmbiencePlayer(music, () => ++attempts == 1 ? null : stream, retryAfter: TimeSpan.FromMilliseconds(300));
 
-        player.Play(new AmbienceMix(AmbientSound.SoftRain, null, 1, false, 0), restartTicks: true);
+        player.Play(new AmbienceMix(AmbientSound.SoftRain, null, 1, false, 0), null);
         SpinWait.SpinUntil(() => music.ReceivedCalls().Any(c => c.GetMethodInfo().Name == "Play"), 5000);
         music.Received().Play(Arg.Is<string>(p => p.EndsWith(".wav")), true, Arg.Any<double>());
 

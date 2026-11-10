@@ -26,7 +26,7 @@ internal sealed class AmbienceMixer
     private AmbientSound _sound;
     private float _bedTarget;
     private float _tickTarget;
-    private bool _restartTicks;
+    private TickAnchor _anchor;
 
     // Render-thread state.
     private AmbientSound _currentSound;
@@ -46,7 +46,8 @@ internal sealed class AmbienceMixer
 
     /// <param name="bedGain">Linear gain for the bed (already through the volume curve).</param>
     /// <param name="tickGain">Linear gain for the ticking; 0 turns it off.</param>
-    public void Set(bool active, AmbientSound sound, float bedGain, float tickGain, bool restartTicks = false)
+    /// <param name="anchor">Where the timer's seconds fall; ticks are placed on them. Null keeps the current one.</param>
+    public void Set(bool active, AmbientSound sound, float bedGain, float tickGain, TickAnchor? anchor = null)
     {
         lock (_gate)
         {
@@ -54,7 +55,7 @@ internal sealed class AmbienceMixer
             _sound = sound;
             _bedTarget = Math.Clamp(bedGain, 0, 1);
             _tickTarget = Math.Clamp(tickGain, 0, 1);
-            _restartTicks |= restartTicks;
+            if (anchor is { } a) _anchor = a;
         }
     }
 
@@ -67,22 +68,20 @@ internal sealed class AmbienceMixer
         }
     }
 
-    public void Render(Span<float> stereo)
+    /// <param name="heardAt">Monotonic time at which this block's first frame will be heard.</param>
+    public void Render(Span<float> stereo, TimeSpan heardAt)
     {
         bool active;
         AmbientSound sound;
         float bedTarget, tickTarget;
+        TickAnchor anchor;
         lock (_gate)
         {
             active = _active;
             sound = _sound;
             bedTarget = _bedTarget;
             tickTarget = _tickTarget;
-            if (_restartTicks)
-            {
-                _ticks.Restart();
-                _restartTicks = false;
-            }
+            anchor = _anchor;
         }
 
         if (sound != _currentSound)
@@ -114,7 +113,7 @@ internal sealed class AmbienceMixer
             if (crossEnd >= 1f) _outgoing = null;
             else _outgoing.MixInto(stereo, bedEnd * masterGain * Smooth(1f - crossEnd));
         }
-        if (tickEnd > 0) _ticks.MixInto(stereo, tickEnd * masterGain);
+        if (tickEnd > 0) _ticks.MixInto(stereo, tickEnd * masterGain, heardAt, anchor);
 
         _master = masterEnd;
         _crossfade = crossEnd;

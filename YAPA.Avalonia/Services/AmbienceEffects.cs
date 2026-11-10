@@ -22,11 +22,13 @@ public sealed class AmbienceEffects : IDisposable
     private readonly PomodoroEngineSettings _engineSettings;
     private readonly IAmbiencePlayer _player;
     private readonly ISettings _globalSettings;
+    private readonly IClock _clock;
     private bool _previewing;
 
     public AmbienceEffects(IPomodoroEngine engine, AmbienceSettings settings, PomodoroEngineSettings engineSettings,
-        IAmbiencePlayer player, ISettings globalSettings)
+        IAmbiencePlayer player, ISettings globalSettings, IClock clock)
     {
+        _clock = clock;
         _engine = engine;
         _settings = settings;
         _engineSettings = engineSettings;
@@ -40,7 +42,7 @@ public sealed class AmbienceEffects : IDisposable
     /// <summary>The master "Play sounds" switch lives in the engine settings.</summary>
     private void OnGlobalSettingsChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == "PomodoroEngine.DisableSoundNotifications") Apply(restartTicks: false);
+        if (e.PropertyName == "PomodoroEngine.DisableSoundNotifications") Apply(retime: false);
     }
 
     /// <summary>True while ambience should be heard for the current timer phase.</summary>
@@ -64,35 +66,40 @@ public sealed class AmbienceEffects : IDisposable
     public void Preview()
     {
         _previewing = true;
-        _player.Play(_settings.Mix(inBreak: false), restartTicks: true);
+        // No timer to follow: tick on a beat that starts now.
+        _player.Play(_settings.Mix(inBreak: false), new TickAnchor(_clock.Monotonic + TimeSpan.FromMilliseconds(400), 0));
     }
 
     public void StopPreview()
     {
         _previewing = false;
-        Apply(restartTicks: false);
+        Apply(retime: true);
     }
 
     private void OnTransition(PomodoroTransition t)
     {
-        // A new or resumed work interval restarts the beat, so ticks fall in step with the display.
-        var restart = t.Kind is PomodoroTransitionKind.WorkStarted or PomodoroTransitionKind.Resumed;
-        Apply(restart);
+        // Every transition can move where the seconds fall (a resume continues from a
+        // fractional second), so the tick timing is refreshed from the engine each time.
+        Apply(retime: true);
     }
 
-    private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e) => Apply(restartTicks: false);
+    private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e) => Apply(retime: false);
 
-    private void Apply(bool restartTicks)
+    private void Apply(bool retime)
     {
         if (_previewing && !_engineSettings.DisableSoundNotifications)
         {
-            _player.Play(_settings.Mix(inBreak: false), restartTicks);
+            _player.Play(_settings.Mix(inBreak: false), null);
             return;
         }
 
-        if (ShouldPlay) _player.Play(_settings.Mix(inBreak: _engine.Phase == PomodoroPhase.Break), restartTicks);
+        if (ShouldPlay) _player.Play(_settings.Mix(inBreak: _engine.Phase == PomodoroPhase.Break), retime ? Anchor() : null);
         else _player.Stop();
     }
+
+    /// <summary>Where the timer's next second falls; ticks are placed on it and every second after.</summary>
+    private TickAnchor? Anchor()
+        => _engine.NextSecondAt is { } next ? new TickAnchor(next, _engine.Elapsed + 1) : null;
 
     public void Dispose()
     {

@@ -127,29 +127,62 @@ public class AmbienceTests
         CollectionAssert.AreEqual(a, b);
     }
 
-    [TestMethod]
-    public void Ticks_land_exactly_one_second_apart_and_alternate()
+    private static float[] RenderTicks(TickAnchor anchor, TimeSpan heardAt, double seconds, int blockFrames = 960)
     {
         var gen = new TickGenerator(Rate);
-        var audio = Render(gen, 4.5);
+        var buffer = new float[(int)(Rate * seconds) * 2];
+        for (var f = 0; f < buffer.Length / 2; f += blockFrames)
+        {
+            var n = Math.Min(blockFrames, buffer.Length / 2 - f);
+            gen.MixInto(buffer.AsSpan(f * 2, n * 2), 1f, heardAt + TimeSpan.FromSeconds(f / (double)Rate), anchor);
+        }
+        return buffer;
+    }
+
+    private static int FirstOnset(float[] stereo, int fromFrame)
+    {
+        for (var f = fromFrame; f < stereo.Length / 2; f++)
+            if (Math.Abs(stereo[f * 2]) > 0.005) return f;
+        return -1;
+    }
+
+    [TestMethod]
+    public void Ticks_are_heard_exactly_when_the_timer_second_changes()
+    {
+        // The timer's next second starts 0.37 s into this audio, then every second after.
+        var anchor = new TickAnchor(TimeSpan.FromSeconds(100.37), 41);
+        var audio = RenderTicks(anchor, heardAt: TimeSpan.FromSeconds(100), seconds: 3.5);
         MaybeSave("Ticking", audio);
 
-        // Onset = first sample in each second above a threshold.
-        var onsets = Enumerable.Range(0, 5)
-            .Select(s => Enumerable.Range(s * Rate, Rate).FirstOrDefault(f => Math.Abs(audio[f * 2]) > 0.01, -1))
-            .ToArray();
-        CollectionAssert.AreEqual(new[] { 0, Rate, 2 * Rate, 3 * Rate, 4 * Rate }, onsets.Select(o => o - o % 48).ToArray(),
-            "one tick at the start of every second");
+        var onsets = new[] { FirstOnset(audio, 0), FirstOnset(audio, (int)(Rate * 1.1)), FirstOnset(audio, (int)(Rate * 2.1)) };
+        var expected = new[] { 0.37, 1.37, 2.37 }.Select(t => (int)Math.Round(t * Rate)).ToArray();
+        for (var i = 0; i < 3; i++)
+            Assert.IsTrue(Math.Abs(onsets[i] - expected[i]) <= 2, $"tick {i} at frame {onsets[i]}, expected {expected[i]}");
 
-        var tick = audio.AsSpan(0, Rate / 20 * 2).ToArray();
-        var tock = audio.AsSpan(Rate * 2, Rate / 20 * 2).ToArray();
-        CollectionAssert.AreNotEqual(tick, tock, "tick and tock differ");
+        // Alternation follows the second's parity, not the audio's start.
+        var first = audio.AsSpan(expected[0] * 2, 400).ToArray();
+        var second = audio.AsSpan(expected[1] * 2, 400).ToArray();
+        CollectionAssert.AreNotEqual(first, second, "tick and tock alternate");
+    }
 
+    [TestMethod]
+    public void A_tick_straddling_two_audio_blocks_is_rendered_once_and_whole()
+    {
+        // Boundary 5 frames before the end of the first 960-frame block.
+        var anchor = new TickAnchor(TimeSpan.FromSeconds(955 / (double)Rate), 0);
+        var inBlocks = RenderTicks(anchor, TimeSpan.Zero, 0.2, blockFrames: 960);
+        var inOne = RenderTicks(anchor, TimeSpan.Zero, 0.2, blockFrames: 48_000);
+        CollectionAssert.AreEqual(inOne, inBlocks);
+    }
+
+    [TestMethod]
+    public void Tick_level_and_shape()
+    {
+        var audio = RenderTicks(new TickAnchor(TimeSpan.Zero, 0), TimeSpan.Zero, 4.5);
         var peak = Db(audio.Max(Math.Abs));
         Assert.IsTrue(peak is > -18 and < -3, $"tick peak {peak:F1} dBFS");
-        // Each tick is short: most of every second is silence.
         var silent = audio.Count(x => Math.Abs(x) < 1e-4) / (double)audio.Length;
-        Assert.IsTrue(silent > 0.9, $"{silent:P0} silent");
+        Assert.IsTrue(silent > 0.9, $"{silent:P0} silent: ticks are short");
     }
 
     [TestMethod]
@@ -159,12 +192,14 @@ public class AmbienceTests
         var block = new float[960 * 2];
         var all = new System.Collections.Generic.List<float>();
 
-        mixer.Set(true, AmbientSound.SteadyRain, 1f, 1f, restartTicks: true);
-        for (var i = 0; i < 200; i++) { mixer.Render(block); all.AddRange(block); } // 4 s
+        var t = TimeSpan.Zero;
+        void Render() { mixer.Render(block, t); all.AddRange(block); t += TimeSpan.FromSeconds(0.02); }
+        mixer.Set(true, AmbientSound.SteadyRain, 1f, 1f, new TickAnchor(TimeSpan.FromSeconds(0.5), 0));
+        for (var i = 0; i < 200; i++) Render(); // 4 s
         mixer.Set(true, AmbientSound.Downpour, 1f, 1f);
-        for (var i = 0; i < 150; i++) { mixer.Render(block); all.AddRange(block); } // crossfade
+        for (var i = 0; i < 150; i++) Render(); // crossfade
         mixer.Set(false, AmbientSound.Downpour, 1f, 1f);
-        for (var i = 0; i < 100; i++) { mixer.Render(block); all.AddRange(block); } // fade out
+        for (var i = 0; i < 100; i++) Render(); // fade out
 
         var audio = all.ToArray();
         MaybeSave("MixerSession", audio);

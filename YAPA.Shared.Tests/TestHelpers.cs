@@ -9,6 +9,8 @@ namespace YAPA.Shared.Tests
     {
         public event Action Tick;
         public bool IsRunning { get; private set; }
+        public TimeSpan? LastScheduled { get; private set; }
+        public void ScheduleNext(TimeSpan delay) => LastScheduled = delay;
 
         public void PerformTick() => Tick?.Invoke();
         public void Start() => IsRunning = true;

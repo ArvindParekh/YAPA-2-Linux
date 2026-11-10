@@ -362,39 +362,62 @@ internal sealed class BrownNoiseGenerator(int sampleRate, ulong seed = 0xB120) :
 }
 
 /// <summary>
-/// A mechanical clock: alternating tick and tock, exactly one per second.
-/// Each is a short burst of high, quickly damped resonances (the escapement
-/// striking the pallet), the tock a little lower so the pair has a rhythm.
+/// When the timer's seconds fall, in monotonic time: the next one starts at
+/// <paramref name="NextBoundary"/> and is second number <paramref name="SecondNumber"/>;
+/// every following one is exactly 1 s later.
 /// </summary>
-internal sealed class TickGenerator : IAmbienceGenerator
+public readonly record struct TickAnchor(TimeSpan NextBoundary, long SecondNumber);
+
+/// <summary>
+/// A mechanical clock: alternating tick and tock, one per second, each placed so
+/// that it is <em>heard</em> exactly when the timer's displayed second changes.
+/// Each strike is a short burst of high, quickly damped resonances (the
+/// escapement striking the pallet), the tock a little lower so the pair has a rhythm.
+///
+/// Rendering is stateless: for every block it asks "which boundaries fall in the
+/// time this block will be heard?", which also handles strikes that straddle two blocks.
+/// </summary>
+internal sealed class TickGenerator
 {
+    private readonly int _rate;
     private readonly float[] _tick;
     private readonly float[] _tock;
-    private readonly int _period;
-    private long _position;
 
     public TickGenerator(int sampleRate, ulong seed = 0x71C)
     {
-        _period = sampleRate;
+        _rate = sampleRate;
         _tick = Strike(sampleRate, [3150, 5350, 7900], seed);
         _tock = Strike(sampleRate, [2450, 4150, 6300], seed + 1);
     }
 
-    /// <summary>Restarts the beat now, so ticks line up with a timer that just started.</summary>
-    public void Restart() => _position = 0;
+    public TimeSpan StrikeLength => TimeSpan.FromSeconds(_tick.Length / (double)_rate);
 
-    public void MixInto(Span<float> stereo, float gain)
+    /// <param name="heardAt">Monotonic time at which the first frame of <paramref name="stereo"/> will be heard.</param>
+    public void MixInto(Span<float> stereo, float gain, TimeSpan heardAt, TickAnchor anchor)
     {
         var frames = stereo.Length / 2;
-        for (var f = 0; f < frames; f++, _position++)
+        if (frames == 0 || gain <= 0) return;
+        var blockSeconds = frames / (double)_rate;
+        var strikeSeconds = _tick.Length / (double)_rate;
+
+        // First boundary whose strike can still sound in this block.
+        var fromBoundary = (heardAt - anchor.NextBoundary).TotalSeconds - strikeSeconds;
+        var k = (long)Math.Ceiling(fromBoundary);
+        for (; ; k++)
         {
-            var beat = _position / _period;
-            var offset = (int)(_position % _period);
-            var strike = beat % 2 == 0 ? _tick : _tock;
-            if (offset >= strike.Length) continue;
-            var s = strike[offset] * gain;
-            stereo[f * 2] += s;
-            stereo[f * 2 + 1] += s;
+            var boundary = anchor.NextBoundary.TotalSeconds + k - heardAt.TotalSeconds; // seconds from block start
+            if (boundary >= blockSeconds) break;
+            var strike = (anchor.SecondNumber + k) % 2 == 0 ? _tick : _tock;
+            var startFrame = (long)Math.Round(boundary * _rate);
+            for (var n = 0; n < strike.Length; n++)
+            {
+                var f = startFrame + n;
+                if (f < 0) continue;
+                if (f >= frames) break;
+                var v = strike[n] * gain;
+                stereo[(int)f * 2] += v;
+                stereo[(int)f * 2 + 1] += v;
+            }
         }
     }
 
