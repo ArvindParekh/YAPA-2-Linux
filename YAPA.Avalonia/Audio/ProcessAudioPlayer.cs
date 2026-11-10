@@ -79,12 +79,20 @@ internal sealed class ProcessAudioPlayer : IBackgroundMusicPlayer
 
                 if (string.IsNullOrWhiteSpace(path))
                     return;
-                // Absolute so a file named "-foo.mp3" can never be read as an option.
-                var fullPath = System.IO.Path.GetFullPath(path);
-                if (!File.Exists(fullPath))
+                string fullPath;
+                if (PlayerCommands.IsStream(path))
                 {
-                    AudioLog.Info($"{_role}: file not found: {fullPath}");
-                    return;
+                    fullPath = path; // internet radio
+                }
+                else
+                {
+                    // Absolute so a file named "-foo.mp3" can never be read as an option.
+                    fullPath = System.IO.Path.GetFullPath(path);
+                    if (!File.Exists(fullPath))
+                    {
+                        AudioLog.Info($"{_role}: file not found: {fullPath}");
+                        return;
+                    }
                 }
 
                 var candidates = _commands(fullPath, volume);

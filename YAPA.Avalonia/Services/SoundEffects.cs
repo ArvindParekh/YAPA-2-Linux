@@ -35,6 +35,26 @@ public sealed class SoundEffects : IDisposable
 
     public void Preview(SoundRef sound) => Cues.Play(sound, _engineSettings.Volume);
 
+    private bool _musicPreview;
+
+    /// <summary>Auditions a station or file from the settings page, whatever the timer is doing.</summary>
+    public void PreviewMusic(YAPA.Avalonia.Audio.Library.MediaItem item)
+    {
+        _musicPreview = true;
+        Music.Play(item.Location, loop: true, _engineSettings.Volume);
+    }
+
+    /// <summary>Ends an audition and goes back to what the timer's phase calls for.</summary>
+    public void StopMusicPreview()
+    {
+        if (!_musicPreview) return;
+        _musicPreview = false;
+        Music.Stop();
+        UpdateMusic();
+    }
+
+    public bool IsPreviewingMusic => _musicPreview;
+
     private void OnTransition(PomodoroTransition t)
     {
         if (_engineSettings.DisableSoundNotifications)
@@ -69,8 +89,21 @@ public sealed class SoundEffects : IDisposable
             _ => ((string?)null, false),
         };
 
-        if (string.IsNullOrEmpty(song) || !File.Exists(song)) Music.Stop();
-        else Music.Play(song, loop, _engineSettings.Volume);
+        if (_musicPreview) return; // the settings page is auditioning something
+        switch (YAPA.Avalonia.Audio.Library.MediaLibrary.Resolve(song))
+        {
+            case null:
+                Music.Stop();
+                break;
+            case { Kind: YAPA.Avalonia.Audio.Library.MediaKind.Radio } radio:
+                // "Loop" for a stream means reconnect if it drops; the player's respawn
+                // guard stops it if the station is truly unreachable.
+                Music.Play(radio.Location, loop: true, _engineSettings.Volume);
+                break;
+            case var file:
+                Music.Play(file.Location, loop, _engineSettings.Volume);
+                break;
+        }
     }
 
     public void Dispose()

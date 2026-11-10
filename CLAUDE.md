@@ -36,6 +36,17 @@ YAPA_HOME=/tmp/yapa-dev dotnet run --project YAPA.Avalonia
 (see `Platform/AppPaths.cs`). Without it, a second launch just forwards its
 arguments to the user's running instance.
 
+Seed the dev instance silent before it plays anything; external players (ffplay, pw-play)
+do not honour `YAPA_SILENT_AUDIO`. Keys inside a component are unprefixed, and a wrong
+key is silently ignored (that made a radio audition audible once). Check the Sounds page
+reads 0% before touching anything:
+
+```bash
+mkdir -p /tmp/yapa-dev/config && echo '{"PomodoroEngine":{"Volume":0.0},"Ambience":{"Volume":0.0,"TickVolume":0.0}}' > /tmp/yapa-dev/config/settings.json
+```
+
+Per-machine settings (music paths, window position) live in `localSettings.json`.
+
 ## Rules of the road
 
 - Never kill, restart or send commands to the user's installed instance

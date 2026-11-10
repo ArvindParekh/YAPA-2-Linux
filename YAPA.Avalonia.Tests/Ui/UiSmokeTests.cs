@@ -183,7 +183,7 @@ public class UiSmokeTests
             window.Navigate(YAPA.Avalonia.Services.SettingsPage.Sounds);
             Dispatcher.UIThread.RunJobs();
             var picker = window.GetVisualDescendants().OfType<ComboBox>()
-                .First(c => c.Items.OfType<string>().Contains("Steady rain"));
+                .First(c => c.Items.Cast<object>().Any(o => o.ToString() == "Steady rain"));
             picker.SelectedIndex = 2;
             Dispatcher.UIThread.RunJobs();
             Assert.AreEqual(YAPA.Avalonia.Audio.Ambience.AmbientSound.SteadyRain, ambience.Sound);

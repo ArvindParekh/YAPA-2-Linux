@@ -57,9 +57,16 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
 
+    protected override void OnOpened(System.EventArgs e)
+    {
+        base.OnOpened(e);
+        // Coming back after dropping files into the Sounds folder shows them straight away.
+        Activated += (_, _) => { foreach (var sounds in Pages.OfType<SoundsPageViewModel>()) sounds.RescanLibrary(); };
+    }
+
     protected override void OnClosed(System.EventArgs e)
     {
-        foreach (var sounds in Pages.OfType<SoundsPageViewModel>()) sounds.Ambience.EndPreview();
+        foreach (var sounds in Pages.OfType<SoundsPageViewModel>()) sounds.EndPreviews();
         base.OnClosed(e);
     }
 

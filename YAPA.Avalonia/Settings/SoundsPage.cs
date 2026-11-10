@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using YAPA.Avalonia.Audio;
+using YAPA.Avalonia.Audio.Ambience;
+using YAPA.Avalonia.Audio.Library;
 using YAPA.Avalonia.Services;
 using YAPA.Avalonia.Specifics;
 using YAPA.Shared.Common;
@@ -124,42 +126,190 @@ public sealed partial class CueRowViewModel : ObservableObject
     }
 }
 
-/// <summary>Background music for one phase.</summary>
-public sealed partial class MusicRowViewModel(string label, Func<string?> get, Action<string?> set,
-    Func<bool> getRepeat, Action<bool> setRepeat, Func<IFilePicker?> picker) : ObservableObject
+/// <param name="Reference">Stored in settings; null for "None". Ignored for the "Choose a file…" entry.</param>
+public sealed record MediaOption(string Label, string? Reference, bool IsChooser = false)
 {
-    public string Label { get; } = label;
+    public override string ToString() => Label;
+}
 
-    public string FileName => get() is { Length: > 0 } p ? Path.GetFileName(p) : "None";
-    public bool HasFile => !string.IsNullOrEmpty(get());
+/// <summary>
+/// Background music for one phase: none, an internet radio station, something
+/// from the Sounds folder, or (the fallback) any file.
+///
+/// The options list is rebuilt only when it really changes (a new file was picked),
+/// and the SelectedIndex setter ignores echoes and rebuild noise, so this can't fall
+/// into the binding feedback loop that crashed the ambience picker.
+/// </summary>
+public sealed partial class MusicRowViewModel : ObservableObject
+{
+    private readonly Func<string?> _get;
+    private readonly Action<string?> _set;
+    private readonly Func<bool> _getRepeat;
+    private readonly Action<bool> _setRepeat;
+    private readonly Func<IFilePicker?> _picker;
+    private readonly SoundEffects _effects;
+    private bool _rebuilding;
+
+    public MusicRowViewModel(string label, Func<string?> get, Action<string?> set, Func<bool> getRepeat, Action<bool> setRepeat,
+        Func<IFilePicker?> picker, SoundEffects effects)
+    {
+        Label = label;
+        _get = get;
+        _set = set;
+        _getRepeat = getRepeat;
+        _setRepeat = setRepeat;
+        _picker = picker;
+        _effects = effects;
+        Options = BuildOptions();
+    }
+
+    public string Label { get; }
+
+    public IReadOnlyList<MediaOption> Options { get; private set; }
+
+    public int SelectedIndex
+    {
+        get
+        {
+            var current = _get();
+            if (string.IsNullOrEmpty(current)) return 0;
+            for (var i = 0; i < Options.Count; i++)
+                if (!Options[i].IsChooser && Options[i].Reference == current) return i;
+            return 0;
+        }
+        set
+        {
+            if (_rebuilding || value < 0 || value >= Options.Count || value == SelectedIndex) return;
+            var option = Options[value];
+            if (option.IsChooser)
+            {
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(SelectedIndex)));
+                _ = ChooseFileAsync();
+                return;
+            }
+            _set(option.Reference);
+            // Recordings are usually ambience (rain, a café), which should keep going for
+            // the whole phase; untick Loop for a track that should play once.
+            if (IsFile && !_getRepeat()) { _setRepeat(true); OnPropertyChanged(nameof(Repeat)); }
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsFile));
+            OnPropertyChanged(nameof(Description));
+            OnPropertyChanged(nameof(CanPreview));
+            if (_previewingThis)
+            {
+                if (option.Reference == null) StopPreview();
+                else Preview(); // keep auditioning, now the new choice
+            }
+        }
+    }
+
+    /// <summary>Loop only makes sense for files; a radio station just keeps playing.</summary>
+    public bool IsFile => MediaLibrary.Resolve(_get()) is { Kind: not MediaKind.Radio };
+
+    public string? Description => MediaLibrary.Resolve(_get()) switch
+    {
+        { Kind: MediaKind.Radio } r => r.Description,
+        { Kind: MediaKind.Library } => "From your Sounds folder",
+        { } f => f.Location,
+        null => string.IsNullOrEmpty(_get()) ? null : "File not found",
+    };
 
     public bool Repeat
     {
-        get => getRepeat();
-        set { setRepeat(value); OnPropertyChanged(); }
+        get => _getRepeat();
+        set { _setRepeat(value); OnPropertyChanged(); }
     }
 
+    public bool CanPreview => SelectedIndex > 0;
+    public string PreviewLabel => _previewingThis ? "■ Stop" : "▶ Listen";
+    private bool _previewingThis;
+
     [RelayCommand]
-    private async Task Browse()
+    private void TogglePreview()
     {
-        var path = await SafePick.Run(picker, $"Music while “{Label}”");
+        if (_effects.IsPreviewingMusic && _previewingThis) StopPreview();
+        else Preview();
+    }
+
+    private void Preview()
+    {
+        if (MediaLibrary.Resolve(_get()) is not { } item) return;
+        PreviewStarted?.Invoke(this);
+        _effects.PreviewMusic(item);
+        _previewingThis = true;
+        OnPropertyChanged(nameof(PreviewLabel));
+    }
+
+    public void StopPreview()
+    {
+        if (_previewingThis) _effects.StopMusicPreview();
+        _previewingThis = false;
+        OnPropertyChanged(nameof(PreviewLabel));
+    }
+
+    /// <summary>One audition at a time: the page tells the other rows they've been replaced.</summary>
+    public event Action<MusicRowViewModel>? PreviewStarted;
+
+    /// <summary>Another row took over the player; just update the button.</summary>
+    public void PreviewReplaced()
+    {
+        _previewingThis = false;
+        OnPropertyChanged(nameof(PreviewLabel));
+    }
+
+    private IReadOnlyList<MediaOption> BuildOptions()
+    {
+        var options = new List<MediaOption> { new("None", null) };
+        options.AddRange(MediaLibrary.Radio.Select(r => new MediaOption($"Radio · {r.Name}", r.Reference)));
+        var library = MediaLibrary.LibraryFiles();
+        options.AddRange(library.Select(f => new MediaOption($"Sounds · {f.Name}", f.Reference)));
+
+        // A file chosen from elsewhere keeps its own entry so the dropdown can show it.
+        var current = _get();
+        if (!string.IsNullOrEmpty(current) && options.All(o => o.Reference != current)
+            && MediaLibrary.Resolve(current) is { } file)
+            options.Add(new MediaOption($"File · {file.Name}", current));
+
+        options.Add(new MediaOption("Choose a file…", null, IsChooser: true));
+        return options;
+    }
+
+    /// <summary>Replaces the list only if it changed, so a rescan doesn't disturb an open dropdown.</summary>
+    public void Rebuild()
+    {
+        var options = BuildOptions();
+        if (!options.SequenceEqual(Options))
+        {
+            _rebuilding = true;
+            try
+            {
+                Options = options;
+                OnPropertyChanged(nameof(Options));
+            }
+            finally
+            {
+                _rebuilding = false;
+            }
+        }
+        Refresh();
+    }
+
+    private async Task ChooseFileAsync()
+    {
+        var path = await SafePick.Run(_picker, $"Music while “{Label}”");
         if (path == null) return;
-        set(path);
-        Refresh();
-    }
-
-    [RelayCommand]
-    private void Clear()
-    {
-        set(null);
-        Refresh();
+        _set(path);
+        if (!_getRepeat()) _setRepeat(true); // a single track should usually keep going
+        Rebuild();
     }
 
     public void Refresh()
     {
-        OnPropertyChanged(nameof(FileName));
-        OnPropertyChanged(nameof(HasFile));
+        OnPropertyChanged(nameof(SelectedIndex));
+        OnPropertyChanged(nameof(IsFile));
+        OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(Repeat));
+        OnPropertyChanged(nameof(CanPreview));
     }
 }
 
@@ -170,10 +320,10 @@ public sealed class SoundsPageViewModel : SettingsPageViewModel
     private readonly AvaloniaMusicPlayerSettings _music;
     private readonly SoundEffects _effects;
 
-    private readonly YAPA.Avalonia.Audio.Ambience.AmbienceSettings _ambience;
+    private readonly AmbienceSettings _ambience;
 
     public SoundsPageViewModel(PomodoroEngineSettings engine, SoundSettings sounds, AvaloniaMusicPlayerSettings music, SoundEffects effects,
-        YAPA.Avalonia.Audio.Ambience.AmbienceSettings ambience, AmbienceEffects ambienceEffects)
+        AmbienceSettings ambience, AmbienceEffects ambienceEffects)
     {
         _engine = engine;
         _sounds = sounds;
@@ -186,12 +336,14 @@ public sealed class SoundsPageViewModel : SettingsPageViewModel
         Music =
         [
             new MusicRowViewModel("During pomodoros", () => music.WorkSong, v => music.WorkSong = v,
-                () => music.RepeatWorkSong, v => music.RepeatWorkSong = v, () => FilePicker),
+                () => music.RepeatWorkSong, v => music.RepeatWorkSong = v, () => FilePicker, effects),
             new MusicRowViewModel("During breaks", () => music.BreakSong, v => music.BreakSong = v,
-                () => music.RepeatBreakSong, v => music.RepeatBreakSong = v, () => FilePicker),
+                () => music.RepeatBreakSong, v => music.RepeatBreakSong = v, () => FilePicker, effects),
             new MusicRowViewModel("During the long break", () => music.SessionBreakSong, v => music.SessionBreakSong = v,
-                () => music.RepeatSessionBreakSong, v => music.RepeatSessionBreakSong = v, () => FilePicker),
+                () => music.RepeatSessionBreakSong, v => music.RepeatSessionBreakSong = v, () => FilePicker, effects),
         ];
+        foreach (var row in Music)
+            row.PreviewStarted += started => { foreach (var other in Music) if (other != started) other.PreviewReplaced(); };
     }
 
     public override string Title => "Sounds";
@@ -229,6 +381,50 @@ public sealed class SoundsPageViewModel : SettingsPageViewModel
 
     public string Backend => $"Playing through {_effects.Cues.BackendDescription}";
 
+    public string LibraryFolder
+    {
+        get
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var folder = MediaLibrary.Folder;
+            return home.Length > 0 && folder.StartsWith(home + "/", StringComparison.Ordinal) ? "~" + folder[home.Length..] : folder;
+        }
+    }
+
+    /// <summary>
+    /// The way to add your own sounds without a file dialog: drop files in this folder and
+    /// they appear in every picker by name.
+    /// </summary>
+    public CommunityToolkit.Mvvm.Input.IRelayCommand OpenLibraryFolderCommand => _openFolder ??= new RelayCommand(OpenLibraryFolder);
+    private RelayCommand? _openFolder;
+
+    private static void OpenLibraryFolder()
+    {
+        MediaLibrary.LibraryFiles(); // creates the folder if needed
+        try
+        {
+            using var _ = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open") { ArgumentList = { MediaLibrary.Folder }, UseShellExecute = false });
+        }
+        catch (Exception e)
+        {
+            System.Diagnostics.Trace.WriteLine($"[library] can't open {MediaLibrary.Folder}: {e.Message}");
+        }
+    }
+
+    /// <summary>Picks up files dropped into the Sounds folder since the page was built.</summary>
+    public void RescanLibrary()
+    {
+        foreach (var m in Music) m.Rebuild();
+        Ambience.Rebuild();
+    }
+
+    /// <summary>Called when the settings window closes: nothing auditioned keeps playing.</summary>
+    public void EndPreviews()
+    {
+        foreach (var m in Music) m.StopPreview();
+        Ambience.EndPreview();
+    }
+
     protected override void ResetToDefaults()
     {
         _sounds.ResetToDefaults();
@@ -236,7 +432,7 @@ public sealed class SoundsPageViewModel : SettingsPageViewModel
         _engine.DisableSoundNotifications = false;
         _engine.Volume = 0.5;
         foreach (var c in Cues) c.Load();
-        foreach (var m in Music) m.Refresh();
+        foreach (var m in Music) { m.StopPreview(); m.Rebuild(); }
         Ambience.EndPreview();
         _ambience.ResetToDefaults();
         Ambience.Refresh();
@@ -244,72 +440,97 @@ public sealed class SoundsPageViewModel : SettingsPageViewModel
 }
 
 public sealed class SoundsPageFactory(PomodoroEngineSettings engine, SoundSettings sounds, AvaloniaMusicPlayerSettings music, SoundEffects effects,
-    YAPA.Avalonia.Audio.Ambience.AmbienceSettings ambience, AmbienceEffects ambienceEffects)
+    AmbienceSettings ambience, AmbienceEffects ambienceEffects)
 {
     public SoundsPageViewModel Create() => new(engine, sounds, music, effects, ambience, ambienceEffects);
+}
+
+/// <param name="FilePath">For a recording: which file. Null for generated sounds and the chooser.</param>
+public sealed record AmbienceOption(string Label, AmbientSound Sound, string? FilePath = null, bool IsChooser = false)
+{
+    public override string ToString() => Label;
 }
 
 /// <summary>The "Ambience while you work" section of the Sounds page.</summary>
 public sealed partial class AmbienceSectionViewModel : ObservableObject
 {
-    private static readonly YAPA.Avalonia.Audio.Ambience.AmbientSound[] Choices =
-    [
-        YAPA.Avalonia.Audio.Ambience.AmbientSound.None,
-        YAPA.Avalonia.Audio.Ambience.AmbientSound.SoftRain,
-        YAPA.Avalonia.Audio.Ambience.AmbientSound.SteadyRain,
-        YAPA.Avalonia.Audio.Ambience.AmbientSound.Downpour,
-        YAPA.Avalonia.Audio.Ambience.AmbientSound.BrownNoise,
-        YAPA.Avalonia.Audio.Ambience.AmbientSound.File,
-    ];
+    private static readonly AmbientSound[] Generated =
+        [AmbientSound.None, AmbientSound.SoftRain, AmbientSound.SteadyRain, AmbientSound.Downpour, AmbientSound.BrownNoise];
 
-    private readonly YAPA.Avalonia.Audio.Ambience.AmbienceSettings _s;
+    private readonly AmbienceSettings _s;
     private readonly AmbienceEffects _effects;
     private readonly Func<IFilePicker?> _picker;
+    private bool _rebuilding;
 
-    public AmbienceSectionViewModel(YAPA.Avalonia.Audio.Ambience.AmbienceSettings settings, AmbienceEffects effects, Func<IFilePicker?> picker)
+    public AmbienceSectionViewModel(AmbienceSettings settings, AmbienceEffects effects, Func<IFilePicker?> picker)
     {
         _s = settings;
         _effects = effects;
         _picker = picker;
+        Options = BuildOptions();
     }
 
     /// <summary>
-    /// Built once. The list must be the same instance every time it is read: a fresh list
-    /// makes the ComboBox reset its selection, which re-enters SelectedIndex, which used to
-    /// refresh the list again, until the stack overflowed and took the app down.
+    /// The same instance on every read, replaced only by <see cref="Rebuild"/>. A fresh list
+    /// per read makes the ComboBox reset its selection, which re-enters SelectedIndex, which
+    /// used to refresh the list again, until the stack overflowed and took the app down.
     /// </summary>
-    public IReadOnlyList<string> Options { get; } = Choices
-        .Select(c => c == YAPA.Avalonia.Audio.Ambience.AmbientSound.File
-            ? "Your own file…"
-            : YAPA.Avalonia.Audio.Ambience.AmbienceGenerators.DisplayName(c))
-        .ToList();
+    public IReadOnlyList<AmbienceOption> Options { get; private set; }
+
+    private IReadOnlyList<AmbienceOption> BuildOptions()
+    {
+        var options = Generated.Select(g => new AmbienceOption(AmbienceGenerators.DisplayName(g), g)).ToList();
+        options.AddRange(MediaLibrary.LibraryFiles().Select(f => new AmbienceOption($"Sounds · {f.Name}", AmbientSound.File, f.Location)));
+        if (!string.IsNullOrEmpty(_s.FilePath) && options.All(o => o.FilePath != _s.FilePath))
+            options.Add(new AmbienceOption($"File · {MediaLibrary.NameFor(_s.FilePath)}", AmbientSound.File, _s.FilePath));
+        options.Add(new AmbienceOption("Choose a file…", AmbientSound.File, IsChooser: true));
+        return options;
+    }
 
     public int SelectedIndex
     {
-        get => Array.IndexOf(Choices, _s.Sound);
+        get
+        {
+            for (var i = 0; i < Options.Count; i++)
+            {
+                var o = Options[i];
+                if (o.IsChooser || o.Sound != _s.Sound) continue;
+                if (o.Sound != AmbientSound.File || o.FilePath == _s.FilePath) return i;
+            }
+            return 0;
+        }
         set
         {
-            // Re-entrancy guard: controls echo values back while they update.
-            if (value < 0 || value >= Choices.Length || value == SelectedIndex) return;
-            var choice = Choices[value];
-            if (choice == YAPA.Avalonia.Audio.Ambience.AmbientSound.File && string.IsNullOrEmpty(_s.FilePath))
+            // Re-entrancy guard: controls echo values back while they update, and clear
+            // their selection while the list is being replaced.
+            if (_rebuilding || value < 0 || value >= Options.Count || value == SelectedIndex) return;
+            var choice = Options[value];
+            if (choice.IsChooser)
             {
-                // Show the real current sound again right away; it only becomes "your file"
-                // once a file is actually picked. Posted, so it runs after the ComboBox has
-                // finished its own selection change.
+                // Show the real current sound again right away; it only changes once a file
+                // is actually picked. Posted, so it runs after the ComboBox has finished its
+                // own selection change.
                 global::Avalonia.Threading.Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(SelectedIndex)));
                 _ = ChooseFileAsync();
                 return;
             }
-            _s.Sound = choice;
+            if (choice.FilePath != null) _s.FilePath = choice.FilePath;
+            _s.Sound = choice.Sound;
             OnPropertyChanged();
             OnSoundChanged();
         }
     }
 
-    public bool HasSound => _s.Sound != YAPA.Avalonia.Audio.Ambience.AmbientSound.None;
-    public bool IsFile => _s.Sound == YAPA.Avalonia.Audio.Ambience.AmbientSound.File;
-    public string FileName => string.IsNullOrEmpty(_s.FilePath) ? "No file chosen" : Path.GetFileName(_s.FilePath);
+    public bool HasSound => _s.Sound != AmbientSound.None;
+
+    /// <summary>A recording, as opposed to a generated sound.</summary>
+    public bool IsFile => _s.Sound == AmbientSound.File;
+    public string FileName => MediaLibrary.Resolve(_s.FilePath) switch
+    {
+        { Kind: MediaKind.Library } => "From your Sounds folder",
+        { } f => f.Location,
+        null => string.IsNullOrEmpty(_s.FilePath) ? "No file chosen" : "File not found: " + _s.FilePath,
+    };
 
     public double Volume { get => _s.Volume; set { _s.Volume = Math.Round(value, 2); OnPropertyChanged(); } }
     public bool Ticking
@@ -337,9 +558,6 @@ public sealed partial class AmbienceSectionViewModel : ObservableObject
         OnPropertyChanged(nameof(PreviewLabel));
     }
 
-    [RelayCommand]
-    private Task ChooseFile() => ChooseFileAsync();
-
     /// <summary>The settings window closing must not leave a preview playing.</summary>
     public void EndPreview()
     {
@@ -353,21 +571,51 @@ public sealed partial class AmbienceSectionViewModel : ObservableObject
         if (path != null)
         {
             _s.FilePath = path;
-            _s.Sound = YAPA.Avalonia.Audio.Ambience.AmbientSound.File;
+            _s.Sound = AmbientSound.File;
+            Rebuild();
         }
-        // Either way the ComboBox may be showing "Your own file…" without a file: re-sync it.
+        // Either way the ComboBox may be showing "Choose a file…": re-sync it.
         OnPropertyChanged(nameof(SelectedIndex));
         OnPropertyChanged(nameof(FileName));
         OnSoundChanged();
     }
 
-    /// <summary>After a reset: every value may have changed. Safe now that Options is stable.</summary>
-    public void Refresh() => OnPropertyChanged(string.Empty);
+    /// <summary>Picks up files added to the Sounds folder, or a newly chosen file.</summary>
+    public void Rebuild()
+    {
+        var options = BuildOptions();
+        if (options.SequenceEqual(Options)) return;
+        _rebuilding = true;
+        try
+        {
+            Options = options;
+            OnPropertyChanged(nameof(Options));
+        }
+        finally
+        {
+            _rebuilding = false;
+        }
+        OnPropertyChanged(nameof(SelectedIndex));
+    }
+
+    /// <summary>After a reset: every value may have changed.</summary>
+    public void Refresh()
+    {
+        Rebuild();
+        OnPropertyChanged(nameof(FileName));
+        OnPropertyChanged(nameof(Volume));
+        OnPropertyChanged(nameof(Ticking));
+        OnPropertyChanged(nameof(TickVolume));
+        OnPropertyChanged(nameof(DuringBreaks));
+        OnPropertyChanged(nameof(PreviewLabel));
+        OnSoundChanged();
+    }
 
     private void OnSoundChanged()
     {
         OnPropertyChanged(nameof(HasSound));
         OnPropertyChanged(nameof(IsFile));
+        OnPropertyChanged(nameof(FileName));
         OnPropertyChanged(nameof(CanPreview));
     }
 }

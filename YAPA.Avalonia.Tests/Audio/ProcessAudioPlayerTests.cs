@@ -77,6 +77,28 @@ public class ProcessAudioPlayerTests
     }
 
     [TestMethod]
+    public void A_radio_stream_plays_although_it_is_not_a_file()
+    {
+        using var player = Create("ffplay");
+        player.Play("https://ice1.somafm.com/fluid-128-mp3", loop: true, volume: 0.5);
+
+        Assert.AreEqual(1, _launcher.Started.Count);
+        Assert.AreEqual("https://ice1.somafm.com/fluid-128-mp3", _launcher.Started[0].Command.Arguments[^1]);
+    }
+
+    [TestMethod]
+    public void A_dropped_station_reconnects()
+    {
+        using var player = Create("ffplay");
+        player.Play("https://ice1.somafm.com/fluid-128-mp3", loop: true, volume: 0.5);
+        _time.Advance(TimeSpan.FromMinutes(40));
+        _launcher.Last.Exit(0);
+
+        Assert.AreEqual(2, _launcher.Started.Count);
+        Assert.IsTrue(player.IsPlaying);
+    }
+
+    [TestMethod]
     public void NoLoop_EndsAfterOnePlay()
     {
         using var player = Create("ffplay");
@@ -192,6 +214,17 @@ public class PlayerCommandsTests
         CollectionAssert.AreEqual(
             new[] { "-nodisp", "-autoexit", "-loglevel", "quiet", "-volume", "31", "/music/focus.ogg" },
             Find(commands, "ffplay").Arguments.ToArray());
+    }
+
+    [TestMethod]
+    public void Streams_use_only_players_that_speak_http_and_exit_when_the_station_drops()
+    {
+        var commands = PlayerCommands.ForMedia("https://stream.radioparadise.com/mellow-128", 0.5, Everything);
+        CollectionAssert.AreEqual(new[] { "ffplay", "gst-play-1.0" }, commands.Select(c => c.Name).ToArray());
+        CollectionAssert.Contains(Find(commands, "ffplay").Arguments.ToArray(), "-autoexit");
+        Assert.AreEqual("https://stream.radioparadise.com/mellow-128", Find(commands, "ffplay").Arguments[^1]);
+        Assert.IsTrue(PlayerCommands.IsStream("HTTPS://x"));
+        Assert.IsFalse(PlayerCommands.IsStream("/home/me/https-tunes.mp3"));
     }
 
     [TestMethod]

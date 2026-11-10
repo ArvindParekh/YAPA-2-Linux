@@ -135,15 +135,13 @@
 
                 <TextBlock Classes="group" Text="Ambience while you work" />
                 <StackPanel DataContext="{Binding Ambience}" x:DataType="s:AmbienceSectionViewModel">
-                    <c:SettingRow Title="Background sound" Description="Rain and noise are generated live, so they never loop. Fades in when a pomodoro starts.">
+                    <c:SettingRow Title="Background sound" Description="Rain and noise are generated live, so they never repeat. Fades in when a pomodoro starts.">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <ComboBox ItemsSource="{Binding Options}" SelectedIndex="{Binding SelectedIndex}" Width="220" />
                             <Button Content="{Binding PreviewLabel}" Command="{Binding TogglePreviewCommand}" IsEnabled="{Binding CanPreview}" MinWidth="80" />
                         </StackPanel>
                     </c:SettingRow>
-                    <c:SettingRow Title="Your recording" Description="{Binding FileName}" IsVisible="{Binding IsFile}">
-                        <Button Content="Choose another…" Command="{Binding ChooseFileCommand}" />
-                    </c:SettingRow>
+                    <c:SettingRow Title="Recording" Description="{Binding FileName}" IsVisible="{Binding IsFile}" />
                     <c:SettingRow Title="Ambience volume" IsVisible="{Binding HasSound}">
                         <Slider Classes="setting" Minimum="0" Maximum="1" Value="{Binding Volume}" />
                     </c:SettingRow>
@@ -162,16 +160,19 @@
                 <ItemsControl ItemsSource="{Binding Music}" IsEnabled="{Binding SoundEnabled}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="s:MusicRowViewModel">
-                            <c:SettingRow Title="{Binding Label}" Description="{Binding FileName}">
+                            <c:SettingRow Title="{Binding Label}" Description="{Binding Description}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <CheckBox Content="Loop" IsChecked="{Binding Repeat}" IsEnabled="{Binding HasFile}" />
-                                    <Button Content="Choose…" Command="{Binding BrowseCommand}" />
-                                    <Button Content="Clear" Command="{Binding ClearCommand}" IsEnabled="{Binding HasFile}" />
+                                    <CheckBox Content="Loop" IsChecked="{Binding Repeat}" IsVisible="{Binding IsFile}" />
+                                    <ComboBox ItemsSource="{Binding Options}" SelectedIndex="{Binding SelectedIndex}" Width="220" />
+                                    <Button Content="{Binding PreviewLabel}" Command="{Binding TogglePreviewCommand}" IsEnabled="{Binding CanPreview}" MinWidth="80" />
                                 </StackPanel>
                             </c:SettingRow>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                <c:SettingRow Title="Your own sounds" Description="{Binding LibraryFolder, StringFormat='Audio files in {0} appear in these lists by name'}">
+                    <Button Content="Open folder" Command="{Binding OpenLibraryFolderCommand}" />
+                </c:SettingRow>
             </StackPanel>
         </DataTemplate>
 

@@ -18,6 +18,10 @@ internal static class PlayerCommands
     private static readonly HashSet<string> PaplayFormats = new(StringComparer.OrdinalIgnoreCase) { ".wav", ".flac", ".ogg", ".oga" };
     private static readonly HashSet<string> MpegFormats = new(StringComparer.OrdinalIgnoreCase) { ".mp3", ".mp2", ".mp1", ".mpga" };
 
+    /// <summary>Internet radio, as opposed to a file.</summary>
+    public static bool IsStream(string path)
+        => path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || path.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// Any media file, volume applied by the player. Used for background music and for
     /// cue files that can't be decoded in-process.
@@ -25,6 +29,17 @@ internal static class PlayerCommands
     public static IReadOnlyList<PlayerCommand> ForMedia(string path, double sliderVolume, ExecutableResolver resolver)
     {
         var gain = VolumeCurve.ToGain(sliderVolume);
+        if (IsStream(path))
+        {
+            // Internet radio: only players with a network stack. pw-play and paplay read local
+            // files only; mpg123 would cope with MP3 streams but not the AAC ones. -autoexit
+            // matters: when a station drops, ffplay must exit so the player reconnects
+            // instead of sitting there silent.
+            var streaming = new List<PlayerCommand>();
+            Add(streaming, resolver, "ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", "-volume", I(Math.Round(gain * 100)), path);
+            Add(streaming, resolver, "gst-play-1.0", "--no-interactive", "-q", "--volume", F(gain), path);
+            return streaming;
+        }
         var ext = Path.GetExtension(path);
         var commands = new List<PlayerCommand>();
 
