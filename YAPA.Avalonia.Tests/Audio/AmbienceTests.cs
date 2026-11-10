@@ -188,7 +188,7 @@ public class AmbienceTests
     [TestMethod]
     public void Mixer_fades_in_and_out_without_clicks()
     {
-        var mixer = new AmbienceMixer(Rate, s => AmbienceGenerators.Create(s, Rate, 7));
+        var mixer = new AmbienceMixer(Rate, s => AmbienceGenerators.Create(s.Sound, Rate, 7));
         var block = new float[960 * 2];
         var all = new System.Collections.Generic.List<float>();
 

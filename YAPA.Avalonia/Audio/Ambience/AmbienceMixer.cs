@@ -2,6 +2,12 @@ using System;
 
 namespace YAPA.Avalonia.Audio.Ambience;
 
+/// <summary>What the bed plays: a generated sound, or a recording (<see cref="AmbientSound.File"/> + path).</summary>
+internal readonly record struct AmbientBed(AmbientSound Sound, string? FilePath = null)
+{
+    public static implicit operator AmbientBed(AmbientSound sound) => new(sound);
+}
+
 /// <summary>
 /// Mixes the background bed (rain, noise) with the ticking clock, with every
 /// change smoothed: the session start fades in, the end fades out, switching
@@ -16,20 +22,26 @@ internal sealed class AmbienceMixer
     public static readonly TimeSpan FadeOut = TimeSpan.FromSeconds(1.5);
     public static readonly TimeSpan Crossfade = TimeSpan.FromSeconds(2);
 
+    /// <summary>
+    /// Below this the fade-out counts as finished. Float steps can leave the level a hair
+    /// above zero, so rendering stopping and beds being released must use the same line.
+    /// </summary>
+    private const float Inaudible = 0.0001f;
+
     private readonly int _rate;
-    private readonly Func<AmbientSound, IAmbienceGenerator?> _factory;
+    private readonly Func<AmbientBed, IAmbienceGenerator?> _factory;
     private readonly TickGenerator _ticks;
     private readonly object _gate = new();
 
     // Requested state, written by control methods under _gate.
     private bool _active;
-    private AmbientSound _sound;
+    private AmbientBed _sound;
     private float _bedTarget;
     private float _tickTarget;
     private TickAnchor _anchor;
 
     // Render-thread state.
-    private AmbientSound _currentSound;
+    private AmbientBed _currentSound;
     private IAmbienceGenerator? _bed;
     private IAmbienceGenerator? _outgoing;
     private float _crossfade = 1f; // 0..1, 1 = fully on _bed
@@ -37,17 +49,17 @@ internal sealed class AmbienceMixer
     private float _bedGain;
     private float _tickGain;
 
-    public AmbienceMixer(int sampleRate, Func<AmbientSound, IAmbienceGenerator?>? factory = null)
+    public AmbienceMixer(int sampleRate, Func<AmbientBed, IAmbienceGenerator?>? factory = null)
     {
         _rate = sampleRate;
-        _factory = factory ?? (s => AmbienceGenerators.Create(s, sampleRate, (ulong)Environment.TickCount64));
+        _factory = factory ?? (b => AmbienceGenerators.Create(b.Sound, sampleRate, (ulong)Environment.TickCount64));
         _ticks = new TickGenerator(sampleRate);
     }
 
     /// <param name="bedGain">Linear gain for the bed (already through the volume curve).</param>
     /// <param name="tickGain">Linear gain for the ticking; 0 turns it off.</param>
     /// <param name="anchor">Where the timer's seconds fall; ticks are placed on them. Null keeps the current one.</param>
-    public void Set(bool active, AmbientSound sound, float bedGain, float tickGain, TickAnchor? anchor = null)
+    public void Set(bool active, AmbientBed sound, float bedGain, float tickGain, TickAnchor? anchor = null)
     {
         lock (_gate)
         {
@@ -59,12 +71,21 @@ internal sealed class AmbienceMixer
         }
     }
 
+    /// <summary>
+    /// Fades everything out but keeps the bed, so resuming within the fade carries on
+    /// where it was instead of starting the bed again (for a recording: a new decode).
+    /// </summary>
+    public void Deactivate()
+    {
+        lock (_gate) _active = false;
+    }
+
     /// <summary>True while there is anything to play, including the tail of a fade-out.</summary>
     public bool WantsAudio
     {
         get
         {
-            lock (_gate) return _active || _master > 0.0001f;
+            lock (_gate) return _active || _master > Inaudible;
         }
     }
 
@@ -72,7 +93,7 @@ internal sealed class AmbienceMixer
     public void Render(Span<float> stereo, TimeSpan heardAt)
     {
         bool active;
-        AmbientSound sound;
+        AmbientBed sound;
         float bedTarget, tickTarget;
         TickAnchor anchor;
         lock (_gate)
@@ -86,8 +107,17 @@ internal sealed class AmbienceMixer
 
         if (sound != _currentSound)
         {
-            // Keep the old bed playing underneath while the new one fades in.
-            _outgoing = _crossfade > 0.5f ? _bed : _outgoing;
+            // Keep the old bed playing underneath while the new one fades in; whichever
+            // of the two isn't kept is finished with.
+            if (_crossfade > 0.5f)
+            {
+                Release(_outgoing);
+                _outgoing = _bed;
+            }
+            else
+            {
+                Release(_bed);
+            }
             _bed = _factory(sound);
             _currentSound = sound;
             _crossfade = 0f;
@@ -110,7 +140,7 @@ internal sealed class AmbienceMixer
         if (_bed != null) _bed.MixInto(stereo, bedEnd * masterGain * Smooth(crossEnd));
         if (_outgoing != null)
         {
-            if (crossEnd >= 1f) _outgoing = null;
+            if (crossEnd >= 1f) { Release(_outgoing); _outgoing = null; }
             else _outgoing.MixInto(stereo, bedEnd * masterGain * Smooth(1f - crossEnd));
         }
         if (tickEnd > 0) _ticks.MixInto(stereo, tickEnd * masterGain, heardAt, anchor);
@@ -120,6 +150,18 @@ internal sealed class AmbienceMixer
         _bedGain = bedEnd;
         _tickGain = tickEnd;
 
+        if (!active && masterEnd <= Inaudible)
+        {
+            _master = 0f;
+            // Faded out completely: let go of the beds (a recording holds a decoder
+            // process). The next session starts them afresh.
+            Release(_bed);
+            Release(_outgoing);
+            _bed = _outgoing = null;
+            _currentSound = default;
+            _crossfade = 1f;
+        }
+
         // Gentle safety limiter: rain peaks (a close drop) must never clip.
         for (var i = 0; i < stereo.Length; i++)
         {
@@ -127,6 +169,8 @@ internal sealed class AmbienceMixer
             if (x > 0.8f || x < -0.8f) stereo[i] = MathF.Tanh(x);
         }
     }
+
+    private static void Release(IAmbienceGenerator? generator) => (generator as IDisposable)?.Dispose();
 
     private static float Glide(float from, float to, float seconds)
     {

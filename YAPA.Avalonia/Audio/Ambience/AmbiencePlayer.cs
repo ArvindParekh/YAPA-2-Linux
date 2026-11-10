@@ -36,9 +36,10 @@ public interface IAmbiencePlayer : IDisposable
 /// separately). The stream is opened on demand and closed when silent, so YAPA
 /// doesn't hold an audio stream open all day.
 ///
-/// The user's own file goes through the looping media player instead, because
-/// decoding arbitrary formats in-process isn't worth the dependency. The ticking
-/// still comes from the stream, so it can layer on top of a file.
+/// A recording plays in the same stream, decoded by ffmpeg or GStreamer (see
+/// <see cref="RecordingGenerator"/>), so its volume follows the slider live and it
+/// fades like the generated sounds. Only without a decoder does it go to the looping
+/// media player, whose volume is fixed when it starts.
 ///
 /// Without PulseAudio, a seamless loop is rendered to the cache and played by
 /// the media player: no live fades, but the same sound.
@@ -51,7 +52,8 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
     private static readonly TimeSpan StreamBuffer = TimeSpan.FromMilliseconds(300);
     private static readonly TimeSpan CloseWhenIdleAfter = TimeSpan.FromSeconds(3);
 
-    private readonly AmbienceMixer _mixer = new(SampleRate);
+    private readonly AmbienceMixer _mixer;
+    private readonly Func<string, IAmbienceGenerator?>? _openRecording;
     private readonly IBackgroundMusicPlayer _filePlayer;
     private readonly Func<ICueOutputStream?> _openStream;
     private readonly AutoResetEvent _wake = new(false);
@@ -73,9 +75,15 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
     private string? _playingFile;
     private string? _fallbackLoop;
 
-    internal AmbiencePlayer(IBackgroundMusicPlayer filePlayer, Func<ICueOutputStream?>? openStream, TimeSpan? retryAfter = null)
+    /// <param name="openRecording">Decodes a recording into the stream; null when no decoder is installed.</param>
+    internal AmbiencePlayer(IBackgroundMusicPlayer filePlayer, Func<ICueOutputStream?>? openStream, TimeSpan? retryAfter = null,
+        Func<string, IAmbienceGenerator?>? openRecording = null)
     {
         RetryAfter = retryAfter ?? TimeSpan.FromSeconds(30);
+        _openRecording = openRecording;
+        _mixer = new AmbienceMixer(SampleRate, bed => bed is { Sound: AmbientSound.File, FilePath: { } path }
+            ? _openRecording?.Invoke(path)
+            : AmbienceGenerators.Create(bed.Sound, SampleRate, (ulong)Environment.TickCount64));
         _filePlayer = filePlayer;
         _openStream = openStream ?? (() => null);
         _noStream = openStream == null;
@@ -99,7 +107,10 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
                 return stream;
             };
         }
-        return new AmbiencePlayer(filePlayer, open);
+        Func<string, IAmbienceGenerator?>? recording = RecordingGenerator.CanDecode(ExecutableResolver.Default)
+            ? path => RecordingGenerator.TryCreate(path, ExecutableResolver.Default)
+            : null;
+        return new AmbiencePlayer(filePlayer, open, openRecording: recording);
     }
 
     private bool UsingFallback => _noStream || DateTime.UtcNow < _streamRetryAt;
@@ -113,11 +124,12 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
         {
             _lastMix = mix;
             _active = true;
-            UpdateFile(mix);
             var generatedBed = mix.Sound is AmbientSound.File ? AmbientSound.None : mix.Sound;
+            var recording = RecordingPath(mix);
 
             if (UsingFallback)
             {
+                UpdateFile(recording, mix.Volume);
                 PlayFallbackLoop(mix with { Sound = generatedBed });
                 return;
             }
@@ -128,12 +140,13 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
                 _filePlayer.Stop();
                 _fallbackLoop = null;
                 _playingFile = null;
-                UpdateFile(mix);
             }
 
+            var inStream = recording != null && _openRecording != null;
+            UpdateFile(inStream ? null : recording, mix.Volume);
             _mixer.Set(
                 active: true,
-                sound: generatedBed,
+                sound: inStream ? new AmbientBed(AmbientSound.File, recording) : generatedBed,
                 bedGain: (float)VolumeCurve.ToGain(mix.Volume),
                 tickGain: mix.Ticking ? (float)VolumeCurve.ToGain(mix.TickVolume) : 0f,
                 anchor: ticks);
@@ -149,19 +162,20 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
             _filePlayer.Stop();
             _playingFile = null;
             _fallbackLoop = null;
-            _mixer.Set(active: false, AmbientSound.None, 0, 0);
+            _mixer.Deactivate();
         }
     }
 
-    private void UpdateFile(AmbienceMix mix)
+    private static string? RecordingPath(AmbienceMix mix)
+        => mix.Sound == AmbientSound.File && !string.IsNullOrEmpty(mix.FilePath) && File.Exists(mix.FilePath) ? mix.FilePath : null;
+
+    /// <summary>The external-player route for a recording (null: none playing that way).</summary>
+    private void UpdateFile(string? wanted, double volume)
     {
-        var wanted = mix.Sound == AmbientSound.File && !string.IsNullOrEmpty(mix.FilePath) && File.Exists(mix.FilePath)
-            ? mix.FilePath
-            : null;
         if (wanted == _playingFile) return;
         _filePlayer.Stop();
         _playingFile = wanted;
-        if (wanted != null) _filePlayer.Play(wanted, loop: true, mix.Volume);
+        if (wanted != null) _filePlayer.Play(wanted, loop: true, volume);
     }
 
     private void PlayFallbackLoop(AmbienceMix mix)
@@ -224,6 +238,7 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
                         if (_active)
                         {
                             var generatedBed = _lastMix.Sound is AmbientSound.File ? AmbientSound.None : _lastMix.Sound;
+                            UpdateFile(RecordingPath(_lastMix), _lastMix.Volume);
                             PlayFallbackLoop(_lastMix with { Sound = generatedBed });
                         }
                     }

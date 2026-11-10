@@ -85,6 +85,8 @@ Per-machine settings (music paths, window position) live in `localSettings.json`
   and the control renders nothing. The actions menu shipped broken this way.
 - Mutter ends Show Desktop when any new window maps, popups and tooltips included,
   except for DOCK windows and their transients. So the timer has no hover tooltips.
+- A .NET `Process` disposed before it has been waited for is never reaped and stays a
+  zombie. Kill, then `WaitForExit` and dispose off the audio thread (`RecordingGenerator`).
 - Avalonia installs its own Xlib error handler. Anything chaining to the previous
   handler must hold it as a plain `Delegate`, because marshaling hands back
   Avalonia's delegate type.

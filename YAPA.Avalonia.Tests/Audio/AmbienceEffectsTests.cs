@@ -179,7 +179,7 @@ public class AmbiencePlayerTests
     }
 
     [TestMethod]
-    public void User_file_goes_to_the_media_player_on_loop()
+    public void Without_a_decoder_a_recording_goes_to_the_media_player_on_loop()
     {
         var file = System.IO.Path.GetTempFileName();
         try
@@ -215,5 +215,51 @@ public class AmbiencePlayerTests
         Assert.IsTrue(attempts >= 2, "retried the stream");
         music.Received().Stop();
         lock (stream.Samples) Assert.IsTrue(stream.Samples.Count > 48_000, "streaming after the retry");
+    }
+
+    [TestMethod]
+    public void A_recording_plays_in_the_stream_and_follows_the_volume_slider_live()
+    {
+        var file = System.IO.Path.GetTempFileName();
+        try
+        {
+            var stream = new RecordingStream();
+            var music = Substitute.For<IBackgroundMusicPlayer>();
+            var opened = new List<string>();
+            using var player = new AmbiencePlayer(music, () => stream,
+                openRecording: path => { opened.Add(path); return new ConstantBed(0.5f); });
+
+            player.Play(new AmbienceMix(AmbientSound.File, file, 1, false, 0), null);
+            var loud = LevelAfterSettling(stream);
+            player.Play(new AmbienceMix(AmbientSound.File, file, 0.3, false, 0), null);
+            var quiet = LevelAfterSettling(stream);
+
+            CollectionAssert.AreEqual(new[] { file }, opened, "decoded once, not restarted for a volume change");
+            music.DidNotReceive().Play(Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<double>());
+            Assert.AreEqual(0.5, loud, 0.01, "full volume plays the recording as recorded");
+            Assert.AreEqual(0.5 * VolumeCurve.ToGain(0.3), quiet, 0.01, "the slider changes the level while it plays");
+        }
+        finally
+        {
+            System.IO.File.Delete(file);
+        }
+    }
+
+    /// <summary>Waits past the fade-in and volume glide, then reads the level of the latest block.</summary>
+    private static double LevelAfterSettling(RecordingStream stream)
+    {
+        int start;
+        lock (stream.Samples) start = stream.Samples.Count;
+        // 3 s of audio: longer than the 2.5 s fade-in and the 0.4 s glide.
+        SpinWait.SpinUntil(() => { lock (stream.Samples) return stream.Samples.Count > start + 48_000 * 2 * 3; }, 10_000);
+        lock (stream.Samples) return stream.Samples.Skip(stream.Samples.Count - 960).Average(Math.Abs);
+    }
+
+    private sealed class ConstantBed(float level) : IAmbienceGenerator
+    {
+        public void MixInto(Span<float> stereo, float gain)
+        {
+            for (var i = 0; i < stereo.Length; i++) stereo[i] += level * gain;
+        }
     }
 }
