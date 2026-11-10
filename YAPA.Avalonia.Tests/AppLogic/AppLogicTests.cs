@@ -290,10 +290,43 @@ public class TimerViewModelTests
     }
 
     [TestMethod]
+    public void The_cycle_position_shows_against_its_length_and_names_the_cycle()
+    {
+        var (rig, vm) = Create();
+        Assert.AreEqual("1/4", vm.CounterText);
+        Assert.AreEqual("", vm.CycleSuffix, "nothing to name before the first pomodoro");
+        Assert.AreEqual("Pomodoro 1 of 4, cycle 1", vm.CounterTooltip);
+
+        rig.Engine.Start();
+        Assert.AreEqual(" · Cycle 1", vm.CycleSuffix);
+
+        for (var i = 0; i < 4; i++)
+        {
+            if (i > 0) rig.Engine.Start();
+            rig.Elapse(25 * 60);
+            rig.Engine.Start();
+            Assert.AreEqual($"{i + 1}/4", vm.CounterText);
+            rig.Elapse(rig.Engine.BreakTime);
+        }
+        Assert.AreEqual("Break over", vm.StatusText);
+        Assert.AreEqual(" · Cycle 1", vm.CycleSuffix, "still the cycle the long break ended");
+
+        rig.Engine.Start();
+        Assert.AreEqual("1/4", vm.CounterText);
+        Assert.AreEqual(" · Cycle 2", vm.CycleSuffix);
+
+        rig.Engine.Stop();
+        Assert.AreEqual(" · Cycle 2", vm.CycleSuffix, "at rest later in the day, the cycle still shows");
+
+        rig.EngineSettings.Counter = CounterEnum.CompletedToday;
+        Assert.AreEqual("", vm.CycleSuffix, "only the cycle counter names the cycle");
+    }
+
+    [TestMethod]
     public void The_goal_is_not_shown_beside_other_counts()
     {
         var (rig, vm) = Create(@"{""General"":{""DailyGoal"":12}}");
-        Assert.AreEqual("1", vm.CounterText, "position in the cycle is not progress towards the day");
+        Assert.AreEqual("1/4", vm.CounterText, "the cycle's own length, not the day's goal");
 
         rig.EngineSettings.Counter = CounterEnum.CompletedThisSession;
         Assert.AreEqual("0", vm.CounterText);

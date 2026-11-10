@@ -40,10 +40,12 @@
 
             <TextBlock Grid.Row="0" Grid.Column="0"
                        x:Name="StatusLabel"
-                       Text="{Binding StatusText}"
                        Foreground="{Binding #Root.TextBrush}"
                        FontSize="13" FontWeight="Medium" Opacity="0.85"
-                       Margin="6,2,0,0" VerticalAlignment="Center" />
+                       TextTrimming="CharacterEllipsis"
+                       Margin="6,2,0,0" VerticalAlignment="Center">
+                <Run Text="{Binding StatusText}" /><Run Text="{Binding CycleSuffix}" FontWeight="Normal" />
+            </TextBlock>
 
             <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal"
                         HorizontalAlignment="Right" Margin="0,2,2,0"

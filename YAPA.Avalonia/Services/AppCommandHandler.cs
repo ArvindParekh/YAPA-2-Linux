@@ -67,6 +67,7 @@ public sealed class AppCommandHandler(TimerViewModel vm, IAppNavigator navigator
             remaining = e.Remaining,
             length = e.CurrentIntervalLength,
             pomodoro = e.Index,
+            cycle = e.Cycle,
             longBreakNext = e.IsLongBreak,
             counter = e.Counter,
         });

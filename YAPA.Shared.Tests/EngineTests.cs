@@ -556,5 +556,134 @@ namespace YAPA.Shared.Tests
             _engine.Pause();
             Assert.IsNull(_engine.NextSecondAt);
         }
+
+        // ── Cycles ───────────────────────────────────────────────────────────
+
+        /// <summary>Works a pomodoro and its whole break, leaving the engine at BreakEnded.</summary>
+        private void Pomodoro()
+        {
+            _engine.Start();
+            Elapse(Work);
+            _engine.Start();
+            Elapse(_engine.BreakTime);
+        }
+
+        [TestMethod]
+        public void The_cycle_number_moves_on_after_the_long_break_not_during_it()
+        {
+            Create(cycle: 2);
+            Assert.AreEqual(1, _engine.Cycle);
+
+            Pomodoro();
+            _engine.Start();
+            Elapse(Work);
+            _engine.Start(); // the long break
+            Assert.IsTrue(_engine.IsLongBreak);
+            Assert.AreEqual(1, _engine.Cycle, "the long break belongs to the cycle it ends");
+
+            Elapse(LongBreak);
+            _engine.Start();
+            Assert.AreEqual(2, _engine.Cycle);
+            Assert.AreEqual(1, _engine.Index);
+        }
+
+        [TestMethod]
+        public void Ending_or_skipping_the_long_break_also_finishes_the_cycle()
+        {
+            Create(cycle: 1);
+            _engine.Start();
+            Elapse(Work);
+            _engine.Stop(); // ends the (long) break
+            Assert.AreEqual(2, _engine.Cycle);
+
+            _engine.Start();
+            Elapse(Work);
+            _engine.Skip();
+            Assert.AreEqual(3, _engine.Cycle);
+        }
+
+        [TestMethod]
+        public void An_early_long_break_finishes_the_cycle_only_if_work_was_done()
+        {
+            Create();
+            _engine.StartLongBreak(); // straight from idle: nothing to finish
+            Elapse(LongBreak);
+            _engine.Start();
+            Assert.AreEqual(1, _engine.Cycle);
+
+            Elapse(Work);
+            _engine.StartLongBreak();
+            Elapse(LongBreak);
+            _engine.Start();
+            Assert.AreEqual(2, _engine.Cycle);
+        }
+
+        [TestMethod]
+        public void Abandoning_a_pomodoro_or_resetting_keeps_the_cycle()
+        {
+            Create(cycle: 1);
+            Pomodoro();
+            _engine.Start();
+            Assert.AreEqual(2, _engine.Cycle);
+
+            _engine.Stop();
+            Assert.AreEqual(2, _engine.Cycle);
+            _engine.Reset();
+            Assert.AreEqual(2, _engine.Cycle, "reset starts this cycle over");
+        }
+
+        [TestMethod]
+        public void Cycles_are_counted_per_day()
+        {
+            Create(cycle: 1);
+            Pomodoro();
+            _engine.Start();
+            Assert.AreEqual(2, _engine.Cycle);
+
+            _engine.Stop();
+            _clock.Advance(TimeSpan.FromDays(1));
+            Assert.AreEqual(1, _engine.Cycle);
+
+            Pomodoro();
+            _engine.Start();
+            Assert.AreEqual(2, _engine.Cycle, "yesterday's cycles don't carry over");
+        }
+
+        [TestMethod]
+        public void The_cycle_survives_a_restart()
+        {
+            Create(cycle: 2);
+            Pomodoro();
+            Pomodoro();
+            _engine.Start();
+            Elapse(Work); // first pomodoro of cycle 2
+            var snapshot = _engine.GetSnapshot();
+
+            Create(cycle: 2);
+            _engine.LoadSnapshot(snapshot);
+            Assert.AreEqual(2, _engine.Cycle);
+            Assert.AreEqual(1, _engine.Index);
+
+            // Restored mid-cycle with work done: an early long break still finishes it.
+            _engine.StartLongBreak();
+            Elapse(LongBreak);
+            _engine.Start();
+            Assert.AreEqual(3, _engine.Cycle);
+        }
+
+        [TestMethod]
+        public void Old_or_stale_snapshots_start_at_cycle_one()
+        {
+            Create();
+            _engine.LoadSnapshot(new PomodoroEngineSnapshot { Phase = PomodoroPhase.NotStarted, PomodoroIndex = 2 });
+            Assert.AreEqual(1, _engine.Cycle, "snapshots from older builds have no cycles");
+
+            _engine.LoadSnapshot(new PomodoroEngineSnapshot
+            {
+                Phase = PomodoroPhase.NotStarted, PomodoroIndex = 1, CyclesFinished = 3,
+                CyclesDate = _clock.UtcNow.ToLocalTime().Date.AddDays(-1),
+            });
+            Assert.AreEqual(1, _engine.Cycle);
+        }
     }
 }

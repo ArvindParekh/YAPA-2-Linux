@@ -32,9 +32,12 @@
 
         <Grid Margin="16,10,16,10" RowDefinitions="Auto,*,Auto,Auto,Auto">
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
-                <TextBlock x:Name="StatusLabel" Text="{Binding StatusText}"
+                <TextBlock x:Name="StatusLabel"
                            Foreground="{Binding #Root.TextBrush}"
-                           FontSize="11" FontWeight="Medium" Opacity="0.8" VerticalAlignment="Center" />
+                           FontSize="11" FontWeight="Medium" Opacity="0.8" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis">
+                    <Run Text="{Binding StatusText}" /><Run Text="{Binding CycleSuffix}" FontWeight="Normal" />
+                </TextBlock>
                 <StackPanel Grid.Column="1" Orientation="Horizontal"
                             Classes="controls" Classes.concealed="{Binding !#Root.ControlsVisible}">
                     <Button x:Name="MenuButton" Classes="chrome window" Content="⋯" Click="OnMenuClick" />

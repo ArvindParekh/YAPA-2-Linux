@@ -22,6 +22,15 @@ namespace YAPA.Shared.Common
 
         /// <summary>The user asked for the long break early (see <see cref="PomodoroEngine.StartLongBreak"/>).</summary>
         public bool LongBreakRequested { get; set; }
+
+        /// <summary>Cycles finished on <see cref="CyclesDate"/>. Absent in older snapshots.</summary>
+        public int CyclesFinished { get; set; }
+
+        /// <summary>Local date the cycles were finished on.</summary>
+        public DateTime? CyclesDate { get; set; }
+
+        /// <summary>A pomodoro has been completed in the current cycle.</summary>
+        public bool CycleHasWork { get; set; }
     }
 
     /// <summary>
@@ -57,6 +66,12 @@ namespace YAPA.Shared.Common
         private bool _longBreakRequested;
         private int _completedThisSession;
 
+        // Cycles are counted per local day, like the daily goal: a late session that
+        // crosses midnight starts the new day at cycle 1.
+        private int _cyclesFinished;
+        private DateTime _cyclesDate;
+        private bool _cycleHasWork;
+
         private TimeSpan _accumulated;
         private TimeSpan _segmentStart;
         private TimeSpan? _autoStartAt;
@@ -85,6 +100,10 @@ namespace YAPA.Shared.Common
         public PomodoroPhase PausedPhase => _pausedPhase;
 
         public int Index => Math.Min(_index, CycleLength);
+
+        public int Cycle => (_cyclesDate == Today ? _cyclesFinished : 0) + 1;
+
+        private DateTime Today => _clock.UtcNow.ToLocalTime().Date;
 
         public bool IsRunning => _phase == PomodoroPhase.Work || _phase == PomodoroPhase.Break;
 
@@ -338,6 +357,7 @@ namespace YAPA.Shared.Common
             if (from == PomodoroPhase.NotStarted && _index == 1) return;
 
             _longBreakRequested = false;
+            _cycleHasWork = false; // the same cycle, started over
             SetIndex(1);
             ResetInterval();
             Raise(PomodoroTransitionKind.Reset, from, false);
@@ -358,6 +378,9 @@ namespace YAPA.Shared.Common
                 StartDate = _clock.UtcNow,
                 PomodoroIndex = Index,
                 LongBreakRequested = _longBreakRequested,
+                CyclesFinished = _cyclesFinished,
+                CyclesDate = _cyclesFinished > 0 ? _cyclesDate : (DateTime?)null,
+                CycleHasWork = _cycleHasWork,
             };
         }
 
@@ -380,6 +403,9 @@ namespace YAPA.Shared.Common
 
             SetIndex(Math.Max(1, snapshot.PomodoroIndex));
             _longBreakRequested = snapshot.LongBreakRequested;
+            _cyclesFinished = snapshot.CyclesDate.HasValue ? Math.Max(0, snapshot.CyclesFinished) : 0;
+            _cyclesDate = snapshot.CyclesDate?.Date ?? default;
+            _cycleHasWork = snapshot.CycleHasWork;
             _pausedPhase = snapshot.PausedPhase == PomodoroPhase.Break ? PomodoroPhase.Break : PomodoroPhase.Work;
             _accumulated = TimeSpan.FromSeconds(Math.Max(0, snapshot.PausedTime));
             _segmentStart = _clock.Monotonic;
@@ -429,6 +455,7 @@ namespace YAPA.Shared.Common
             {
                 SetPhase(PomodoroPhase.WorkEnded);
                 _completedThisSession++;
+                _cycleHasWork = true;
                 NotifyTime(force: true);
 
                 if (_settings.AutoStartBreak)
@@ -488,11 +515,27 @@ namespace YAPA.Shared.Common
             {
                 // An early long break closes the cycle just like the scheduled one.
                 _longBreakRequested = false;
+                FinishCycle();
                 if (_index == 1) NotifyPropertyChanged(nameof(IsLongBreak));
                 SetIndex(1);
                 return;
             }
+            if (_index >= CycleLength) FinishCycle();
             SetIndex(_index >= CycleLength ? 1 : _index + 1);
+        }
+
+        private void FinishCycle()
+        {
+            // A long break taken before any pomodoro (straight from idle) ends nothing:
+            // counting it would show "cycle 2" with no work done.
+            var hadWork = _cycleHasWork || _index > 1;
+            _cycleHasWork = false;
+            if (!hadWork) return;
+
+            var today = Today;
+            _cyclesFinished = _cyclesDate == today ? _cyclesFinished + 1 : 1;
+            _cyclesDate = today;
+            NotifyPropertyChanged(nameof(Cycle));
         }
 
         private void SetIndex(int index)
@@ -543,6 +586,7 @@ namespace YAPA.Shared.Common
             NotifyPropertyChanged(nameof(PausedPhase));
             NotifyPropertyChanged(nameof(IsRunning));
             NotifyPropertyChanged(nameof(Index));
+            NotifyPropertyChanged(nameof(Cycle));
             NotifyPropertyChanged(nameof(IsLongBreak));
             NotifyPropertyChanged(nameof(WorkTime));
             NotifyPropertyChanged(nameof(BreakTime));

@@ -8,6 +8,9 @@ namespace YAPA.Shared.Contracts
     {
         /// <summary>1-based position in the long-break cycle.</summary>
         int Index { get; }
+
+        /// <summary>1-based: which long-break cycle of the (local) day this is.</summary>
+        int Cycle { get; }
         int Counter { get; }
         PomodoroPhase Phase { get; }
 

@@ -62,6 +62,9 @@ public sealed partial class TimerViewModel : ObservableObject
     [ObservableProperty] private string _statusText = "Ready";
     [ObservableProperty] private string _counterText = "1";
     [ObservableProperty] private string _counterTooltip = "";
+
+    /// <summary>" · Cycle 2" after the status, when the counter shows the cycle; else empty.</summary>
+    [ObservableProperty] private string _cycleSuffix = "";
     [ObservableProperty] private double _progress;
     [ObservableProperty] private PomodoroPhase _phase;
     [ObservableProperty] private bool _isBreakInterval;
@@ -187,6 +190,39 @@ public sealed partial class TimerViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Each count gets the denominator that gives it meaning: the cycle length for the
+    /// position in the cycle ("2/4"), the daily goal for today's count ("5/12"). Mixing
+    /// them ("3/12" beside the position in the cycle) would read as progress it isn't.
+    /// </summary>
+    private void RefreshCounter(PomodoroPhase phase)
+    {
+        var counter = _engine.Counter;
+        switch (_engineSettings.Counter)
+        {
+            case CounterEnum.CompletedToday:
+                var goal = _general.DailyGoal;
+                CounterText = goal > 0 ? $"{counter}/{goal}" : counter.ToString();
+                CounterTooltip = goal > 0 ? $"{counter} of {goal} pomodoros done today" : "Pomodoros completed today";
+                CycleSuffix = "";
+                break;
+            case CounterEnum.CompletedThisSession:
+                CounterText = counter.ToString();
+                CounterTooltip = "Pomodoros completed since YAPA started";
+                CycleSuffix = "";
+                break;
+            default:
+                var length = Math.Max(1, _engineSettings.PomodorosBeforeLongBreak);
+                var cycle = _engine.Cycle;
+                CounterText = $"{_engine.Index}/{length}";
+                CounterTooltip = $"Pomodoro {_engine.Index} of {length}, cycle {cycle}";
+                // A fresh start has no cycle worth naming yet.
+                var fresh = phase == PomodoroPhase.NotStarted && _engine.Index == 1 && cycle == 1;
+                CycleSuffix = fresh ? "" : $" · Cycle {cycle}";
+                break;
+        }
+    }
+
     public void Refresh()
     {
         var phase = _engine.Phase;
@@ -197,18 +233,7 @@ public sealed partial class TimerViewModel : ObservableObject
         Phase = phase;
         IsBreakInterval = inBreak;
         Progress = _engine.Progress;
-        // The daily goal only means something next to today's count; "3/12" beside the
-        // position in the cycle or a since-launch count would read as progress it isn't.
-        var counter = _engine.Counter;
-        var goal = _engineSettings.Counter == CounterEnum.CompletedToday ? _general.DailyGoal : 0;
-        CounterText = goal > 0 ? $"{counter}/{goal}" : counter.ToString();
-        CounterTooltip = _engineSettings.Counter switch
-        {
-            CounterEnum.CompletedToday when goal > 0 => $"{counter} of {goal} pomodoros done today",
-            CounterEnum.CompletedToday => "Pomodoros completed today",
-            CounterEnum.CompletedThisSession => "Pomodoros completed since YAPA started",
-            _ => $"Pomodoro {_engine.Index} of {Math.Max(1, _engineSettings.PomodorosBeforeLongBreak)} before the long break",
-        };
+        RefreshCounter(phase);
 
         UpdateTime(_engine.DisplayValue);
 
