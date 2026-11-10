@@ -101,6 +101,20 @@ public class UiSmokeTests
     });
 
     [TestMethod]
+    public void Sounds_page_with_ambience_renders() => OnUi(() =>
+    {
+        var ambience = App.Bootstrapper!.Resolve<YAPA.Avalonia.Audio.Ambience.AmbienceSettings>();
+        ambience.Sound = YAPA.Avalonia.Audio.Ambience.AmbientSound.SteadyRain;
+        ambience.Ticking = true;
+        var window = new SettingsWindow { Height = 1500 };
+        window.Show();
+        window.Navigate(YAPA.Avalonia.Services.SettingsPage.Sounds);
+        Render(window, "settings-sounds-ambience");
+        window.Close();
+        ambience.ResetToDefaults();
+    });
+
+    [TestMethod]
     public void Statistics_renders() => OnUi(() =>
     {
         var window = new StatisticsWindow();

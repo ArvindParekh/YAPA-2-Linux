@@ -32,6 +32,12 @@ internal sealed class PulseSimpleStream : ICueOutputStream
     public int Channels { get; }
 
     public static PulseSimpleStream? TryOpen(int sampleRate, int channels, out string error)
+        => TryOpen(sampleRate, channels, StreamName, TargetLatency, out error);
+
+    /// <param name="streamName">Shown per stream in the system sound mixer.</param>
+    /// <param name="targetLatency">Server-side buffer. Continuous streams want more than cues,
+    /// so a GC pause or a busy UI thread can't starve the device.</param>
+    public static PulseSimpleStream? TryOpen(int sampleRate, int channels, string streamName, TimeSpan targetLatency, out string error)
     {
         try
         {
@@ -43,7 +49,7 @@ internal sealed class PulseSimpleStream : ICueOutputStream
             };
 
             var frameBytes = channels * sizeof(float);
-            var tlength = (uint)(sampleRate * TargetLatency.TotalSeconds) * (uint)frameBytes;
+            var tlength = (uint)(sampleRate * targetLatency.TotalSeconds) * (uint)frameBytes;
             var attributes = new PulseSimpleNative.BufferAttr
             {
                 MaxLength = PulseSimpleNative.Default,
@@ -58,7 +64,7 @@ internal sealed class PulseSimpleStream : ICueOutputStream
             // A null channel map makes the server pick its default layout for the channel count
             // (mono, stereo, 5.1 ...), falling back to AUX channels for exotic counts.
             var handle = PulseSimpleNative.pa_simple_new(
-                null, ApplicationName, PulseSimpleNative.StreamPlayback, null, StreamName,
+                null, ApplicationName, PulseSimpleNative.StreamPlayback, null, streamName,
                 ref spec, IntPtr.Zero, ref attributes, out var code);
 
             if (handle.IsInvalid)

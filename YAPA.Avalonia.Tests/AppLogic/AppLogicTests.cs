@@ -255,7 +255,7 @@ public class TimerViewModelTests
     private static (Rig, TimerViewModel) Create()
     {
         var rig = new Rig();
-        var vm = new TimerViewModel(rig.Engine, rig.EngineSettings, new AvaloniaYapaThemeSettings(rig.Settings), Substitute.For<IAppNavigator>());
+        var vm = new TimerViewModel(rig.Engine, rig.EngineSettings, new AvaloniaYapaThemeSettings(rig.Settings), Substitute.For<IAppNavigator>(), new YAPA.Avalonia.Audio.Ambience.AmbienceSettings(rig.Settings));
         return (rig, vm);
     }
 

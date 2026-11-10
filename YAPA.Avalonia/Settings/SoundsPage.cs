@@ -154,12 +154,17 @@ public sealed class SoundsPageViewModel : SettingsPageViewModel
     private readonly AvaloniaMusicPlayerSettings _music;
     private readonly SoundEffects _effects;
 
-    public SoundsPageViewModel(PomodoroEngineSettings engine, SoundSettings sounds, AvaloniaMusicPlayerSettings music, SoundEffects effects)
+    private readonly YAPA.Avalonia.Audio.Ambience.AmbienceSettings _ambience;
+
+    public SoundsPageViewModel(PomodoroEngineSettings engine, SoundSettings sounds, AvaloniaMusicPlayerSettings music, SoundEffects effects,
+        YAPA.Avalonia.Audio.Ambience.AmbienceSettings ambience, AmbienceEffects ambienceEffects)
     {
         _engine = engine;
         _sounds = sounds;
         _music = music;
         _effects = effects;
+        _ambience = ambience;
+        Ambience = new AmbienceSectionViewModel(ambience, ambienceEffects, () => FilePicker);
 
         Cues = SoundSettings.All.Select(c => new CueRowViewModel(c, sounds, effects, () => FilePicker)).ToList();
         Music =
@@ -178,6 +183,8 @@ public sealed class SoundsPageViewModel : SettingsPageViewModel
 
     /// <summary>Set by the hosting window.</summary>
     public IFilePicker? FilePicker { get; set; }
+
+    public AmbienceSectionViewModel Ambience { get; }
 
     public IReadOnlyList<CueRowViewModel> Cues { get; }
     public IReadOnlyList<MusicRowViewModel> Music { get; }
@@ -214,10 +221,107 @@ public sealed class SoundsPageViewModel : SettingsPageViewModel
         _engine.Volume = 0.5;
         foreach (var c in Cues) c.Load();
         foreach (var m in Music) m.Refresh();
+        Ambience.EndPreview();
+        _ambience.ResetToDefaults();
+        Ambience.Refresh();
     }
 }
 
-public sealed class SoundsPageFactory(PomodoroEngineSettings engine, SoundSettings sounds, AvaloniaMusicPlayerSettings music, SoundEffects effects)
+public sealed class SoundsPageFactory(PomodoroEngineSettings engine, SoundSettings sounds, AvaloniaMusicPlayerSettings music, SoundEffects effects,
+    YAPA.Avalonia.Audio.Ambience.AmbienceSettings ambience, AmbienceEffects ambienceEffects)
 {
-    public SoundsPageViewModel Create() => new(engine, sounds, music, effects);
+    public SoundsPageViewModel Create() => new(engine, sounds, music, effects, ambience, ambienceEffects);
+}
+
+/// <summary>The "Ambience while you work" section of the Sounds page.</summary>
+public sealed partial class AmbienceSectionViewModel : ObservableObject
+{
+    private static readonly YAPA.Avalonia.Audio.Ambience.AmbientSound[] Choices =
+    [
+        YAPA.Avalonia.Audio.Ambience.AmbientSound.None,
+        YAPA.Avalonia.Audio.Ambience.AmbientSound.SoftRain,
+        YAPA.Avalonia.Audio.Ambience.AmbientSound.SteadyRain,
+        YAPA.Avalonia.Audio.Ambience.AmbientSound.Downpour,
+        YAPA.Avalonia.Audio.Ambience.AmbientSound.BrownNoise,
+        YAPA.Avalonia.Audio.Ambience.AmbientSound.File,
+    ];
+
+    private readonly YAPA.Avalonia.Audio.Ambience.AmbienceSettings _s;
+    private readonly AmbienceEffects _effects;
+    private readonly Func<IFilePicker?> _picker;
+
+    public AmbienceSectionViewModel(YAPA.Avalonia.Audio.Ambience.AmbienceSettings settings, AmbienceEffects effects, Func<IFilePicker?> picker)
+    {
+        _s = settings;
+        _effects = effects;
+        _picker = picker;
+    }
+
+    public IReadOnlyList<string> Options => Choices.Select(c => c == YAPA.Avalonia.Audio.Ambience.AmbientSound.File
+        ? (string.IsNullOrEmpty(_s.FilePath) ? "Your own file…" : $"Your file: {Path.GetFileName(_s.FilePath)}")
+        : YAPA.Avalonia.Audio.Ambience.AmbienceGenerators.DisplayName(c)).ToList();
+
+    public int SelectedIndex
+    {
+        get => Array.IndexOf(Choices, _s.Sound);
+        set
+        {
+            if (value < 0 || value >= Choices.Length) return;
+            var choice = Choices[value];
+            if (choice == YAPA.Avalonia.Audio.Ambience.AmbientSound.File && string.IsNullOrEmpty(_s.FilePath))
+            {
+                _ = ChooseFileAsync();
+                return;
+            }
+            _s.Sound = choice;
+            Changed();
+        }
+    }
+
+    public bool HasSound => _s.Sound != YAPA.Avalonia.Audio.Ambience.AmbientSound.None;
+    public bool IsFile => _s.Sound == YAPA.Avalonia.Audio.Ambience.AmbientSound.File;
+
+    public double Volume { get => _s.Volume; set { _s.Volume = Math.Round(value, 2); OnPropertyChanged(); } }
+    public bool Ticking { get => _s.Ticking; set { _s.Ticking = value; Changed(); } }
+    public double TickVolume { get => _s.TickVolume; set { _s.TickVolume = Math.Round(value, 2); OnPropertyChanged(); } }
+    public bool DuringBreaks { get => _s.DuringBreaks; set { _s.DuringBreaks = value; OnPropertyChanged(); } }
+
+    public string PreviewLabel => _effects.IsPreviewing ? "■ Stop" : "▶ Try it";
+    public bool CanPreview => _s.HasAnything;
+
+    [RelayCommand]
+    private void TogglePreview()
+    {
+        if (_effects.IsPreviewing) _effects.StopPreview();
+        else _effects.Preview();
+        OnPropertyChanged(nameof(PreviewLabel));
+    }
+
+    [RelayCommand]
+    private Task ChooseFile() => ChooseFileAsync();
+
+    /// <summary>The settings window closing must not leave a preview playing.</summary>
+    public void EndPreview()
+    {
+        if (_effects.IsPreviewing) _effects.StopPreview();
+        OnPropertyChanged(nameof(PreviewLabel));
+    }
+
+    private async Task ChooseFileAsync()
+    {
+        var path = _picker() is { } p ? await p.PickAudioFileAsync("Ambience recording (it loops)") : null;
+        if (path != null)
+        {
+            _s.FilePath = path;
+            _s.Sound = YAPA.Avalonia.Audio.Ambience.AmbientSound.File;
+        }
+        Changed();
+    }
+
+    public void Refresh() => Changed();
+
+    private void Changed()
+    {
+        OnPropertyChanged(string.Empty);
+    }
 }

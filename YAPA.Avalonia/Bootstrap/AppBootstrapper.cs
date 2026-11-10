@@ -48,6 +48,9 @@ public sealed class AppBootstrapper : IDisposable
         // ── Effects of timer transitions ─────────────────────────────────────
         services.AddSingleton<SoundSettings>();
         services.AddSingleton<SoundEffects>();
+        services.AddSingleton<YAPA.Avalonia.Audio.Ambience.AmbienceSettings>();
+        services.AddSingleton(_ => YAPA.Avalonia.Audio.Ambience.AmbiencePlayer.Create(AudioFactory.CreateMusicPlayer()));
+        services.AddSingleton<AmbienceEffects>();
         services.AddSingleton<SoundsPageFactory>();
 
         // ── UI and shell integration ─────────────────────────────────────────
@@ -70,6 +73,7 @@ public sealed class AppBootstrapper : IDisposable
     {
         Resolve<Dashboard>();
         Resolve<SoundEffects>();
+        Resolve<AmbienceEffects>();
         Resolve<NotificationEffects>();
         Resolve<SessionEffects>();
     }

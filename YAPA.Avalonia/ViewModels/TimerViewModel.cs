@@ -27,13 +27,18 @@ public sealed partial class TimerViewModel : ObservableObject
     private readonly AvaloniaYapaThemeSettings _theme;
     private readonly IAppNavigator _navigator;
     private readonly PomodoroEngineSettings _engineSettings;
+    private readonly YAPA.Avalonia.Audio.Ambience.AmbienceSettings _ambience;
 
-    public TimerViewModel(IPomodoroEngine engine, PomodoroEngineSettings engineSettings, AvaloniaYapaThemeSettings theme, IAppNavigator navigator)
+    public TimerViewModel(IPomodoroEngine engine, PomodoroEngineSettings engineSettings, AvaloniaYapaThemeSettings theme,
+        IAppNavigator navigator, YAPA.Avalonia.Audio.Ambience.AmbienceSettings ambience)
     {
         _engine = engine;
         _engineSettings = engineSettings;
         _theme = theme;
         _navigator = navigator;
+        _ambience = ambience;
+        _ambience.PropertyChanged += (_, _) => RefreshAmbience();
+        RefreshAmbience();
 
         _engine.PropertyChanged += OnEngineChanged;
         _theme.PropertyChanged += OnThemeChanged;
@@ -102,6 +107,37 @@ public sealed partial class TimerViewModel : ObservableObject
 
     [RelayCommand]
     private void LongBreak() => _engine.StartLongBreak();
+
+    // ── Ambience quick switch ────────────────────────────────────────────────
+
+    /// <summary>Whether there's any ambience configured to switch on or off.</summary>
+    [ObservableProperty] private bool _ambienceConfigured;
+    [ObservableProperty] private bool _ambienceOn;
+    [ObservableProperty] private string _ambienceMenuText = "Ambience";
+
+    [RelayCommand]
+    private void ToggleAmbience()
+    {
+        if (!_ambience.HasAnything)
+        {
+            // Nothing chosen yet: switching it "on" means picking a sound first.
+            _navigator.ShowSettings(SettingsPage.Sounds);
+            return;
+        }
+        _ambience.Enabled = !_ambience.Enabled;
+    }
+
+    private void RefreshAmbience()
+    {
+        AmbienceConfigured = _ambience.HasAnything;
+        AmbienceOn = _ambience.Enabled && _ambience.HasAnything;
+        var what = _ambience.Sound switch
+        {
+            YAPA.Avalonia.Audio.Ambience.AmbientSound.None => _ambience.Ticking ? "Ticking clock" : "Ambience",
+            var s => YAPA.Avalonia.Audio.Ambience.AmbienceGenerators.DisplayName(s) + (_ambience.Ticking ? " + ticking" : ""),
+        };
+        AmbienceMenuText = AmbienceConfigured ? what : "Ambience (choose a sound…)";
+    }
 
     [RelayCommand]
     private void OpenSettings() => _navigator.ShowSettings();

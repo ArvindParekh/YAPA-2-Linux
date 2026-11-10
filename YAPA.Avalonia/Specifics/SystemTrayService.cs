@@ -25,6 +25,7 @@ public sealed class SystemTrayService : IDisposable
     private readonly NativeMenuItem _longBreak = new("Take long break now");
     private readonly NativeMenuItem _stop = new("Stop");
     private readonly NativeMenuItem _reset = new("Reset cycle");
+    private readonly NativeMenuItem _ambience = new("Ambience") { ToggleType = MenuItemToggleType.CheckBox };
     private bool _disposed;
     private bool _frozen;
 
@@ -71,6 +72,7 @@ public sealed class SystemTrayService : IDisposable
         _longBreak.Click += (_, _) => _vm.LongBreakCommand.Execute(null);
         _stop.Click += (_, _) => _vm.StopCommand.Execute(null);
         _reset.Click += (_, _) => _vm.ResetCommand.Execute(null);
+        _ambience.Click += (_, _) => _vm.ToggleAmbienceCommand.Execute(null);
 
         var stats = new NativeMenuItem("Statistics…");
         stats.Click += (_, _) => _navigator.ShowStatistics();
@@ -89,6 +91,8 @@ public sealed class SystemTrayService : IDisposable
         menu.Add(_stop);
         menu.Add(_reset);
         menu.Add(new NativeMenuItemSeparator());
+        menu.Add(_ambience);
+        menu.Add(new NativeMenuItemSeparator());
         menu.Add(stats);
         menu.Add(settings);
         menu.Add(new NativeMenuItemSeparator());
@@ -104,6 +108,7 @@ public sealed class SystemTrayService : IDisposable
         else if (e.PropertyName is nameof(TimerViewModel.CanStart) or nameof(TimerViewModel.CanPause)
                  or nameof(TimerViewModel.CanSkip) or nameof(TimerViewModel.CanStop) or nameof(TimerViewModel.CanReset)
                  or nameof(TimerViewModel.CanLongBreak) or nameof(TimerViewModel.LongBreakMenuText)
+                 or nameof(TimerViewModel.AmbienceOn) or nameof(TimerViewModel.AmbienceMenuText)
                  or nameof(TimerViewModel.StartMenuText) or nameof(TimerViewModel.StopMenuText))
             Refresh();
     }
@@ -121,6 +126,8 @@ public sealed class SystemTrayService : IDisposable
         _stop.Header = _vm.StopMenuText;
         _stop.IsVisible = _vm.CanStop;
         _reset.IsEnabled = _vm.CanReset;
+        _ambience.Header = _vm.AmbienceMenuText;
+        _ambience.IsChecked = _vm.AmbienceOn;
     }
 
     public void Dispose()

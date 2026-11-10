@@ -17,6 +17,10 @@ rebuilt on Avalonia and tuned for GNOME.
   optional auto-start, pause and resume (breaks too), skip, stop.
 - **Sound for every event**: start, pause, resume, stop, pomodoro complete and break over each get
   their own soft cue, or your own file. Optional background music per phase.
+- **Rain while you work**: soft, steady or pouring rain and brown noise, generated live
+  so they never audibly loop, plus an optional ticking clock. It fades in when a pomodoro
+  starts and out when it ends. You can also loop your own recording. Switch it from the ⋯ menu,
+  the tray, or `yapa2 --ambience`.
 - **Notifications with buttons**: *Start break* / *Skip break* / *Start pomodoro*
   right from the notification, even while the timer is hidden.
 - **Statistics**: today, this week, streaks, a daily goal, a year heatmap and a two-week chart.
@@ -78,6 +82,7 @@ GNOME Settings → Keyboard → View and Customise Shortcuts → Custom Shortcut
 
 ```text
 yapa2 --start | --pause | --toggle | --stop | --skip | --long-break | --reset
+yapa2 --ambience            # rain / ticking on or off
 yapa2 --show | --hide | --toggle-window | --settings | --stats
 yapa2 --status [--json]     # e.g. "Work 12:34"
 yapa2 --quit

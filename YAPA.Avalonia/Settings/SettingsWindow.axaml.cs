@@ -57,6 +57,12 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
 
+    protected override void OnClosed(System.EventArgs e)
+    {
+        foreach (var sounds in Pages.OfType<SoundsPageViewModel>()) sounds.Ambience.EndPreview();
+        base.OnClosed(e);
+    }
+
     private void OnPreviewVolumeClick(object? sender, RoutedEventArgs e)
         => (SelectedPage as SoundsPageViewModel)?.PreviewVolume();
 

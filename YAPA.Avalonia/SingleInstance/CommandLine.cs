@@ -15,6 +15,7 @@ public enum AppCommand
     Stop,
     Skip,
     LongBreak,
+    ToggleAmbience,
     Reset,
     Settings,
     Statistics,
@@ -47,6 +48,7 @@ public static class CommandLine
         ["stop"] = AppCommand.Stop,
         ["skip"] = AppCommand.Skip,
         ["long-break"] = AppCommand.LongBreak,
+        ["ambience"] = AppCommand.ToggleAmbience,
         ["reset"] = AppCommand.Reset,
         ["settings"] = AppCommand.Settings,
         ["stats"] = AppCommand.Statistics,
@@ -62,6 +64,7 @@ public static class CommandLine
         With no command, starts YAPA 2 or brings the running timer to the front.
 
         Timer:     --start  --pause  --toggle  --stop  --skip  --long-break  --reset
+        Sound:     --ambience          switch the rain / ticking on or off
         Windows:   --show  --hide  --toggle-window  --settings  --stats
         Scripting: --status [--json]   print the running timer's state
                    --quit              quit the running instance

@@ -10,6 +10,9 @@
     <MenuItem Header="{Binding StopMenuText}" Command="{Binding StopCommand}" IsVisible="{Binding CanStop}" InputGesture="Escape" />
     <MenuItem Header="Reset cycle" Command="{Binding ResetCommand}" IsEnabled="{Binding CanReset}" />
     <Separator />
+    <MenuItem Header="{Binding AmbienceMenuText}" Command="{Binding ToggleAmbienceCommand}"
+              ToggleType="CheckBox" IsChecked="{Binding AmbienceOn, Mode=OneWay}" />
+    <Separator />
     <MenuItem Header="Statistics…" Command="{Binding OpenStatisticsCommand}" InputGesture="Ctrl+I" />
     <MenuItem Header="Settings…" Command="{Binding OpenSettingsCommand}" InputGesture="Ctrl+OemComma" />
     <Separator />

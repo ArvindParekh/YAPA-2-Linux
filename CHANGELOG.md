@@ -25,6 +25,9 @@ A ground-up revival of the Linux port.
 - Digits jittered and clipped. They now use tabular figures, and the digit-spacing workaround is gone.
 
 ### Added
+- Ambience while you work: soft, steady or pouring rain and brown noise (synthesized live,
+  never looping), a ticking clock, or your own recording on loop. It fades with the
+  session, optionally continues through breaks, and has a quick switch in the menu, tray and CLI.
 - Long break on demand: <kbd>L</kbd>, the ⋯ menu, the tray, `--long-break`, or the notification button.
   It starts the cycle over afterwards, and a running short break turns into the long one without losing the time already rested.
 - The timer stays visible through Show Desktop; the tray restores a minimized timer in one click.

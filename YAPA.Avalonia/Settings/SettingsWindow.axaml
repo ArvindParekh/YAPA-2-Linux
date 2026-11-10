@@ -133,6 +133,31 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
+                <TextBlock Classes="group" Text="Ambience while you work" />
+                <StackPanel DataContext="{Binding Ambience}" x:DataType="s:AmbienceSectionViewModel">
+                    <c:SettingRow Title="Background sound" Description="Rain and noise are generated live, so they never loop. Fades in when a pomodoro starts.">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <ComboBox ItemsSource="{Binding Options}" SelectedIndex="{Binding SelectedIndex}" Width="220" />
+                            <Button Content="{Binding PreviewLabel}" Command="{Binding TogglePreviewCommand}" IsEnabled="{Binding CanPreview}" MinWidth="80" />
+                        </StackPanel>
+                    </c:SettingRow>
+                    <c:SettingRow Title="Your recording" Description="Any audio file; it loops for the whole pomodoro" IsVisible="{Binding IsFile}">
+                        <Button Content="Choose another…" Command="{Binding ChooseFileCommand}" />
+                    </c:SettingRow>
+                    <c:SettingRow Title="Ambience volume" IsVisible="{Binding HasSound}">
+                        <Slider Classes="setting" Minimum="0" Maximum="1" Value="{Binding Volume}" />
+                    </c:SettingRow>
+                    <c:SettingRow Title="Ticking clock" Description="A soft tick-tock every second while you work">
+                        <ToggleSwitch IsChecked="{Binding Ticking}" OnContent="" OffContent="" />
+                    </c:SettingRow>
+                    <c:SettingRow Title="Ticking volume" IsVisible="{Binding Ticking}">
+                        <Slider Classes="setting" Minimum="0" Maximum="1" Value="{Binding TickVolume}" />
+                    </c:SettingRow>
+                    <c:SettingRow Title="Keep playing during breaks" Description="The ticking always stops for breaks" IsVisible="{Binding HasSound}">
+                        <ToggleSwitch IsChecked="{Binding DuringBreaks}" OnContent="" OffContent="" />
+                    </c:SettingRow>
+                </StackPanel>
+
                 <TextBlock Classes="group" Text="Background music" />
                 <ItemsControl ItemsSource="{Binding Music}" IsEnabled="{Binding SoundEnabled}">
                     <ItemsControl.ItemTemplate>
