@@ -579,6 +579,7 @@ public sealed partial class AmbienceSectionViewModel : ObservableObject
     }
     public double TickVolume { get => _s.TickVolume; set { _s.TickVolume = Math.Round(value, 2); OnPropertyChanged(); } }
     public bool DuringBreaks { get => _s.DuringBreaks; set { _s.DuringBreaks = value; OnPropertyChanged(); } }
+    public bool WindDownBeforeEnd { get => _s.WindDownBeforeEnd; set { _s.WindDownBeforeEnd = value; OnPropertyChanged(); } }
 
     /// <summary>
     /// During a pomodoro the ambience is already playing and follows every change here,
@@ -644,6 +645,7 @@ public sealed partial class AmbienceSectionViewModel : ObservableObject
         OnPropertyChanged(nameof(Ticking));
         OnPropertyChanged(nameof(TickVolume));
         OnPropertyChanged(nameof(DuringBreaks));
+        OnPropertyChanged(nameof(WindDownBeforeEnd));
         OnPropertyChanged(nameof(PreviewLabel));
         OnSoundChanged();
     }

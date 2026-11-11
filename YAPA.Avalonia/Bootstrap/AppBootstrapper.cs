@@ -56,7 +56,9 @@ public sealed class AppBootstrapper : IDisposable
         // ── UI and shell integration ─────────────────────────────────────────
         services.AddSingleton<AppNavigator>();
         services.AddSingleton<IAppNavigator>(sp => sp.GetRequiredService<AppNavigator>());
-        services.AddSingleton<TimerViewModel>();
+        // Its own slow timer: the goal forecast only needs refreshing every few seconds when idle.
+        services.AddSingleton(sp => ActivatorUtilities.CreateInstance<TimerViewModel>(sp,
+            (ITimer)new AvaloniaTimer(longest: TimeSpan.FromSeconds(15))));
         services.AddSingleton<AppCommandHandler>();
         services.AddSingleton<SystemTrayService>();
         services.AddSingleton(_ => YAPA.Avalonia.Platform.Linux.X11.X11PlacementGuard.Create());

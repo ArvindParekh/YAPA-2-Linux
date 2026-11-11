@@ -8,6 +8,15 @@
         <Setter Property="FontFeatures" Value="+tnum" />
     </Style>
 
+    <!-- The progress line takes the timer's colour during work and the break colour during
+         breaks, so which one is under way shows without reading anything. -->
+    <Style Selector="ProgressBar.phase">
+        <Setter Property="Foreground" Value="{Binding $parent[w:TimerWindowBase].TextBrush}" />
+    </Style>
+    <Style Selector="ProgressBar.phase.break">
+        <Setter Property="Foreground" Value="MediumSeaGreen" />
+    </Style>
+
     <!-- Flat text buttons that take the timer's colour. -->
     <Style Selector="Button.chrome">
         <Setter Property="Background" Value="Transparent" />

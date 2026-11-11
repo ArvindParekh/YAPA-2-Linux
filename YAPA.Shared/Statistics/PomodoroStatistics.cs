@@ -18,6 +18,9 @@ public sealed record StatisticsQuery(TimeZoneInfo TimeZone, DateTime NowUtc)
 
     /// <summary>Number of week columns in the heatmap, ending with the current week.</summary>
     public int HeatmapWeeks { get; init; } = 26;
+
+    /// <summary>Days, ending today, that the hour-of-day profile covers.</summary>
+    public int HourOfDayDays { get; init; } = 28;
 }
 
 public sealed class StatisticsReport
@@ -50,6 +53,9 @@ public sealed class StatisticsReport
     public required DayTotal? BestDay { get; init; }
 
     public required Heatmap Heatmap { get; init; }
+
+    /// <summary>When in the day the focus happens, over the last <see cref="StatisticsQuery.HourOfDayDays"/> days.</summary>
+    public required HourOfDay HourOfDay { get; init; }
 
     /// <summary>Distinct non-empty profile names across <em>all</em> records (ignores the filter), sorted for display.</summary>
     public required IReadOnlyList<string> Profiles { get; init; }
@@ -87,6 +93,7 @@ public static class PomodoroStatistics
             AverageMinutesPerActiveDay = allTime.ActiveDays == 0 ? 0 : (double)allTime.FocusMinutes / allTime.ActiveDays,
             BestDay = BestDay(daily),
             Heatmap = Heatmap.Build(daily, today, query.HeatmapWeeks, query.FirstDayOfWeek),
+            HourOfDay = HourOfDay.Build(all, query.TimeZone, today, query.HourOfDayDays, query.Profile),
             Profiles = DistinctProfiles(all),
         };
     }

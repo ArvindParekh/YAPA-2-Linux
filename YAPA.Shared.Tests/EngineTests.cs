@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -128,7 +128,7 @@ namespace YAPA.Shared.Tests
             Assert.AreEqual(PomodoroPhase.WorkEnded, _engine.Phase);
             Assert.AreEqual(1, completions);
             Assert.AreEqual(1, _transitions.Count(t => t.Kind == PomodoroTransitionKind.WorkCompleted));
-            Assert.IsFalse(_timer.IsRunning);
+            Assert.IsTrue(_timer.IsRunning, "keeps ticking to count the overrun");
         }
 
         [TestMethod]
@@ -684,6 +684,125 @@ namespace YAPA.Shared.Tests
                 CyclesDate = _clock.UtcNow.ToLocalTime().Date.AddDays(-1),
             });
             Assert.AreEqual(1, _engine.Cycle);
+        }
+        // ── Overrun ──────────────────────────────────────────────────────────
+
+        [TestMethod]
+        public void Overrun_counts_up_while_an_ended_interval_waits()
+        {
+            Create();
+            Assert.IsNull(_engine.Overrun, "nothing has ended");
+            _engine.Start();
+            Elapse(100);
+            Assert.IsNull(_engine.Overrun, "not while working");
+
+            Elapse(Work - 100);
+            Assert.AreEqual(PomodoroPhase.WorkEnded, _engine.Phase);
+            Assert.AreEqual(0, _engine.Overrun);
+
+            var notified = new List<int?>();
+            _engine.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(IPomodoroEngine.Overrun)) notified.Add(_engine.Overrun); };
+            Elapse(1);
+            Elapse(1);
+            _timer.PerformTick(); // a tick within the same second announces nothing
+            Elapse(62);
+            CollectionAssert.AreEqual(new int?[] { 1, 2, 64 }, notified);
+            Assert.AreEqual(0, _engine.Remaining, "the interval itself stays over");
+
+            _engine.Start();
+            Assert.IsNull(_engine.Overrun, "the break has begun");
+            Assert.AreEqual(null, notified.Last());
+
+            Elapse(ShortBreak + 30);
+            Assert.AreEqual(PomodoroPhase.BreakEnded, _engine.Phase);
+            Assert.AreEqual(30, _engine.Overrun, "counted from when the break ran out, however late the tick");
+        }
+
+        [TestMethod]
+        public void Overrun_ticks_land_on_its_own_seconds()
+        {
+            Create();
+            _engine.Start();
+            Elapse(Work);
+            _clock.Advance(TimeSpan.FromMilliseconds(400));
+            _timer.PerformTick();
+            Assert.IsTrue(_timer.LastScheduled is { } d && d > TimeSpan.FromMilliseconds(600) && d < TimeSpan.FromMilliseconds(610),
+                $"next overrun tick scheduled for {_timer.LastScheduled}");
+        }
+
+        [TestMethod]
+        public void Overrun_ends_with_stop_skip_or_reset()
+        {
+            Create();
+            _engine.Start();
+            Elapse(Work + 5);
+            _engine.Stop();
+            Assert.IsNull(_engine.Overrun);
+            Assert.IsFalse(_timer.IsRunning, "nothing left to count");
+
+            _engine.Start();
+            Elapse(Work + 5);
+            _engine.Skip();
+            Assert.IsNull(_engine.Overrun);
+
+            Elapse(Work + 5);
+            _engine.Reset();
+            Assert.IsNull(_engine.Overrun);
+        }
+
+        [TestMethod]
+        public void Sleep_does_not_count_as_overrun()
+        {
+            Create();
+            _engine.Start();
+            Elapse(Work);
+            _clock.Sleep(TimeSpan.FromHours(8));
+            Elapse(3);
+            Assert.AreEqual(3, _engine.Overrun);
+        }
+
+        [TestMethod]
+        public void Overrun_survives_a_restart_without_the_time_the_app_was_closed()
+        {
+            Create();
+            _engine.Start();
+            Elapse(Work + 70);
+            var snapshot = _engine.GetSnapshot();
+            Assert.AreEqual(70, snapshot.OverrunSeconds);
+
+            Create();
+            _clock.DateToReturn = snapshot.StartDate.AddHours(9); // switched off overnight
+            _engine.LoadSnapshot(snapshot);
+            Assert.AreEqual(PomodoroPhase.WorkEnded, _engine.Phase);
+            Assert.AreEqual(70, _engine.Overrun, "not +9h");
+            Assert.IsTrue(_timer.IsRunning);
+            Elapse(1);
+            Assert.AreEqual(71, _engine.Overrun);
+        }
+
+        [TestMethod]
+        public void An_ended_snapshot_from_an_older_build_counts_from_the_restore()
+        {
+            Create();
+            _engine.LoadSnapshot(new PomodoroEngineSnapshot
+            {
+                Phase = PomodoroPhase.BreakEnded,
+                PomodoroIndex = 2,
+                StartDate = _clock.UtcNow,
+            });
+            Assert.AreEqual(0, _engine.Overrun);
+        }
+
+        [TestMethod]
+        public void Auto_started_breaks_still_begin_on_time()
+        {
+            Create(autoBreak: true);
+            _engine.Start();
+            Elapse(Work);
+            Assert.AreEqual(0, _engine.Overrun);
+            Elapse(2);
+            Assert.AreEqual(PomodoroPhase.Break, _engine.Phase);
+            Assert.IsNull(_engine.Overrun);
         }
     }
 }

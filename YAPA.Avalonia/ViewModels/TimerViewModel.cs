@@ -29,9 +29,17 @@ public sealed partial class TimerViewModel : ObservableObject
     private readonly PomodoroEngineSettings _engineSettings;
     private readonly YAPA.Avalonia.Audio.Ambience.AmbienceSettings _ambience;
     private readonly GeneralSettings _general;
+    private readonly IPomodoroRepository _repository;
+    private readonly IClock _clock;
+    private readonly ITimer _forecastTimer;
 
+    /// <param name="forecastTimer">
+    /// Moves the goal forecast on while nothing else ticks (idle, paused): the time of day
+    /// it gives slides later for every minute nobody is working.
+    /// </param>
     public TimerViewModel(IPomodoroEngine engine, PomodoroEngineSettings engineSettings, AvaloniaYapaThemeSettings theme,
-        IAppNavigator navigator, YAPA.Avalonia.Audio.Ambience.AmbienceSettings ambience, GeneralSettings general)
+        IAppNavigator navigator, YAPA.Avalonia.Audio.Ambience.AmbienceSettings ambience, GeneralSettings general,
+        IPomodoroRepository repository, IClock clock, ITimer forecastTimer)
     {
         _engine = engine;
         _engineSettings = engineSettings;
@@ -39,9 +47,17 @@ public sealed partial class TimerViewModel : ObservableObject
         _navigator = navigator;
         _ambience = ambience;
         _general = general;
+        _repository = repository;
+        _clock = clock;
+        _forecastTimer = forecastTimer;
+        _forecastTimer.Tick += () =>
+        {
+            RefreshGoal(requery: false);
+            _forecastTimer.ScheduleNext(ForecastRefresh);
+        };
         _general.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(GeneralSettings.DailyGoal)) Refresh();
+            if (e.PropertyName is nameof(GeneralSettings.DailyGoal) or nameof(GeneralSettings.ShowGoalForecast)) Refresh();
         };
         _ambience.PropertyChanged += (_, _) => RefreshAmbience();
         RefreshAmbience();
@@ -72,6 +88,25 @@ public sealed partial class TimerViewModel : ObservableObject
     [ObservableProperty] private bool _isWorkEndedAlert;
     [ObservableProperty] private bool _isBreakEndedAlert;
     [ObservableProperty] private bool _isAlerting;
+
+    /// <summary>The ended interval has been waiting at least a second; the time shows the overrun.</summary>
+    [ObservableProperty] private bool _isOverrun;
+
+    // ── Daily goal ───────────────────────────────────────────────────────────
+
+    private static readonly TimeSpan ForecastRefresh = TimeSpan.FromSeconds(15);
+    private int _doneToday;
+    private DateTime _doneDate;
+
+    [ObservableProperty] private GoalOutlook _goal = GoalOutlook.None;
+
+    /// <summary>"12 by 18:40" on the timer; empty when hidden or there's nothing to forecast.</summary>
+    [ObservableProperty] private string _goalForecastText = "";
+    [ObservableProperty] private bool _hasGoalForecast;
+    [ObservableProperty] private bool _hasGoal;
+    [ObservableProperty] private string _goalSummary = "";
+    [ObservableProperty] private string _goalWithoutLongBreaks = "";
+    [ObservableProperty] private bool _hasGoalWithoutLongBreaks;
 
     // ── Controls ─────────────────────────────────────────────────────────────
 
@@ -166,15 +201,18 @@ public sealed partial class TimerViewModel : ObservableObject
     {
         // Time properties change every second; the counter can hit the database,
         // so only the time-dependent parts are recomputed on ticks.
-        if (e.PropertyName is nameof(IPomodoroEngine.DisplayValue))
+        if (e.PropertyName is nameof(IPomodoroEngine.DisplayValue) or nameof(IPomodoroEngine.Overrun))
         {
             Progress = _engine.Progress;
             UpdateTime(_engine.DisplayValue);
             UpdateSummary();
+            // While running the forecast stands still; while waiting it moves on each second.
+            if (e.PropertyName is nameof(IPomodoroEngine.Overrun)) RefreshGoal(requery: false);
         }
         else if (e.PropertyName is not (nameof(IPomodoroEngine.Elapsed) or nameof(IPomodoroEngine.Remaining) or nameof(IPomodoroEngine.Progress)))
         {
-            Refresh();
+            // A transition raises a burst of these; only Counter means today's count may have moved.
+            Refresh(requeryGoal: e.PropertyName == nameof(IPomodoroEngine.Counter));
         }
     }
 
@@ -223,7 +261,10 @@ public sealed partial class TimerViewModel : ObservableObject
         }
     }
 
-    public void Refresh()
+    /// <summary>Recomputes everything, today's count included.</summary>
+    public void Refresh() => Refresh(requeryGoal: true);
+
+    private void Refresh(bool requeryGoal)
     {
         var phase = _engine.Phase;
         var paused = phase == PomodoroPhase.Pause;
@@ -277,6 +318,7 @@ public sealed partial class TimerViewModel : ObservableObject
         IsAlerting = IsWorkEndedAlert || IsBreakEndedAlert;
 
         UpdateSummary();
+        RefreshGoal(requeryGoal);
 
         StartCommand.NotifyCanExecuteChanged();
         PauseCommand.NotifyCanExecuteChanged();
@@ -284,6 +326,38 @@ public sealed partial class TimerViewModel : ObservableObject
         SkipCommand.NotifyCanExecuteChanged();
         ResetCommand.NotifyCanExecuteChanged();
         LongBreakCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <param name="requery">Read today's count again (it can hit the database); else reuse it, unless the day changed.</param>
+    public void RefreshGoal(bool requery = true)
+    {
+        var goal = _general.DailyGoal;
+        var now = _clock.UtcNow;
+        if (goal > 0 && (requery || now.ToLocalTime().Date != _doneDate))
+        {
+            _doneToday = _repository.CompletedToday();
+            _doneDate = now.ToLocalTime().Date;
+        }
+
+        Goal = GoalOutlook.Compute(_engine, _engineSettings, goal, _doneToday, now);
+        HasGoal = Goal.HasGoal;
+        GoalSummary = Goal.Summary;
+        GoalWithoutLongBreaks = Goal.WithoutLongBreaks;
+        HasGoalWithoutLongBreaks = GoalWithoutLongBreaks.Length > 0;
+        GoalForecastText = _general.ShowGoalForecast ? Goal.Short : "";
+        HasGoalForecast = GoalForecastText.Length > 0;
+
+        // Running intervals and ended ones tick the engine already; only idle and paused time needs
+        // this. It keeps going once the goal is reached, so a new day still brings a fresh count.
+        if (Goal.HasGoal && _engine.Phase is PomodoroPhase.NotStarted or PomodoroPhase.Pause)
+        {
+            _forecastTimer.Start();
+            _forecastTimer.ScheduleNext(ForecastRefresh);
+        }
+        else
+        {
+            _forecastTimer.Stop();
+        }
     }
 
     private void UpdateTime(int totalSeconds)
@@ -295,6 +369,15 @@ public sealed partial class TimerViewModel : ObservableObject
         Minutes = minutes.ToString("00");
         Seconds = seconds.ToString("00");
 
+        // Past the end of an interval nobody has moved on from, the clock counts the
+        // overrun instead of sitting at 00:00: that's the time the day is losing.
+        IsOverrun = _engine.Overrun is { } over && (ShowSeconds ? over >= 1 : over >= 60);
+        if (IsOverrun)
+        {
+            TimeText = FormatOverrun(_engine.Overrun!.Value, ShowSeconds);
+            return;
+        }
+
         if (ShowSeconds)
         {
             TimeText = $"{Minutes}:{Seconds}";
@@ -305,5 +388,12 @@ public sealed partial class TimerViewModel : ObservableObject
             // left; show "<1" so it's clear the interval isn't over yet.
             TimeText = minutes == 0 && seconds > 0 ? "<1" : Minutes;
         }
+    }
+
+    /// <summary>"+04:12"; without seconds "+4"; past an hour just "+1h", which says enough.</summary>
+    internal static string FormatOverrun(int seconds, bool showSeconds)
+    {
+        if (seconds >= 3600) return $"+{seconds / 3600}h";
+        return showSeconds ? $"+{seconds / 60:00}:{seconds % 60:00}" : $"+{seconds / 60}";
     }
 }

@@ -6,7 +6,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using YAPA.Avalonia.Platform;
+using YAPA.Avalonia.Services;
 using YAPA.Avalonia.Specifics;
+using YAPA.Shared.Common;
 using YAPA.Shared.Contracts;
 using YAPA.Shared.Statistics;
 
@@ -15,6 +18,9 @@ namespace YAPA.Avalonia.Statistics;
 public sealed record StatCard(string Title, string Value, string Detail);
 
 public sealed record DayBar(string Label, string Tooltip, int Count, double Fraction, bool IsToday);
+
+/// <param name="Label">Only every third hour is labelled; the rest are empty, or the axis is a wall of numbers.</param>
+public sealed record HourBar(string Label, string Tooltip, double Fraction, bool IsPeak);
 
 public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
 {
@@ -27,18 +33,22 @@ public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
     private readonly IPomodoroRepository _repository;
     private readonly IPomodoroEngine _engine;
     private readonly GeneralSettings _general;
+    private readonly PomodoroEngineSettings _engineSettings;
     private bool _loading;
 
-    public StatisticsViewModel(IPomodoroRepository repository, IPomodoroEngine engine, GeneralSettings general)
+    public StatisticsViewModel(IPomodoroRepository repository, IPomodoroEngine engine, GeneralSettings general,
+        PomodoroEngineSettings engineSettings)
     {
         _repository = repository;
         _engine = engine;
         _general = general;
+        _engineSettings = engineSettings;
         _engine.OnPomodoroCompleted += OnCompleted;
     }
 
     public ObservableCollection<StatCard> Cards { get; } = [];
     public ObservableCollection<DayBar> Bars { get; } = [];
+    public ObservableCollection<HourBar> HourBars { get; } = [];
     public ObservableCollection<string> Profiles { get; } = [AllProfiles];
 
     [ObservableProperty] private Heatmap? _heatmap;
@@ -50,6 +60,8 @@ public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private double _goalProgress;
     [ObservableProperty] private string _goalText = "";
     [ObservableProperty] private bool _hasGoal;
+    [ObservableProperty] private bool _hasHours;
+    [ObservableProperty] private string _hourSummary = "";
 
     partial void OnSelectedProfileChanged(string value) => _ = LoadAsync();
 
@@ -90,8 +102,12 @@ public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
 
         var goal = _general.DailyGoal;
         HasGoal = goal > 0;
-        GoalProgress = HasGoal ? Math.Min(1, r.TodayTotal.Count / (double)goal) : 0;
-        GoalText = HasGoal ? $"{r.TodayTotal.Count} of {goal} today" : "";
+        // The goal is for the whole day, so its bar and text ignore the profile filter.
+        var outlook = HasGoal
+            ? GoalOutlook.Compute(_engine, _engineSettings, goal, _repository.CompletedToday(), DateTime.UtcNow)
+            : GoalOutlook.None;
+        GoalProgress = HasGoal ? Math.Min(1, outlook.Done / (double)goal) : 0;
+        GoalText = outlook.WithoutLongBreaks.Length > 0 ? $"{outlook.Summary}, or {outlook.WithoutLongBreaks}" : outlook.Summary;
 
         Cards.Clear();
         Cards.Add(new StatCard("Today", Count(r.TodayTotal.Count), Focus(r.TodayTotal.FocusMinutes)));
@@ -110,6 +126,8 @@ public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
             Bars.Add(new DayBar(label, $"{d.Date:D}: {Count(d.Count)}, {Focus(d.FocusMinutes)}", d.Count, d.Count / (double)max, d.Date == r.Today));
         }
 
+        ApplyHours(r.HourOfDay);
+
         Heatmap = r.Heatmap;
         var yearTotal = r.Heatmap.Weeks.SelectMany(w => w.Days).Where(c => !c.IsFuture).Sum(c => c.Count);
         HeatmapSummary = $"{Count(yearTotal)} in the last year";
@@ -117,6 +135,31 @@ public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
         Footer = r.BestDay is { } best
             ? $"Best day: {best.Date:D} ({Count(best.Count)}) · Average on active days: {r.AverageCountPerActiveDay:0.#} pomodoros, {Focus((int)Math.Round(r.AverageMinutesPerActiveDay))}"
             : "Complete a pomodoro to start your history.";
+    }
+
+    private void ApplyHours(HourOfDay hours)
+    {
+        HourBars.Clear();
+        HasHours = !hours.IsEmpty;
+        if (!HasHours)
+        {
+            HourSummary = "";
+            return;
+        }
+
+        var max = hours.Minutes.Max();
+        var peak = hours.PeakHour;
+        for (var h = 0; h < 24; h++)
+        {
+            var minutes = (int)Math.Round(hours.Minutes[h]);
+            var span = $"{ClockFormat.ShortTime(DateTime.Today.AddHours(h))}–{ClockFormat.ShortTime(DateTime.Today.AddHours(h + 1))}";
+            HourBars.Add(new HourBar(h % 3 == 0 ? ClockFormat.Hour(h) : "",
+                $"{span}: {Focus(minutes)}, {Math.Round(hours.Minutes[h] / hours.Days):0} min a day on average",
+                hours.Minutes[h] / max, h == peak));
+        }
+        HourSummary = peak is { } p
+            ? $"Last {hours.Days / 7} weeks · most around {ClockFormat.ShortTime(DateTime.Today.AddHours(p))}"
+            : "";
     }
 
     private static string Count(int n) => n == 1 ? "1 pomodoro" : $"{n} pomodoros";

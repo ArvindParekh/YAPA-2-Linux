@@ -10,6 +10,12 @@ namespace YAPA.Avalonia.Services;
 /// <summary>Executes command-line commands, from the first launch or forwarded by later ones.</summary>
 public sealed class AppCommandHandler(TimerViewModel vm, IAppNavigator navigator)
 {
+    // Read by scripts and people: "+04:12" stays readable rather than "\u002B04:12".
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
     /// <returns>Text to print in the terminal that sent the commands.</returns>
     public string Execute(IReadOnlyList<AppCommand> commands)
     {
@@ -70,6 +76,16 @@ public sealed class AppCommandHandler(TimerViewModel vm, IAppNavigator navigator
             cycle = e.Cycle,
             longBreakNext = e.IsLongBreak,
             counter = e.Counter,
-        });
+            overrun = e.Overrun,
+            goal = vm.Goal.HasGoal
+                ? new
+                {
+                    target = vm.Goal.Goal,
+                    done = vm.Goal.Done,
+                    finish = vm.Goal.Finish?.ToString("yyyy-MM-ddTHH:mm"),
+                    finishWithoutLongBreaks = (vm.Goal.FinishWithoutLongBreaks ?? vm.Goal.Finish)?.ToString("yyyy-MM-ddTHH:mm"),
+                }
+                : null,
+        }, JsonOptions);
     }
 }

@@ -32,9 +32,10 @@ internal sealed class MemoryEnvironment : IEnvironment
 internal sealed class ManualTimer : ITimer
 {
     public event Action? Tick;
+    public bool IsRunning { get; private set; }
     public void Fire() => Tick?.Invoke();
-    public void Start() { }
-    public void Stop() { }
+    public void Start() => IsRunning = true;
+    public void Stop() => IsRunning = false;
 }
 
 internal sealed class ManualClock : IClock
@@ -54,6 +55,7 @@ internal sealed class Rig
     public readonly ISettings Settings;
     public readonly PomodoroEngineSettings EngineSettings;
     public readonly ManualTimer Timer = new();
+    public readonly ManualTimer ForecastTimer = new();
     public readonly ManualClock Clock = new();
     public readonly PomodoroEngine Engine;
     public readonly IPomodoroRepository Repository = Substitute.For<IPomodoroRepository>();
@@ -257,7 +259,8 @@ public class TimerViewModelTests
     {
         var rig = new Rig(settingsJson);
         var vm = new TimerViewModel(rig.Engine, rig.EngineSettings, new AvaloniaYapaThemeSettings(rig.Settings), Substitute.For<IAppNavigator>(),
-            new YAPA.Avalonia.Audio.Ambience.AmbienceSettings(rig.Settings), new GeneralSettings(rig.Settings));
+            new YAPA.Avalonia.Audio.Ambience.AmbienceSettings(rig.Settings), new GeneralSettings(rig.Settings),
+            rig.Repository, rig.Clock, rig.ForecastTimer);
         return (rig, vm);
     }
 
@@ -281,7 +284,7 @@ public class TimerViewModelTests
         var rig = new Rig(@"{""PomodoroEngine"":{""Counter"":1}}");
         var general = new GeneralSettings(rig.Settings);
         var vm = new TimerViewModel(rig.Engine, rig.EngineSettings, new AvaloniaYapaThemeSettings(rig.Settings), Substitute.For<IAppNavigator>(),
-            new YAPA.Avalonia.Audio.Ambience.AmbienceSettings(rig.Settings), general);
+            new YAPA.Avalonia.Audio.Ambience.AmbienceSettings(rig.Settings), general, rig.Repository, rig.Clock, rig.ForecastTimer);
         Assert.AreEqual("0/8", vm.CounterText, "the default goal");
         general.DailyGoal = 12;
         Assert.AreEqual("0/12", vm.CounterText);
@@ -398,6 +401,138 @@ public class TimerViewModelTests
         Assert.AreEqual("23", vm.TimeText);
         rig.Elapse(23 * 60 + 30);
         Assert.AreEqual("<1", vm.TimeText);
+    }
+
+    [TestMethod]
+    public void After_an_interval_ends_the_clock_counts_the_overrun()
+    {
+        var (rig, vm) = Create();
+        rig.EngineSettings.CountBackwards = true;
+        rig.Engine.Start();
+        rig.Elapse(25 * 60);
+        Assert.AreEqual("00:00", vm.TimeText, "the moment it ends");
+        Assert.IsFalse(vm.IsOverrun);
+
+        rig.Elapse(1);
+        Assert.AreEqual("+00:01", vm.TimeText);
+        Assert.IsTrue(vm.IsOverrun);
+        rig.Elapse(250);
+        Assert.AreEqual("+04:11", vm.TimeText);
+        StringAssert.Contains(vm.Summary, "Work done · +04:11");
+
+        rig.Engine.Start();
+        Assert.AreEqual("05:00", vm.TimeText, "the break counts down as usual");
+        Assert.IsFalse(vm.IsOverrun);
+
+        rig.Elapse(5 * 60 + 30);
+        Assert.AreEqual("Break over", vm.StatusText);
+        Assert.AreEqual("+00:30", vm.TimeText, "breaks overrun too");
+    }
+
+    [TestMethod]
+    public void Overrun_without_seconds_shows_whole_minutes()
+    {
+        var (rig, vm) = Create();
+        new AvaloniaYapaThemeSettings(rig.Settings).HideSeconds = true;
+        rig.Engine.Start();
+        rig.Elapse(25 * 60 + 59);
+        Assert.IsFalse(vm.IsOverrun, "under a minute there's no whole minute to show");
+        rig.Elapse(1);
+        Assert.AreEqual("+1", vm.TimeText);
+    }
+
+    [TestMethod]
+    public void Overrun_formats()
+    {
+        Assert.AreEqual("+00:07", TimerViewModel.FormatOverrun(7, showSeconds: true));
+        Assert.AreEqual("+59:59", TimerViewModel.FormatOverrun(3599, showSeconds: true));
+        Assert.AreEqual("+1h", TimerViewModel.FormatOverrun(3600, showSeconds: true));
+        Assert.AreEqual("+3h", TimerViewModel.FormatOverrun(3 * 3600 + 1800, showSeconds: false));
+        Assert.AreEqual("+12", TimerViewModel.FormatOverrun(12 * 60 + 30, showSeconds: false));
+    }
+
+    private static string At(Rig rig, int minutesFromNow)
+        => YAPA.Avalonia.Platform.ClockFormat.ShortTime(rig.Clock.UtcNow.ToLocalTime().AddMinutes(minutesFromNow));
+
+    [TestMethod]
+    public void The_goal_forecast_is_the_time_the_last_pomodoro_would_end()
+    {
+        // Default profile: 25/5/15, four to the cycle.
+        var (rig, vm) = Create(@"{""General"":{""DailyGoal"":4}}");
+        rig.Repository.CompletedToday().Returns(2);
+        vm.Refresh();
+        Assert.AreEqual($"4 by {At(rig, 25 + 5 + 25)}", vm.GoalForecastText);
+        Assert.AreEqual($"2 of 4 today · done by {At(rig, 55)}", vm.GoalSummary);
+        Assert.IsFalse(vm.HasGoalWithoutLongBreaks, "no long break falls before the goal");
+    }
+
+    [TestMethod]
+    public void Idle_time_pushes_the_forecast_later_and_running_time_does_not()
+    {
+        var (rig, vm) = Create(@"{""General"":{""DailyGoal"":2}}");
+        var start = At(rig, 55);
+        Assert.AreEqual($"2 by {start}", vm.GoalForecastText);
+        Assert.IsTrue(rig.ForecastTimer.IsRunning, "idle: only the refresh moves it on");
+
+        rig.Clock.Advance(10 * 60);
+        rig.ForecastTimer.Fire();
+        Assert.AreEqual($"2 by {At(rig, 55)}", vm.GoalForecastText);
+
+        rig.Engine.Start();
+        Assert.IsFalse(rig.ForecastTimer.IsRunning, "the engine ticks while running");
+        var running = vm.GoalForecastText;
+        rig.Elapse(60);
+        Assert.AreEqual(running, vm.GoalForecastText);
+
+        rig.Repository.CompletedToday().Returns(1); // as the history records the finished one
+        rig.Elapse(24 * 60);
+        rig.Elapse(120);
+        Assert.AreEqual("+02:00", vm.TimeText);
+        Assert.AreEqual($"2 by {At(rig, 5 + 25)}", vm.GoalForecastText, "an overrun moves it on as it happens");
+    }
+
+    [TestMethod]
+    public void Long_breaks_get_their_own_figure_when_they_fall_before_the_goal()
+    {
+        var (rig, vm) = Create(@"{""General"":{""DailyGoal"":8}}");
+        // 8 × 25, six short breaks, one long one after the 4th.
+        Assert.AreEqual($"0 of 8 today · done by {At(rig, 8 * 25 + 6 * 5 + 15)}", vm.GoalSummary);
+        Assert.AreEqual($"{At(rig, 8 * 25 + 7 * 5)} without long breaks", vm.GoalWithoutLongBreaks);
+        Assert.IsTrue(vm.HasGoalWithoutLongBreaks);
+    }
+
+    [TestMethod]
+    public void A_reached_goal_leaves_only_the_count()
+    {
+        var (rig, vm) = Create(@"{""General"":{""DailyGoal"":4}}");
+        rig.Repository.CompletedToday().Returns(4);
+        vm.Refresh();
+        Assert.AreEqual("", vm.GoalForecastText);
+        Assert.IsFalse(vm.HasGoalForecast);
+        Assert.AreEqual("4 of 4 today", vm.GoalSummary);
+
+        rig.Repository.CompletedToday().Returns(0);
+        rig.Clock.Advance(24 * 3600);
+        rig.ForecastTimer.Fire();
+        StringAssert.StartsWith(vm.GoalSummary, "0 of 4 today · done by", "the next morning starts afresh without a click");
+    }
+
+    [TestMethod]
+    public void The_forecast_can_be_hidden_and_no_goal_means_none()
+    {
+        var rig = new Rig(@"{""General"":{""DailyGoal"":4}}");
+        var general = new GeneralSettings(rig.Settings);
+        var vm = new TimerViewModel(rig.Engine, rig.EngineSettings, new AvaloniaYapaThemeSettings(rig.Settings), Substitute.For<IAppNavigator>(),
+            new YAPA.Avalonia.Audio.Ambience.AmbienceSettings(rig.Settings), general, rig.Repository, rig.Clock, rig.ForecastTimer);
+        Assert.IsTrue(vm.HasGoalForecast);
+
+        general.ShowGoalForecast = false;
+        Assert.AreEqual("", vm.GoalForecastText);
+        Assert.IsTrue(vm.HasGoal, "the menu still has the day's count");
+
+        general.DailyGoal = 0;
+        Assert.IsFalse(vm.HasGoal);
+        Assert.AreEqual("", vm.GoalSummary);
     }
 
     [TestMethod]

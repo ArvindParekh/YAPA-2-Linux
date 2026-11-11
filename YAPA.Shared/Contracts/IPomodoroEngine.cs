@@ -19,6 +19,12 @@ namespace YAPA.Shared.Contracts
 
         int Elapsed { get; }
         int Remaining { get; }
+
+        /// <summary>
+        /// Seconds since the interval ran out, while it waits for the next one to be started
+        /// (WorkEnded, BreakEnded); null in every other phase.
+        /// </summary>
+        int? Overrun { get; }
         int DisplayValue { get; }
         int CurrentIntervalLength { get; }
 

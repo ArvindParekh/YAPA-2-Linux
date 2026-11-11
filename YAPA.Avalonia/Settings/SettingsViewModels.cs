@@ -131,6 +131,7 @@ public sealed class GeneralPageViewModel(GeneralSettings g, AvaloniaYapaThemeSet
     public bool PauseWhenLocked { get => g.PauseWhenLocked; set { g.PauseWhenLocked = value; Changed(); } }
     public bool DesktopNotifications { get => g.DesktopNotifications; set { g.DesktopNotifications = value; Changed(); } }
     public decimal? DailyGoal { get => g.DailyGoal; set { if (value is { } v) { g.DailyGoal = (int)v; Changed(); } } }
+    public bool ShowGoalForecast { get => g.ShowGoalForecast; set { g.ShowGoalForecast = value; Changed(); } }
 
     public bool AutostartSupported => Autostart.IsSupported;
 

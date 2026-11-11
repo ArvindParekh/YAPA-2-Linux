@@ -9,6 +9,35 @@ internal readonly record struct AmbientBed(AmbientSound Sound, string? FilePath 
 }
 
 /// <summary>
+/// The interval the ambience is playing for ends at <see cref="EndsAt"/> (monotonic, the
+/// timeline blocks are heard on). Over the last <see cref="Length"/> before it the whole
+/// ambience thins to <see cref="Floor"/>, so the end arrives as something you hear coming
+/// rather than as a bell out of nowhere. It never goes silent ahead of time: the bell and
+/// the usual fade-out still mark the actual end.
+/// </summary>
+public readonly record struct WindDown(TimeSpan EndsAt, TimeSpan Length)
+{
+    /// <summary>Linear gain at the very end: about -10 dB, clearly thinner but still there.</summary>
+    public const float Floor = 0.3f;
+
+    /// <summary>The longest wind-down; short intervals get a quarter of their length.</summary>
+    public static readonly TimeSpan Longest = TimeSpan.FromSeconds(60);
+
+    public static WindDown ForInterval(TimeSpan endsAt, TimeSpan intervalLength)
+        => new(endsAt, intervalLength / 4 < Longest ? intervalLength / 4 : Longest);
+
+    public float GainAt(TimeSpan heardAt)
+    {
+        var left = EndsAt - heardAt;
+        if (left >= Length || Length <= TimeSpan.Zero) return 1f;
+        if (left <= TimeSpan.Zero) return Floor;
+        // Smoothstep: no corner where the ramp starts, and it settles gently onto the floor.
+        var x = (float)(left / Length);
+        return Floor + (1f - Floor) * x * x * (3f - 2f * x);
+    }
+}
+
+/// <summary>
 /// Mixes the background bed (rain, noise) with the ticking clock, with every
 /// change smoothed: the session start fades in, the end fades out, switching
 /// from soft to heavy rain crossfades, and volume moves glide. Abrupt gain
@@ -39,6 +68,7 @@ internal sealed class AmbienceMixer
     private float _bedTarget;
     private float _tickTarget;
     private TickAnchor _anchor;
+    private WindDown? _windDown;
 
     // Render-thread state.
     private AmbientBed _currentSound;
@@ -48,6 +78,7 @@ internal sealed class AmbienceMixer
     private float _master;
     private float _bedGain;
     private float _tickGain;
+    private float _windGain = 1f;
 
     public AmbienceMixer(int sampleRate, Func<AmbientBed, IAmbienceGenerator?>? factory = null)
     {
@@ -59,7 +90,8 @@ internal sealed class AmbienceMixer
     /// <param name="bedGain">Linear gain for the bed (already through the volume curve).</param>
     /// <param name="tickGain">Linear gain for the ticking; 0 turns it off.</param>
     /// <param name="anchor">Where the timer's seconds fall; ticks are placed on them. Null keeps the current one.</param>
-    public void Set(bool active, AmbientBed sound, float bedGain, float tickGain, TickAnchor? anchor = null)
+    /// <param name="windDown">Thin out towards the end of the interval; null plays at full level throughout.</param>
+    public void Set(bool active, AmbientBed sound, float bedGain, float tickGain, TickAnchor? anchor = null, WindDown? windDown = null)
     {
         lock (_gate)
         {
@@ -68,6 +100,7 @@ internal sealed class AmbienceMixer
             _bedTarget = Math.Clamp(bedGain, 0, 1);
             _tickTarget = Math.Clamp(tickGain, 0, 1);
             if (anchor is { } a) _anchor = a;
+            _windDown = windDown;
         }
     }
 
@@ -96,6 +129,7 @@ internal sealed class AmbienceMixer
         AmbientBed sound;
         float bedTarget, tickTarget;
         TickAnchor anchor;
+        WindDown? windDown;
         lock (_gate)
         {
             active = _active;
@@ -103,6 +137,7 @@ internal sealed class AmbienceMixer
             bedTarget = _bedTarget;
             tickTarget = _tickTarget;
             anchor = _anchor;
+            windDown = _windDown;
         }
 
         if (sound != _currentSound)
@@ -135,8 +170,12 @@ internal sealed class AmbienceMixer
         var bedEnd = Glide(_bedGain, bedTarget, blockSeconds);
         var tickEnd = Glide(_tickGain, tickTarget, blockSeconds * 4);
 
-        // Equal-power curves for fades, so the level doesn't dip in the middle.
-        var masterGain = Smooth(masterEnd);
+        // Equal-power curves for fades, so the level doesn't dip in the middle. The wind-down
+        // is read at the block's middle; a 20 ms block is a tiny slice of a minute-long ramp.
+        // Glided like the volumes: the ramp itself is far slower than the glide, so it's followed
+        // exactly, but a wind-down that's replaced or switched off returns to full level smoothly.
+        var windEnd = Glide(_windGain, windDown?.GainAt(heardAt + TimeSpan.FromSeconds(blockSeconds / 2)) ?? 1f, blockSeconds);
+        var masterGain = Smooth(masterEnd) * windEnd;
         if (_bed != null) _bed.MixInto(stereo, bedEnd * masterGain * Smooth(crossEnd));
         if (_outgoing != null)
         {
@@ -149,6 +188,7 @@ internal sealed class AmbienceMixer
         _crossfade = crossEnd;
         _bedGain = bedEnd;
         _tickGain = tickEnd;
+        _windGain = windEnd;
 
         if (!active && masterEnd <= Inaudible)
         {

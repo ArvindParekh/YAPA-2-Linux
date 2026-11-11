@@ -18,9 +18,11 @@ internal sealed class FakeAmbiencePlayer : IAmbiencePlayer
     public bool Playing;
 
     public TickAnchor? LastAnchor;
+    public WindDown? LastWindDown;
 
-    public void Play(AmbienceMix mix, TickAnchor? ticks)
+    public void Play(AmbienceMix mix, TickAnchor? ticks, WindDown? windDown = null)
     {
+        LastWindDown = windDown;
         Calls.Add(ticks.HasValue ? "play+retime" : "play");
         if (ticks.HasValue) LastAnchor = ticks;
         Last = mix;
@@ -66,6 +68,82 @@ public class AmbienceEffectsTests
 
         rig.Elapse(25 * 60);
         Assert.IsFalse(player.Playing, "silence marks the end of the pomodoro");
+    }
+
+    [TestMethod]
+    public void The_wind_down_is_aimed_at_the_end_of_the_interval()
+    {
+        var (rig, ambience, player, _) = Create();
+        rig.Engine.Start();
+        var end = rig.Clock.Monotonic + TimeSpan.FromMinutes(25);
+        Assert.AreEqual(end, player.LastWindDown!.Value.EndsAt);
+        Assert.AreEqual(WindDown.Longest, player.LastWindDown.Value.Length);
+
+        rig.Elapse(600);
+        rig.Engine.Pause();
+        rig.Clock.Advance(300); // five minutes paused don't count
+        rig.Engine.Start();
+        Assert.AreEqual(end + TimeSpan.FromMinutes(5), player.LastWindDown!.Value.EndsAt, "re-aimed on resume");
+
+        ambience.WindDownBeforeEnd = false;
+        Assert.IsNull(player.LastWindDown, "switched off, it plays at full level to the end");
+    }
+
+    [TestMethod]
+    public void A_short_interval_winds_down_for_a_quarter_of_its_length()
+    {
+        var w = WindDown.ForInterval(TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(2));
+        Assert.AreEqual(TimeSpan.FromSeconds(30), w.Length);
+    }
+
+    [TestMethod]
+    public void Wind_down_envelope_eases_from_full_to_the_floor()
+    {
+        var w = new WindDown(TimeSpan.FromSeconds(100), TimeSpan.FromSeconds(60));
+        Assert.AreEqual(1f, w.GainAt(TimeSpan.FromSeconds(30)), "before the last minute");
+        Assert.AreEqual(1f, w.GainAt(TimeSpan.FromSeconds(40)), 1e-6, "where it starts there's no corner");
+        Assert.AreEqual(WindDown.Floor + (1 - WindDown.Floor) / 2, w.GainAt(TimeSpan.FromSeconds(70)), 1e-6);
+        Assert.AreEqual(WindDown.Floor, w.GainAt(TimeSpan.FromSeconds(100)), 1e-6);
+        Assert.AreEqual(WindDown.Floor, w.GainAt(TimeSpan.FromSeconds(105)), "past the end it stays on the floor until the fade");
+
+        var previous = 1f;
+        for (var t = 40.0; t <= 100; t += 0.02)
+        {
+            var g = w.GainAt(TimeSpan.FromSeconds(t));
+            Assert.IsTrue(g <= previous + 1e-6, $"rises at {t}");
+            Assert.IsTrue(previous - g < 0.001f, $"steps {previous - g} at {t}: audible");
+            previous = g;
+        }
+    }
+
+    [TestMethod]
+    public void Mixer_output_thins_by_about_ten_decibels_over_the_last_minute()
+    {
+        const int rate = 48_000;
+        var mixer = new AmbienceMixer(rate, s => AmbienceGenerators.Create(s.Sound, rate, 11));
+        var end = TimeSpan.FromSeconds(70);
+        mixer.Set(true, AmbientSound.SteadyRain, 1f, 0f, windDown: new WindDown(end, TimeSpan.FromSeconds(60)));
+
+        var block = new float[960 * 2];
+        var t = TimeSpan.Zero;
+        double Rms(double seconds)
+        {
+            double sum = 0; long n = 0;
+            for (var i = 0; i < seconds / 0.02; i++)
+            {
+                mixer.Render(block, t);
+                t += TimeSpan.FromSeconds(0.02);
+                foreach (var x in block) { sum += x * x; n++; }
+            }
+            return Math.Sqrt(sum / n);
+        }
+
+        Rms(4);                    // fade in: 0-4 s
+        var full = Rms(4);         // 4-8 s: full level
+        Rms(61);                   // 8-69 s: into the last second
+        var last = Rms(1);         // 69-70 s
+        var drop = 20 * Math.Log10(last / full);
+        Assert.IsTrue(drop < -9 && drop > -12, $"dropped {drop:F1} dB");
     }
 
     [TestMethod]

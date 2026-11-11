@@ -15,7 +15,8 @@ public partial class StatisticsWindow : Window
         _vm = new StatisticsViewModel(
             bs.Resolve<YAPA.Shared.Contracts.IPomodoroRepository>(),
             bs.Resolve<YAPA.Shared.Contracts.IPomodoroEngine>(),
-            bs.Resolve<YAPA.Avalonia.Specifics.GeneralSettings>());
+            bs.Resolve<YAPA.Avalonia.Specifics.GeneralSettings>(),
+            bs.Resolve<YAPA.Shared.Common.PomodoroEngineSettings>());
         DataContext = _vm;
         _ = _vm.LoadAsync();
     }

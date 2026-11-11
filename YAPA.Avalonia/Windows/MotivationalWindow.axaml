@@ -61,11 +61,17 @@
                        FontWeight="Light" FontSize="40"
                        HorizontalAlignment="Center" Margin="0,2" />
 
-            <ProgressBar Grid.Row="3" x:Name="ProgressLine"
-                         Minimum="0" Maximum="1" Value="{Binding Progress}"
-                         Height="3" MinHeight="3" CornerRadius="2"
-                         Foreground="{Binding #Root.TextBrush}" Background="#22FFFFFF"
-                         Margin="40,0,40,6" />
+            <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="40,0,40,6">
+                <!-- MinWidth 0: the theme gives a horizontal ProgressBar a minimum wider than this column. -->
+                <ProgressBar x:Name="ProgressLine" Classes="phase" MinWidth="0" Classes.break="{Binding IsBreakInterval}"
+                             Minimum="0" Maximum="1" Value="{Binding Progress}"
+                             Height="3" MinHeight="3" CornerRadius="2"
+                             Background="#22FFFFFF" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Classes="digits"
+                           Text="{Binding GoalForecastText}" IsVisible="{Binding HasGoalForecast}"
+                           Foreground="{Binding #Root.TextBrush}"
+                           FontSize="10" Opacity="0.7" Margin="10,0,0,0" VerticalAlignment="Center" />
+            </Grid>
 
             <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6"
                         Classes="controls" Classes.concealed="{Binding !#Root.ControlsVisible}">

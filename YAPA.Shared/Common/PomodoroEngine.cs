@@ -31,6 +31,12 @@ namespace YAPA.Shared.Common
 
         /// <summary>A pomodoro has been completed in the current cycle.</summary>
         public bool CycleHasWork { get; set; }
+
+        /// <summary>
+        /// Seconds the ended interval had been waiting for the next one when the snapshot was
+        /// taken (see <see cref="PomodoroEngine.Overrun"/>). Null when not waiting, or from older builds.
+        /// </summary>
+        public int? OverrunSeconds { get; set; }
     }
 
     /// <summary>
@@ -76,6 +82,10 @@ namespace YAPA.Shared.Common
         private TimeSpan _segmentStart;
         private TimeSpan? _autoStartAt;
         private int _lastNotifiedSecond = -1;
+
+        /// <summary>When the interval ran out, while waiting in WorkEnded/BreakEnded.</summary>
+        private TimeSpan? _endedAt;
+        private int? _lastNotifiedOverrun;
 
         public PomodoroEngine(PomodoroEngineSettings settings, ITimer timer, IClock clock, IThreading threading, ISettings globalSettings, IPomodoroRepository repository)
         {
@@ -156,6 +166,17 @@ namespace YAPA.Shared.Common
 
         public int Remaining => CurrentIntervalLength - Elapsed;
 
+        private bool IsWaiting => _phase == PomodoroPhase.WorkEnded || _phase == PomodoroPhase.BreakEnded;
+
+        /// <summary>
+        /// Whole seconds since the interval ran out, while it waits for the next one to be
+        /// started; null otherwise. Measured on the monotonic clock, so a suspended machine
+        /// doesn't pile up hours of "overrun".
+        /// </summary>
+        public int? Overrun => IsWaiting && _endedAt is { } ended
+            ? Math.Max(0, (int)Math.Floor((_clock.Monotonic - ended).TotalSeconds))
+            : (int?)null;
+
         public TimeSpan? NextSecondAt
         {
             get
@@ -173,7 +194,15 @@ namespace YAPA.Shared.Common
 
         private void ScheduleNextTick()
         {
-            if (NextSecondAt is { } next) _timer.ScheduleNext(next - _clock.Monotonic + PastBoundary);
+            if (NextSecondAt is { } next)
+            {
+                _timer.ScheduleNext(next - _clock.Monotonic + PastBoundary);
+            }
+            else if (IsWaiting && _endedAt is { } ended)
+            {
+                var into = (_clock.Monotonic - ended).Ticks % TimeSpan.TicksPerSecond;
+                _timer.ScheduleNext(TimeSpan.FromTicks(TimeSpan.TicksPerSecond - into) + PastBoundary);
+            }
         }
 
         public int DisplayValue => _settings.CountBackwards ? Remaining : Elapsed;
@@ -381,6 +410,7 @@ namespace YAPA.Shared.Common
                 CyclesFinished = _cyclesFinished,
                 CyclesDate = _cyclesFinished > 0 ? _cyclesDate : (DateTime?)null,
                 CycleHasWork = _cycleHasWork,
+                OverrunSeconds = Overrun,
             };
         }
 
@@ -413,6 +443,13 @@ namespace YAPA.Shared.Common
             var phase = snapshot.Phase;
             SetPhase(phase);
             if (IsRunning) _timer.Start();
+            if (IsWaiting)
+            {
+                // Like a running interval, the overrun carries on from where it was: time the
+                // app was closed isn't counted, because nothing can tell a restart from a night
+                // switched off (wall-clock time would also count suspend, which the live count doesn't).
+                StartWaiting(_clock.Monotonic - TimeSpan.FromSeconds(Math.Max(0, snapshot.OverrunSeconds ?? 0)));
+            }
 
             NotifyAll();
             Raise(PomodoroTransitionKind.Restored, from, false);
@@ -428,6 +465,13 @@ namespace YAPA.Shared.Common
                 return;
             }
 
+            if (IsWaiting)
+            {
+                NotifyOverrun();
+                ScheduleNextTick();
+                return;
+            }
+
             if (!IsRunning)
             {
                 _timer.Stop();
@@ -438,7 +482,8 @@ namespace YAPA.Shared.Common
             var elapsed = _accumulated + (_clock.Monotonic - _segmentStart);
             if (elapsed.TotalSeconds >= length)
             {
-                CompleteInterval();
+                // The overrun counts from when the interval ran out, not from this tick.
+                CompleteInterval(_clock.Monotonic - (elapsed - TimeSpan.FromSeconds(length)));
                 return;
             }
 
@@ -446,7 +491,7 @@ namespace YAPA.Shared.Common
             ScheduleNextTick();
         }
 
-        private void CompleteInterval()
+        private void CompleteInterval(TimeSpan endedAt)
         {
             var from = _phase;
             _accumulated = TimeSpan.Zero;
@@ -454,19 +499,13 @@ namespace YAPA.Shared.Common
             if (from == PomodoroPhase.Work)
             {
                 SetPhase(PomodoroPhase.WorkEnded);
+                StartWaiting(endedAt);
                 _completedThisSession++;
                 _cycleHasWork = true;
                 NotifyTime(force: true);
 
-                if (_settings.AutoStartBreak)
-                {
-                    // Keep ticking so the delayed auto-start can fire.
-                    _autoStartAt = _clock.Monotonic + AutoStartDelay;
-                }
-                else
-                {
-                    _timer.Stop();
-                }
+                // The timer keeps ticking either way: for the delayed auto-start, or to count the overrun.
+                if (_settings.AutoStartBreak) _autoStartAt = _clock.Monotonic + AutoStartDelay;
 
                 OnPomodoroCompleted?.Invoke();
                 NotifyPropertyChanged(nameof(Counter));
@@ -474,8 +513,8 @@ namespace YAPA.Shared.Common
             }
             else
             {
-                _timer.Stop();
                 SetPhase(PomodoroPhase.BreakEnded);
+                StartWaiting(endedAt);
                 NotifyTime(force: true);
                 var wasLongBreak = IsLongBreak;
                 Raise(PomodoroTransitionKind.BreakCompleted, from, true, wasLongBreak);
@@ -487,6 +526,23 @@ namespace YAPA.Shared.Common
                     Start(automatic: true);
                 }
             }
+        }
+
+        /// <summary>Starts counting the overrun of an interval that ran out at <paramref name="endedAt"/>.</summary>
+        private void StartWaiting(TimeSpan endedAt)
+        {
+            _endedAt = endedAt;
+            _timer.Start();
+            ScheduleNextTick();
+            NotifyOverrun();
+        }
+
+        private void NotifyOverrun()
+        {
+            var overrun = Overrun;
+            if (overrun == _lastNotifiedOverrun) return;
+            _lastNotifiedOverrun = overrun;
+            NotifyPropertyChanged(nameof(Overrun));
         }
 
         private void BeginInterval(PomodoroPhase phase, TimeSpan alreadyElapsed)
@@ -552,6 +608,11 @@ namespace YAPA.Shared.Common
         {
             if (_phase == phase) return;
             _phase = phase;
+            if (!IsWaiting && _endedAt != null)
+            {
+                _endedAt = null;
+                NotifyOverrun();
+            }
             NotifyPropertyChanged(nameof(Phase));
             NotifyPropertyChanged(nameof(PausedPhase));
             NotifyPropertyChanged(nameof(IsRunning));
@@ -593,6 +654,7 @@ namespace YAPA.Shared.Common
             NotifyPropertyChanged(nameof(CurrentIntervalLength));
             NotifyPropertyChanged(nameof(Counter));
             NotifyTime(force: true);
+            NotifyOverrun();
         }
 
         private void OnGlobalSettingsChanged(object sender, PropertyChangedEventArgs e)

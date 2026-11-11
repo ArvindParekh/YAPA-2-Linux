@@ -91,13 +91,20 @@
                        FontSize="12" Opacity="0.8"
                        HorizontalAlignment="Center" Margin="0,0,2,4" />
 
-            <ProgressBar Grid.Row="2" Grid.Column="0"
-                         x:Name="ProgressLine"
-                         Minimum="0" Maximum="1" Value="{Binding Progress}"
-                         Height="3" MinHeight="3" CornerRadius="2"
-                         Foreground="{Binding #Root.TextBrush}"
-                         Background="#22FFFFFF"
-                         Margin="8,0,8,6" VerticalAlignment="Center" />
+            <Grid Grid.Row="2" Grid.Column="0" ColumnDefinitions="*,Auto">
+                <!-- MinWidth 0: the theme gives a horizontal ProgressBar a minimum wider than this column. -->
+                <ProgressBar x:Name="ProgressLine" Classes="phase" MinWidth="0" Classes.break="{Binding IsBreakInterval}"
+                             Minimum="0" Maximum="1" Value="{Binding Progress}"
+                             Height="3" MinHeight="3" CornerRadius="2"
+                             Background="#22FFFFFF"
+                             Margin="8,0,8,6" VerticalAlignment="Center" />
+                <!-- Same size and line as the counter beside it, so the two read as one row. -->
+                <TextBlock Grid.Column="1" Classes="digits"
+                           Text="{Binding GoalForecastText}" IsVisible="{Binding HasGoalForecast}"
+                           Foreground="{Binding #Root.TextBrush}"
+                           FontSize="12" Opacity="0.8"
+                           Margin="0,0,6,4" />
+            </Grid>
         </Grid>
     </Viewbox>
     </Panel>

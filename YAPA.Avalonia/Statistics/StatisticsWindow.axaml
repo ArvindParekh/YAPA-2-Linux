@@ -93,6 +93,30 @@
                 </StackPanel>
             </Border>
 
+            <Border Classes="card" IsVisible="{Binding HasHours}">
+                <StackPanel>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="section" Text="When you focus" />
+                        <TextBlock Grid.Column="1" Classes="caption" Text="{Binding HourSummary}" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding HourBars}" Height="110">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="s:HourBar">
+                                <Grid RowDefinitions="*,Auto" ToolTip.Tip="{Binding Tooltip}" Background="Transparent">
+                                    <s:BarFill Fraction="{Binding Fraction}" Highlight="{Binding IsPeak}" Margin="2,0" />
+                                    <!-- Left-aligned and unclipped: the mark sits at the start of its hour, like an axis tick. -->
+                                    <TextBlock Grid.Row="1" Classes="caption" Text="{Binding Label}" FontSize="10"
+                                               HorizontalAlignment="Left" Margin="2,4,0,0" ClipToBounds="False" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
             <TextBlock Classes="caption" Text="{Binding Footer}" TextWrapping="Wrap" />
         </StackPanel>
     </ScrollViewer>

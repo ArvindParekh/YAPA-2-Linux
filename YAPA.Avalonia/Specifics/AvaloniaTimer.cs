@@ -12,7 +12,14 @@ public sealed class AvaloniaTimer : ITimer
     private static readonly TimeSpan Shortest = TimeSpan.FromMilliseconds(5);
     private static readonly TimeSpan Longest = TimeSpan.FromSeconds(1.1);
 
+    private readonly TimeSpan _longest;
     private DispatcherTimer? _timer;
+
+    /// <param name="longest">
+    /// The longest wait <see cref="ScheduleNext"/> honours. The default suits the engine's
+    /// one-second cadence; something that only needs to wake now and then asks for more.
+    /// </param>
+    public AvaloniaTimer(TimeSpan? longest = null) => _longest = longest ?? Longest;
 
     // YAPA_TRACE_TIMING=1 logs how late each scheduled tick actually fired.
     private static readonly bool TraceTiming = Environment.GetEnvironmentVariable("YAPA_TRACE_TIMING") == "1";
@@ -37,7 +44,7 @@ public sealed class AvaloniaTimer : ITimer
     {
         if (_timer is not { IsEnabled: true } timer) return;
         // Setting Interval restarts the countdown from now, which is exactly the intent.
-        timer.Interval = delay < Shortest ? Shortest : delay > Longest ? Longest : delay;
+        timer.Interval = delay < Shortest ? Shortest : delay > _longest ? _longest : delay;
         if (TraceTiming) _dueAt = System.Diagnostics.Stopwatch.GetElapsedTime(0) + timer.Interval;
     }
 

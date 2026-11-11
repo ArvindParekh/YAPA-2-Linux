@@ -68,6 +68,13 @@ public sealed class AmbienceSettings : IPluginSettings, INotifyPropertyChanged
         set => Set(value);
     }
 
+    /// <summary>Thin out over the last minute of each interval (see <see cref="WindDown"/>).</summary>
+    public bool WindDownBeforeEnd
+    {
+        get => _s.Get(nameof(WindDownBeforeEnd), true);
+        set => Set(value);
+    }
+
     public bool HasAnything => Sound != AmbientSound.None || Ticking;
 
     public AmbienceMix Mix(bool inBreak) => new(
@@ -87,6 +94,7 @@ public sealed class AmbienceSettings : IPluginSettings, INotifyPropertyChanged
         Ticking = false;
         TickVolume = 0.4;
         DuringBreaks = false;
+        WindDownBeforeEnd = true;
     }
 
     public void DeferChanges() => _s.DeferChanges();

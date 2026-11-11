@@ -77,6 +77,13 @@ public sealed class GeneralSettings : IPluginSettings, INotifyPropertyChanged
         set => Set(value);
     }
 
+    /// <summary>The time of day the goal would be reached, on the timer beside the progress line.</summary>
+    public bool ShowGoalForecast
+    {
+        get => _s.Get(nameof(ShowGoalForecast), true);
+        set => Set(value);
+    }
+
     public void ResetToDefaults()
     {
         AlwaysOnTop = true;
@@ -88,6 +95,7 @@ public sealed class GeneralSettings : IPluginSettings, INotifyPropertyChanged
         PauseWhenLocked = false;
         DesktopNotifications = true;
         DailyGoal = 8;
+        ShowGoalForecast = true;
     }
 
     public void DeferChanges() => _s.DeferChanges();

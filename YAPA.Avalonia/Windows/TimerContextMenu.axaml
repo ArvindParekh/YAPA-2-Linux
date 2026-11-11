@@ -3,6 +3,10 @@
              xmlns:vm="using:YAPA.Avalonia.ViewModels"
              x:Class="YAPA.Avalonia.Windows.TimerContextMenu"
              x:DataType="vm:TimerViewModel">
+    <!-- Today against the goal. Disabled: it's information, not an action. -->
+    <MenuItem Header="{Binding GoalSummary}" IsVisible="{Binding HasGoal}" IsEnabled="False" />
+    <MenuItem Header="{Binding GoalWithoutLongBreaks}" IsVisible="{Binding HasGoalWithoutLongBreaks}" IsEnabled="False" />
+    <Separator IsVisible="{Binding HasGoal}" />
     <MenuItem Header="{Binding StartMenuText}" Command="{Binding StartCommand}" IsVisible="{Binding CanStart}" InputGesture="Space" />
     <MenuItem Header="Pause" Command="{Binding PauseCommand}" IsVisible="{Binding CanPause}" InputGesture="Space" />
     <MenuItem Header="Skip break" Command="{Binding SkipCommand}" IsVisible="{Binding CanSkip}" InputGesture="S" />

@@ -154,6 +154,9 @@
                     <c:SettingRow Title="Keep playing during breaks" Description="The ticking always stops for breaks" IsVisible="{Binding HasSound}">
                         <ToggleSwitch IsChecked="{Binding DuringBreaks}" OnContent="" OffContent="" />
                     </c:SettingRow>
+                    <c:SettingRow Title="Thin out towards the end" Description="Over the last minute it eases to about half as loud, so the bell doesn't come out of nowhere">
+                        <ToggleSwitch IsChecked="{Binding WindDownBeforeEnd}" OnContent="" OffContent="" />
+                    </c:SettingRow>
                 </StackPanel>
 
                 <TextBlock Classes="group" Text="Background music" />
@@ -216,6 +219,10 @@
                 </c:SettingRow>
                 <c:SettingRow Title="Daily goal" Description="Pomodoros per day, shown beside today's count and in Statistics; 0 to hide">
                     <NumericUpDown Classes="minutes" Minimum="0" Maximum="40" Value="{Binding DailyGoal}" />
+                </c:SettingRow>
+                <c:SettingRow Title="Show when the goal will be reached"
+                              Description="On the timer: &quot;12 by 18:40&quot;, if you start each interval when the last one ends. The ⋯ menu also has the time without long breaks.">
+                    <ToggleSwitch IsChecked="{Binding ShowGoalForecast}" OnContent="" OffContent="" />
                 </c:SettingRow>
             </StackPanel>
         </DataTemplate>

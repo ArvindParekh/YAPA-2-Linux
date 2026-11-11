@@ -35,6 +35,7 @@ public sealed class AmbienceEffects : IDisposable
         _player = player;
         _globalSettings = globalSettings;
         _engine.Transitioned += OnTransition;
+        _engine.PropertyChanged += OnEngineChanged;
         _settings.PropertyChanged += OnSettingsChanged;
         _globalSettings.PropertyChanged += OnGlobalSettingsChanged;
     }
@@ -92,12 +93,18 @@ public sealed class AmbienceEffects : IDisposable
 
     private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e) => Apply(retime: false);
 
+    /// <summary>A new length for the interval under way (the profile changed) moves where it ends.</summary>
+    private void OnEngineChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(IPomodoroEngine.CurrentIntervalLength) && ShouldPlay && !_previewing) Apply(retime: false);
+    }
+
     private void Apply(bool retime)
     {
         if (_previewing && !_engineSettings.DisableSoundNotifications)
             _player.Play(_settings.Mix(inBreak: false), null);
         else if (ShouldPlay)
-            _player.Play(_settings.Mix(inBreak: _engine.Phase == PomodoroPhase.Break), retime ? Anchor() : null);
+            _player.Play(_settings.Mix(inBreak: _engine.Phase == PomodoroPhase.Break), retime ? Anchor() : null, WindDownFor());
         else
             _player.Stop();
         Changed?.Invoke();
@@ -107,9 +114,19 @@ public sealed class AmbienceEffects : IDisposable
     private TickAnchor? Anchor()
         => _engine.NextSecondAt is { } next ? new TickAnchor(next, _engine.Elapsed + 1) : null;
 
+    /// <summary>When the running interval ends, on the same clock its seconds are placed on.</summary>
+    internal WindDown? WindDownFor()
+    {
+        if (!_settings.WindDownBeforeEnd || _engine.NextSecondAt is not { } next) return null;
+        // `next` is when Elapsed becomes Elapsed + 1; the end is the remaining whole seconds after that.
+        var endsAt = next + TimeSpan.FromSeconds(_engine.CurrentIntervalLength - _engine.Elapsed - 1);
+        return WindDown.ForInterval(endsAt, TimeSpan.FromSeconds(_engine.CurrentIntervalLength));
+    }
+
     public void Dispose()
     {
         _engine.Transitioned -= OnTransition;
+        _engine.PropertyChanged -= OnEngineChanged;
         _settings.PropertyChanged -= OnSettingsChanged;
         _globalSettings.PropertyChanged -= OnGlobalSettingsChanged;
         _player.Stop();

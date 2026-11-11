@@ -21,8 +21,9 @@ public sealed record AmbienceMix(AmbientSound Sound, string? FilePath, double Vo
 public interface IAmbiencePlayer : IDisposable
 {
     /// <summary>Fades in (or updates live, if already playing). <paramref name="ticks"/> says where the
-    /// timer's seconds fall, so ticks land on them; null keeps the previous timing.</summary>
-    void Play(AmbienceMix mix, TickAnchor? ticks);
+    /// timer's seconds fall, so ticks land on them; null keeps the previous timing.
+    /// <paramref name="windDown"/> thins it out towards the interval's end; null doesn't.</summary>
+    void Play(AmbienceMix mix, TickAnchor? ticks, WindDown? windDown = null);
 
     /// <summary>Fades out.</summary>
     void Stop();
@@ -117,7 +118,7 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
 
     public string BackendDescription => UsingFallback ? "media player (looped recording)" : AudioFactory.InProcessBackendName;
 
-    public void Play(AmbienceMix mix, TickAnchor? ticks)
+    public void Play(AmbienceMix mix, TickAnchor? ticks, WindDown? windDown = null)
     {
         if (_disposed) return;
         lock (_gate)
@@ -149,7 +150,8 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
                 sound: inStream ? new AmbientBed(AmbientSound.File, recording) : generatedBed,
                 bedGain: (float)VolumeCurve.ToGain(mix.Volume),
                 tickGain: mix.Ticking ? (float)VolumeCurve.ToGain(mix.TickVolume) : 0f,
-                anchor: ticks);
+                anchor: ticks,
+                windDown: windDown); // the looped-file fallback has no live gain, so it plays on unchanged
             _wake.Set();
         }
     }
@@ -309,7 +311,7 @@ public sealed class AmbiencePlayer : IAmbiencePlayer
 
 public sealed class NullAmbiencePlayer : IAmbiencePlayer
 {
-    public void Play(AmbienceMix mix, TickAnchor? ticks) { }
+    public void Play(AmbienceMix mix, TickAnchor? ticks, WindDown? windDown = null) { }
     public void Stop() { }
     public string BackendDescription => "none";
     public void Dispose() { }
