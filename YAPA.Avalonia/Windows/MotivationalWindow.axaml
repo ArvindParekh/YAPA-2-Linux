@@ -1,4 +1,4 @@
-<w:TimerWindowBase xmlns="https://github.com/avaloniaui"
+﻿<w:TimerWindowBase xmlns="https://github.com/avaloniaui"
                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                    xmlns:w="using:YAPA.Avalonia.Windows"
                    xmlns:vm="using:YAPA.Avalonia.ViewModels"
@@ -36,7 +36,7 @@
                            Foreground="{Binding #Root.TextBrush}"
                            FontSize="11" FontWeight="Medium" Opacity="0.8" VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis">
-                    <Run Text="{Binding StatusText}" /><Run Text="{Binding CycleSuffix}" FontWeight="Normal" />
+                    <Run Text="{Binding StatusText}" /><Run Text="{Binding CycleSuffix}" FontWeight="Normal" /><Run Text="{Binding NoteSuffix}" FontWeight="Normal" />
                 </TextBlock>
                 <StackPanel Grid.Column="1" Orientation="Horizontal"
                             Classes="controls" Classes.concealed="{Binding !#Root.ControlsVisible}">
@@ -75,13 +75,13 @@
 
             <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6"
                         Classes="controls" Classes.concealed="{Binding !#Root.ControlsVisible}">
-                <Button Classes="chrome action" Content="SKIP"
+                <Button Classes="chrome action" Content="{Binding SkipLabel}"
                         Command="{Binding SkipCommand}" IsVisible="{Binding CanSkip}" />
                 <Button Classes="chrome action" Content="{Binding StartLabel}"
                         Command="{Binding StartCommand}" IsVisible="{Binding CanStart}" />
-                <Button Classes="chrome action" Content="PAUSE"
+                <Button Classes="chrome action" Content="{Binding PauseLabel}"
                         Command="{Binding PauseCommand}" IsVisible="{Binding CanPause}" />
-                <Button Classes="chrome action" Content="STOP"
+                <Button Classes="chrome action" Content="{Binding StopLabel}"
                         Command="{Binding StopCommand}" IsVisible="{Binding CanStop}" />
             </StackPanel>
         </Grid>

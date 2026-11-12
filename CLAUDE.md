@@ -84,6 +84,12 @@ Per-machine settings (music paths, window position) live in `localSettings.json`
   TimerEvents in Yapa.db), which `query_history` exposes as `events`.
 - UI font: Geist, bundled (`App.UiFontUri`); timer windows pin Inter (`TimerFont`). Avalonia 12's
   TextBox placeholder part is `PART_Placeholder`, not `PART_Watermark`.
+- Avalonia's `Color.ToString()` returns a name when one matches ("White"); the catalog writes
+  colours as `#aarrggbb` so values compare. Looks (`TimerLooks`) store catalog-normalised values.
+- The orb's frames stop while its window is hidden and nothing restarts them on show: call
+  `OrbControl.Resume()` whenever the panel opens.
+- The panel closes on outside clicks through `X11PointerWatch` (polled XQueryPointer): clicks on
+  the shell's top bar, dock or bare desktop never move focus, so deactivation alone misses them.
 - Settings window styles live in `Settings/SettingsStyles.axaml`: cards are `Border.card`, rows are
   `SettingRow`; hairlines between rows come from `:nth-child(n+2)` selectors, so keep rows direct
   children of the card's panel (or of an ItemsControl's panel).

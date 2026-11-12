@@ -43,6 +43,8 @@ internal sealed class AssistantRig : IDisposable
     public readonly ManualTimer SchedulerTimer = new();
     public readonly FakeNotifier Notifier = new();
     public readonly AvaloniaMusicPlayerSettings Music;
+    public readonly TimerTexts Texts;
+    public readonly TimerLooks Looks;
 
     public AssistantRig()
     {
@@ -64,13 +66,15 @@ internal sealed class AssistantRig : IDisposable
         Music = new AvaloniaMusicPlayerSettings(Settings);
         var themes = new AvaloniaThemeSettings(Settings);
         var sounds = new SoundSettings(Settings);
-        Catalog = new SettingsCatalog(EngineSettings, General, Look, themes, Ambience, sounds, new AssistantSettings(Settings), Music);
+        Texts = new TimerTexts(Settings);
+        Catalog = new SettingsCatalog(EngineSettings, General, Look, themes, Ambience, sounds, new AssistantSettings(Settings), Music, Texts);
+        Looks = new TimerLooks(Catalog, Settings);
         var effects = new AmbienceEffects(Engine, Ambience, EngineSettings, new FakeAmbiencePlayer(), Settings, Clock);
         Scheduler = new Scheduler(Engine, Notifier, Clock, SchedulerTimer, System.IO.Path.Combine(Db.Folder, "scheduled.json"));
         Memory = new AssistantMemory(Db.Folder);
         Events = new TimerEventLog(Engine, Clock, Db.FilePath);
         Tools = new AppTools(Engine, EngineSettings, General, History, new AppNavigator(themes),
-            Catalog, Journal, Ambience, effects, Clock, new AppTools.Extras(Scheduler, Memory, Events, Look, themes, sounds, Music));
+            Catalog, Journal, Ambience, effects, Clock, new AppTools.Extras(Scheduler, Memory, Events, Look, themes, sounds, Music, Looks, Texts));
         Toolbox = new AssistantToolbox(Tools.All(), Journal, f => Task.FromResult(f()));
     }
 
@@ -631,6 +635,73 @@ public class AssistantExtraToolTests
         Assert.AreEqual("date,started,ended,minutes,count,profile", lines[0]);
         StringAssert.Contains(lines[1], ",09:00,09:50,50,1,\"Pomodoro\"");
         Assert.AreEqual(3, lines.Length);
+    }
+
+    [TestMethod]
+    public void Every_word_on_the_timer_can_change_and_the_note_fills_in_live()
+    {
+        using var rig = new AssistantRig();
+        rig.Ok("update_settings", """{"changes": {"text.status_work": "Deep work", "text.button_start": "GO", "text.note": "{left} to go, ends {ends}"}}""");
+        var vm = new YAPA.Avalonia.ViewModels.TimerViewModel(rig.Engine, rig.EngineSettings, rig.Look, NSubstitute.Substitute.For<IAppNavigator>(),
+            rig.Ambience, rig.General, rig.History, rig.Clock, new ManualTimer(), rig.Texts);
+
+        Assert.AreEqual("GO", vm.StartLabel);
+        rig.Engine.Start();
+        Assert.AreEqual("Deep work", vm.StatusText);
+        var ends = rig.LocalNow.AddMinutes(50);
+        StringAssert.StartsWith(vm.NoteSuffix, " · 12 to go, ends ");
+        StringAssert.EndsWith(vm.NoteSuffix, YAPA.Avalonia.Platform.ClockFormat.ShortTime(ends));
+
+        rig.Ok("update_settings", """{"changes": {"text.status_work": ""}}""");
+        Assert.AreEqual("Work", vm.StatusText, "empty goes back to the built-in word");
+        Assert.IsTrue(rig.Call("update_settings", $$$"""{"changes": {"text.status_work": "{{{new string('x', 40)}}}"}}""").IsError);
+    }
+
+    [TestMethod]
+    public void Looks_apply_completely_and_undo_puts_the_old_one_back()
+    {
+        using var rig = new AssistantRig();
+        rig.Ok("update_settings", """{"changes": {"appearance.text_color": "gold"}}""");
+
+        rig.Journal.BeginTurn();
+        rig.Ok("apply_look", """{"name": "glass"}""");
+        rig.Journal.EndTurn();
+        Assert.IsTrue(rig.Look.Backdrop);
+        Assert.AreEqual(global::Avalonia.Media.Colors.White, rig.Look.TextColor, "a look starts from the defaults");
+        Assert.AreEqual("Glass", rig.Looks.Matching());
+
+        rig.Journal.Undo();
+        Assert.IsFalse(rig.Look.Backdrop);
+        Assert.AreEqual(global::Avalonia.Media.Colors.Gold, rig.Look.TextColor);
+    }
+
+    [TestMethod]
+    public void A_designed_look_is_saved_checked_and_can_be_deleted()
+    {
+        using var rig = new AssistantRig();
+        rig.Ok("save_look", """{"name": "Ocean", "values": {"appearance.text_color": "#bfe9ff", "appearance.backdrop": true, "appearance.backdrop_color": "#0b2233", "appearance.digit_weight": "thin"}, "apply": true}""");
+        Assert.AreEqual("thin", rig.Look.DigitWeight);
+        Assert.AreEqual("Ocean", rig.Looks.Matching());
+        Assert.IsTrue(rig.Ok("list_looks")["looks"]!.AsArray().Any(l => l!["name"]!.GetValue<string>() == "Ocean"));
+
+        Assert.IsTrue(rig.Call("save_look", """{"name": "Bad", "values": {"appearance.digit_weight": "chunky"}}""").IsError);
+        Assert.IsTrue(rig.Call("save_look", """{"name": "Neon"}""").IsError, "built-in names are taken");
+        Assert.IsTrue(rig.Call("save_look", """{"name": "Big", "values": {"appearance.size": 500}}""").IsError, "size isn't a look");
+
+        rig.Ok("delete_look", """{"name": "ocean"}""");
+        Assert.IsNull(rig.Looks.Find("Ocean"));
+        Assert.IsTrue(rig.Call("delete_look", """{"name": "Classic"}""").IsError);
+    }
+
+    [TestMethod]
+    public void Every_built_in_look_applies_cleanly()
+    {
+        using var rig = new AssistantRig();
+        foreach (var look in TimerLooks.Presets)
+        {
+            rig.Looks.Apply(look);
+            Assert.AreEqual(look.Name, rig.Looks.Matching(), look.Name);
+        }
     }
 
     [TestMethod]

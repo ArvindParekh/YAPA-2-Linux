@@ -290,6 +290,8 @@
     <!-- Colour swatches: circles with a ring around the chosen one. -->
     <Style Selector="ListBox.swatches">
         <Setter Property="Background" Value="Transparent" />
+        <!-- Selecting a swatch would otherwise scroll it into view, dragging the whole page down on open. -->
+        <Setter Property="AutoScrollToSelectedItem" Value="False" />
         <Setter Property="ItemsPanel">
             <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4" /></ItemsPanelTemplate>
         </Setter>
@@ -349,6 +351,28 @@
         <Setter Property="StrokeLineCap" Value="Round" />
         <Setter Property="StrokeJoin" Value="Round" />
         <Setter Property="Stroke" Value="{DynamicResource InkMuted}" />
+    </Style>
+
+    <!-- Look chips: a name to click, a ring around the one being worn. -->
+    <Style Selector="Border.look">
+        <Setter Property="Background" Value="{DynamicResource Fill}" />
+        <Setter Property="CornerRadius" Value="15" />
+        <Setter Property="BorderThickness" Value="1.5" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Border.look.current">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="Button.look">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="CornerRadius" Value="15" />
+        <Setter Property="Padding" Value="13,6" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="MinHeight" Value="0" />
+    </Style>
+    <Style Selector="Button.look.icon">
+        <Setter Property="Padding" Value="0,0,4,0" />
+        <Setter Property="Height" Value="28" />
     </Style>
 
     <!-- Keys in the shortcuts list. -->

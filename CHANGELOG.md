@@ -33,6 +33,11 @@ A ground-up revival of the Linux port.
 - The assistant can also schedule actions and reminders for later (kept across restarts), move the timer,
   choose music and sound files, export history to CSV, reset a settings section, read the app log,
   remember notes across conversations and look back through past ones.
+- Every word on the timer can be changed, a note line of your own can show live values ("{left} to go"),
+  and the Motivational theme can show your own quote; from Settings or by asking YAPA.
+- Looks: six built-in styles (Classic, Glass, Minimal, Bold, Neon, Paper) and your own, saved by name or
+  designed by YAPA on request; new style options for the digits (font, weight), the progress line colours,
+  and a backdrop plate.
 - A timer event log (starts, pauses, stops, breaks) in `Yapa.db`, so breaks and abandoned pomodoros
   can be asked about, not only completed ones.
 - A redesigned Settings window: dark grouped cards, a sidebar with icons, steppers, a live preview of the

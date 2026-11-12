@@ -1,4 +1,4 @@
-<Styles xmlns="https://github.com/avaloniaui"
+﻿<Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:w="using:YAPA.Avalonia.Windows">
 
@@ -11,10 +11,10 @@
     <!-- The progress line takes the timer's colour during work and the break colour during
          breaks, so which one is under way shows without reading anything. -->
     <Style Selector="ProgressBar.phase">
-        <Setter Property="Foreground" Value="{Binding $parent[w:TimerWindowBase].TextBrush}" />
+        <Setter Property="Foreground" Value="{Binding $parent[w:TimerWindowBase].ProgressBrush}" />
     </Style>
     <Style Selector="ProgressBar.phase.break">
-        <Setter Property="Foreground" Value="MediumSeaGreen" />
+        <Setter Property="Foreground" Value="{Binding $parent[w:TimerWindowBase].BreakBrush}" />
     </Style>
 
     <!-- Flat text buttons that take the timer's colour. -->

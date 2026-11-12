@@ -34,6 +34,15 @@ public partial class AssistantWindow : Window
     private DateTime _shownAt;
     private string? _lastQuestion;
     private (int, int, int, int)? _inputRegion;
+    private YAPA.Avalonia.Platform.Linux.X11.X11PointerWatch? _outside;
+
+    /// <summary>The card, in screen pixels: a press anywhere else closes the panel.</summary>
+    private PixelRect CardOnScreen()
+    {
+        var s = RenderScaling;
+        var b = Card.Bounds;
+        return new PixelRect(Position.X + (int)(b.X * s), Position.Y + (int)(b.Y * s), (int)(b.Width * s), (int)(b.Height * s));
+    }
 
     public AssistantWindow() : this(App.Bootstrapper!.Resolve<AssistantViewModel>(), App.Bootstrapper!.Resolve<GeneralSettings>())
     {
@@ -100,6 +109,9 @@ public partial class AssistantWindow : Window
             Show();
         }
         _shownAt = DateTime.UtcNow;
+        Orb.Resume();
+        _outside ??= YAPA.Avalonia.Platform.Linux.X11.X11PointerWatch.TryCreate();
+        _outside?.Start(CardOnScreen, () => Dispatcher.UIThread.Post(Dismiss));
         Activate();
         Card.Classes.Set("shown", true);
         _vm.Opened();
@@ -109,6 +121,7 @@ public partial class AssistantWindow : Window
     /// <summary>Fades the card out, then hides the window.</summary>
     public void Dismiss()
     {
+        _outside?.Stop();
         if (!IsVisible || _hideTimer.IsEnabled) return;
         Card.Classes.Set("shown", false);
         _hideTimer.Start();

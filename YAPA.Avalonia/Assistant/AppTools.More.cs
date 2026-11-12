@@ -20,7 +20,7 @@ public sealed partial class AppTools
 {
     /// <summary>What the tools beyond the timer need: later actions, memory, the event log, and every settings object for resets.</summary>
     public sealed record Extras(Scheduler Scheduler, AssistantMemory Memory, TimerEventLog Events, AvaloniaYapaThemeSettings Look,
-        AvaloniaThemeSettings Themes, SoundSettings Sounds, AvaloniaMusicPlayerSettings Music);
+        AvaloniaThemeSettings Themes, SoundSettings Sounds, AvaloniaMusicPlayerSettings Music, TimerLooks Looks, TimerTexts Texts);
 
     private readonly Extras _extras;
 
@@ -191,6 +191,74 @@ public sealed partial class AppTools
 
         new AssistantTool
         {
+            Name = "list_looks",
+            Description = "The timer's looks: the built-in ones and the user's own, with what each sets, and which one the timer is wearing now. A look covers: " + string.Join(", ", TimerLooks.Defaults.Keys) + " (size and position are not part of a look).",
+            Activity = _ => "Looking at your looks",
+            Run = _ => new ToolResult(new JsonObject
+            {
+                ["wearing"] = _extras.Looks.Matching() ?? "a custom mix",
+                ["looks"] = new JsonArray(_extras.Looks.All.Select(l => (JsonNode)new JsonObject
+                {
+                    ["name"] = l.Name,
+                    ["about"] = l.Description,
+                    ["built_in"] = l.BuiltIn,
+                    ["sets"] = new JsonObject(l.Values.Select(v => new KeyValuePair<string, JsonNode?>(v.Key, v.Value))),
+                }).ToArray()),
+            }),
+        },
+
+        new AssistantTool
+        {
+            Name = "apply_look",
+            Description = "Dresses the timer in a look by name. Everything a look covers goes back to its default first, then the look's own values apply.",
+            Schema = Object(("name", Str("The look's name."), true)),
+            Mutates = true,
+            Activity = a => $"Trying on {a.String("name")}",
+            Run = a =>
+            {
+                var look = _extras.Looks.Find(a.RequiredString("name"))
+                    ?? throw new ToolException($"There's no look called {a.String("name")}. Looks: {string.Join(", ", _extras.Looks.All.Select(l => l.Name))}.");
+                var before = _extras.Looks.Current();
+                _extras.Looks.Apply(look);
+                _journal.Record(() => _catalog.Restore(before));
+                _navigator.RefreshSettings();
+                return new ToolResult(new JsonObject { ["done"] = $"Applied the {look.Name} look" }, $"Applied the {look.Name} look");
+            },
+        },
+
+        new AssistantTool
+        {
+            Name = "save_look",
+            Description = "Saves a look under a name, to use again any time. Without values it saves what the timer looks like now; with values (keys as in list_looks; anything left out stays at its default) it designs one without changing the timer. Set apply true to also wear it. Be bold and tasteful when designing: pick colours that work together, readable on a typical dark wallpaper unless the user says otherwise.",
+            Schema = Object(
+                ("name", Str("Up to 32 characters."), true),
+                ("description", Str("One short line about the look."), false),
+                ("values", Map("Look setting key → value, e.g. {\"appearance.text_color\": \"#ffd166\", \"appearance.backdrop\": true}."), false),
+                ("apply", Bool("Wear it now too."), false)),
+            Mutates = true,
+            Activity = a => $"Designing {a.String("name")}",
+            Run = SaveLook,
+        },
+
+        new AssistantTool
+        {
+            Name = "delete_look",
+            Description = "Deletes one of the user's own looks (built-in ones stay).",
+            Schema = Object(("name", Str("The look's name."), true)),
+            Mutates = true,
+            Activity = _ => "Deleting the look",
+            Run = a =>
+            {
+                var look = _extras.Looks.Find(a.RequiredString("name")) ?? throw new ToolException("There's no look by that name.");
+                if (look.BuiltIn) throw new ToolException($"{look.Name} is built in and can't be deleted.");
+                _extras.Looks.Delete(look.Name);
+                _journal.Record(() => _extras.Looks.Restore(look));
+                return new ToolResult(new JsonObject { ["done"] = $"Deleted the {look.Name} look" }, $"Deleted the {look.Name} look");
+            },
+        },
+
+        new AssistantTool
+        {
             Name = "quit_app",
             Description = "Quits YAPA a moment after your reply, saving the timer (it is restored, paused, at the next start). Only when the user asks to quit or close the app.",
             Activity = _ => "Quitting",
@@ -202,6 +270,29 @@ public sealed partial class AppTools
             },
         },
     ];
+
+    private ToolResult SaveLook(ToolArgs a)
+    {
+        var name = a.RequiredString("name");
+        var previous = _extras.Looks.Find(name) is { BuiltIn: false } existing ? existing : null;
+        var look = _extras.Looks.Save(name, a.String("description"), a.Object("values"));
+        _journal.Record(() =>
+        {
+            if (previous != null) _extras.Looks.Restore(previous);
+            else _extras.Looks.Delete(look.Name);
+        });
+
+        var done = $"Saved the {look.Name} look";
+        if (a.Bool("apply") == true)
+        {
+            var before = _extras.Looks.Current();
+            _extras.Looks.Apply(look);
+            _journal.Record(() => _catalog.Restore(before));
+            _navigator.RefreshSettings();
+            done += " and put it on";
+        }
+        return new ToolResult(new JsonObject { ["done"] = done, ["sets"] = new JsonObject(look.Values.Select(v => new KeyValuePair<string, JsonNode?>(v.Key, v.Value))) }, done);
+    }
 
     // ── Later ────────────────────────────────────────────────────────────────
 

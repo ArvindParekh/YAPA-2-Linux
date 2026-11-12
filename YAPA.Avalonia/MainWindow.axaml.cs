@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -26,6 +26,10 @@ public partial class MainWindow : TimerWindowBase
         Height = Math.Round(width * AspectRatio);
 
         StatusLabel.IsVisible = Appearance.ShowStatusText;
+        TimeLabel.FontFamily = DigitFamily;
+        TimeLabel.FontWeight = Appearance.DigitFontWeight;
+        Backdrop.IsVisible = Appearance.Backdrop;
+        Backdrop.Background = new SolidColorBrush(Appearance.BackdropColor, Math.Clamp(Appearance.BackdropOpacity, 0, 1));
         ProgressLine.IsVisible = Appearance.ShowProgress;
 
         TimeLabel.Effect = Appearance.ShadowOpacity > 0

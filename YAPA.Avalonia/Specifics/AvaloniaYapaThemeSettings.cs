@@ -1,3 +1,4 @@
+﻿using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Media;
@@ -92,6 +93,66 @@ public sealed class AvaloniaYapaThemeSettings : IPluginSettings, INotifyProperty
         set => Set(value);
     }
 
+    // ── Looks: the digits, the progress line and an optional plate behind the timer ──
+
+    public static readonly string[] DigitWeights = ["thin", "light", "regular", "medium", "bold"];
+    public static readonly string[] DigitFonts = ["inter", "geist"];
+    public static readonly Color DefaultBreakColor = Color.Parse("#FF3CB371");
+    public static readonly Color DefaultBackdropColor = Color.Parse("#FF15151A");
+
+    public string DigitWeight
+    {
+        get => _s.Get(nameof(DigitWeight), "light") is { } w && Array.IndexOf(DigitWeights, w) >= 0 ? w : "light";
+        set => Set(value);
+    }
+
+    public string DigitFont
+    {
+        get => _s.Get(nameof(DigitFont), "inter") is { } f && Array.IndexOf(DigitFonts, f) >= 0 ? f : "inter";
+        set => Set(value);
+    }
+
+    /// <summary>The progress line during work; null follows the text colour.</summary>
+    public Color? ProgressColor
+    {
+        get => _s.Get<string?>(nameof(ProgressColor), null) is { Length: > 0 } c && Color.TryParse(c, out var parsed) ? parsed : null;
+        set => Set(value?.ToString() ?? "");
+    }
+
+    public Color BreakColor
+    {
+        get => ParseColor(_s.Get<string?>(nameof(BreakColor), null), DefaultBreakColor);
+        set => Set(value.ToString());
+    }
+
+    /// <summary>A rounded plate behind the timer, for wallpapers where floating digits get lost.</summary>
+    public bool Backdrop
+    {
+        get => _s.Get(nameof(Backdrop), false);
+        set => Set(value);
+    }
+
+    public Color BackdropColor
+    {
+        get => ParseColor(_s.Get<string?>(nameof(BackdropColor), null), DefaultBackdropColor);
+        set => Set(value.ToString());
+    }
+
+    public double BackdropOpacity
+    {
+        get => _s.Get(nameof(BackdropOpacity), 0.55);
+        set => Set(value);
+    }
+
+    public FontWeight DigitFontWeight => DigitWeight switch
+    {
+        "thin" => FontWeight.Thin,
+        "regular" => FontWeight.Regular,
+        "medium" => FontWeight.Medium,
+        "bold" => FontWeight.Bold,
+        _ => FontWeight.Light,
+    };
+
     public void ResetToDefaults()
     {
         Width = DefaultWidth;
@@ -105,6 +166,13 @@ public sealed class AvaloniaYapaThemeSettings : IPluginSettings, INotifyProperty
         HideSeconds = false;
         HideButtons = false;
         MinimizeToTray = true;
+        DigitWeight = "light";
+        DigitFont = "inter";
+        ProgressColor = null;
+        BreakColor = DefaultBreakColor;
+        Backdrop = false;
+        BackdropColor = DefaultBackdropColor;
+        BackdropOpacity = 0.55;
     }
 
     public void DeferChanges() => _s.DeferChanges();

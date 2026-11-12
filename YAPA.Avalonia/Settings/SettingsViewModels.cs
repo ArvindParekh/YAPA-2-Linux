@@ -108,14 +108,156 @@ public sealed class TimerPageViewModel(PomodoroEngineSettings s, GeneralSettings
     }
 }
 
-public sealed class AppearancePageViewModel(AvaloniaYapaThemeSettings s, AvaloniaThemeSettings themes) : SettingsPageViewModel
+public sealed record Swatch(string Value, IBrush Brush, bool IsAuto);
+
+public sealed record LookChip(string Name, string Description, bool BuiltIn, bool IsCurrent);
+
+public sealed class AppearancePageViewModel : SettingsPageViewModel
 {
+    private readonly AvaloniaYapaThemeSettings s;
+    private readonly AvaloniaThemeSettings themes;
+    private readonly YAPA.Avalonia.Assistant.TimerLooks? _looks;
+    private readonly TimerTexts? _texts;
+
+    public AppearancePageViewModel(AvaloniaYapaThemeSettings s, AvaloniaThemeSettings themes,
+        YAPA.Avalonia.Assistant.TimerLooks? looks = null, TimerTexts? texts = null)
+    {
+        this.s = s;
+        this.themes = themes;
+        _looks = looks;
+        _texts = texts;
+        if (_looks != null) _looks.Changed += RefreshLooks;
+        ApplyLookCommand = new CommunityToolkit.Mvvm.Input.RelayCommand<string>(name =>
+        {
+            if (name != null && _looks?.Find(name) is { } look) { _looks.Apply(look); Refresh(); RefreshLooks(); }
+        });
+        DeleteLookCommand = new CommunityToolkit.Mvvm.Input.RelayCommand<string>(name => { if (name != null) _looks?.Delete(name); });
+        SaveLookCommand = new CommunityToolkit.Mvvm.Input.RelayCommand(SaveLook);
+        RefreshLooks();
+    }
+
+    // ── Looks ────────────────────────────────────────────────────────────
+    public System.Collections.ObjectModel.ObservableCollection<LookChip> Looks { get; } = [];
+    public CommunityToolkit.Mvvm.Input.IRelayCommand<string> ApplyLookCommand { get; }
+    public CommunityToolkit.Mvvm.Input.IRelayCommand<string> DeleteLookCommand { get; }
+    public CommunityToolkit.Mvvm.Input.IRelayCommand SaveLookCommand { get; }
+
+    private string _newLookName = "";
+    public string NewLookName { get => _newLookName; set { _newLookName = value; Changed(); } }
+
+    private string _lookError = "";
+    public string LookError { get => _lookError; private set { _lookError = value; Changed(); Changed(nameof(HasLookError)); } }
+    public bool HasLookError => LookError.Length > 0;
+
+    private void SaveLook()
+    {
+        if (_looks == null || string.IsNullOrWhiteSpace(NewLookName)) return;
+        try
+        {
+            _looks.Save(NewLookName, null, null);
+            NewLookName = "";
+            LookError = "";
+        }
+        catch (YAPA.Avalonia.Assistant.ToolException e)
+        {
+            LookError = e.Message;
+        }
+    }
+
+    public void RefreshLooks()
+    {
+        if (_looks == null) return;
+        var current = _looks.Matching();
+        Looks.Clear();
+        foreach (var l in _looks.All) Looks.Add(new LookChip(l.Name, l.Description, l.BuiltIn, l.Name == current));
+    }
+
+    public void Detach()
+    {
+        if (_looks != null) _looks.Changed -= RefreshLooks;
+    }
+
+    // ── Digits, progress, backdrop ───────────────────────────────────────
+    public IReadOnlyList<string> DigitFontNames { get; } = ["Inter", "Geist"];
+    public int DigitFontIndex
+    {
+        get => Array.IndexOf(AvaloniaYapaThemeSettings.DigitFonts, s.DigitFont);
+        set { if (value >= 0) { s.DigitFont = AvaloniaYapaThemeSettings.DigitFonts[value]; Changed(); RefreshLooks(); } }
+    }
+
+    public IReadOnlyList<string> DigitWeightNames { get; } = ["Thin", "Light", "Regular", "Medium", "Bold"];
+    public int DigitWeightIndex
+    {
+        get => Array.IndexOf(AvaloniaYapaThemeSettings.DigitWeights, s.DigitWeight);
+        set { if (value >= 0) { s.DigitWeight = AvaloniaYapaThemeSettings.DigitWeights[value]; Changed(); RefreshLooks(); } }
+    }
+
+    private static Swatch Sw(string hex) => new(hex, new SolidColorBrush(Color.Parse(hex)), false);
+
+    public IReadOnlyList<Swatch> ProgressSwatches { get; } =
+    [
+        new("auto", new LinearGradientBrush
+        {
+            StartPoint = new global::Avalonia.RelativePoint(0, 0, global::Avalonia.RelativeUnit.Relative),
+            EndPoint = new global::Avalonia.RelativePoint(1, 1, global::Avalonia.RelativeUnit.Relative),
+            GradientStops = { new GradientStop(Colors.White, 0.5), new GradientStop(Color.Parse("#FF3A3A42"), 0.5) },
+        }, true),
+        Sw("#FFFF6B57"), Sw("#FFFFD166"), Sw("#FF3CCB9B"), Sw("#FF5EF2FF"), Sw("#FF8B7CFF"), Sw("#FFFF2BD6"),
+    ];
+
+    public Swatch? ProgressSwatch
+    {
+        get => s.ProgressColor is { } c ? ProgressSwatches.FirstOrDefault(w => !w.IsAuto && Color.Parse(w.Value) == c) : ProgressSwatches[0];
+        set
+        {
+            if (value == null) return;
+            s.ProgressColor = value.IsAuto ? null : Color.Parse(value.Value);
+            Changed();
+            RefreshLooks();
+        }
+    }
+
+    public IReadOnlyList<Swatch> BreakSwatches { get; } =
+        [Sw("#FF3CB371"), Sw("#FF3CCB9B"), Sw("#FF5EF2FF"), Sw("#FF8B7CFF"), Sw("#FFFFD166"), Sw("#FFFF8A5B")];
+
+    public Swatch? BreakSwatch
+    {
+        get => BreakSwatches.FirstOrDefault(w => Color.Parse(w.Value) == s.BreakColor);
+        set { if (value != null) { s.BreakColor = Color.Parse(value.Value); Changed(); RefreshLooks(); } }
+    }
+
+    public bool Backdrop { get => s.Backdrop; set { s.Backdrop = value; Changed(); RefreshLooks(); } }
+    public double BackdropOpacity { get => s.BackdropOpacity; set { s.BackdropOpacity = Math.Round(value, 2); Changed(); Changed(nameof(BackdropText)); } }
+    public string BackdropText => $"{s.BackdropOpacity:P0}";
+
+    public IReadOnlyList<Swatch> BackdropSwatches { get; } =
+        [Sw("#FF15151A"), Sw("#FF101014"), Sw("#FF1E2A3A"), Sw("#FF2A1E36"), Sw("#FFF4F0E8"), Sw("#FFFFFFFF")];
+
+    public Swatch? BackdropSwatch
+    {
+        get => BackdropSwatches.FirstOrDefault(w => Color.Parse(w.Value) == s.BackdropColor);
+        set { if (value != null) { s.BackdropColor = Color.Parse(value.Value); Changed(); RefreshLooks(); } }
+    }
+
+    // ── Words ────────────────────────────────────────────────────────────
+    public string Note
+    {
+        get => _texts?.Note ?? "";
+        set { if (_texts != null && value.Length <= TimerTexts.MaxNote) { _texts.Note = value; Changed(); } }
+    }
+
+    public string NoteHint => "Shown after the status. Live: " + string.Join(" ", TimerTexts.Placeholders.Take(6).Select(p => p.Token)) + " …";
+
     public override string Title => "Appearance";
     public override string Subtitle => "How the timer looks on your desktop.";
     public override SettingsPage Page => SettingsPage.Appearance;
 
     // ── Live preview ─────────────────────────────────────────────────────
     public IBrush PreviewText => new SolidColorBrush(s.TextColor);
+    public IBrush PreviewProgress => new SolidColorBrush(s.ProgressColor ?? s.TextColor);
+    public FontWeight PreviewWeight => s.DigitFontWeight;
+    public FontFamily PreviewFamily => (FontFamily)global::Avalonia.Controls.ResourceNodeExtensions.FindResource(global::Avalonia.Application.Current!, s.DigitFont == "geist" ? "UiFont" : "TimerFont")!;
+    public IBrush PreviewBackdrop => s.Backdrop ? new SolidColorBrush(s.BackdropColor, s.BackdropOpacity) : Brushes.Transparent;
     public Color PreviewShadow => s.ShadowColor;
     public double PreviewShadowOpacity => s.ShadowOpacity;
     public double PreviewOpacity => Math.Clamp(s.ClockOpacity, 0.2, 1);
@@ -127,7 +269,12 @@ public sealed class AppearancePageViewModel(AvaloniaYapaThemeSettings s, Avaloni
     {
         base.OnPropertyChanged(e);
         if (e.PropertyName is nameof(PreviewText) or nameof(PreviewShadow) or nameof(PreviewShadowOpacity) or nameof(PreviewOpacity)
-            or nameof(PreviewTime) or nameof(PreviewDigits)) return;
+            or nameof(PreviewTime) or nameof(PreviewDigits) or nameof(PreviewProgress) or nameof(PreviewWeight) or nameof(PreviewFamily)
+            or nameof(PreviewBackdrop) or nameof(Looks)) return;
+        OnPropertyChanged(nameof(PreviewProgress));
+        OnPropertyChanged(nameof(PreviewWeight));
+        OnPropertyChanged(nameof(PreviewFamily));
+        OnPropertyChanged(nameof(PreviewBackdrop));
         OnPropertyChanged(nameof(PreviewText));
         OnPropertyChanged(nameof(PreviewShadow));
         OnPropertyChanged(nameof(PreviewShadowOpacity));
@@ -156,7 +303,7 @@ public sealed class AppearancePageViewModel(AvaloniaYapaThemeSettings s, Avaloni
     public string? TextColor
     {
         get => Match(TextColors, s.TextColor);
-        set { if (value != null && Color.TryParse(value, out var c)) { s.TextColor = c; Changed(); Changed(nameof(TextColorHex)); } }
+        set { if (value != null && Color.TryParse(value, out var c)) { s.TextColor = c; Changed(); Changed(nameof(TextColorHex)); RefreshLooks(); } }
     }
 
     public string TextColorHex

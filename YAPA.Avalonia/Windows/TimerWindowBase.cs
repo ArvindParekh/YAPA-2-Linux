@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Linq;
 using Avalonia;
@@ -99,9 +99,35 @@ public abstract class TimerWindowBase : Window
         private set => SetValue(TextBrushProperty, value);
     }
 
+    public static readonly StyledProperty<IBrush> ProgressBrushProperty =
+        AvaloniaProperty.Register<TimerWindowBase, IBrush>(nameof(ProgressBrush), Brushes.White);
+
+    public static readonly StyledProperty<IBrush> BreakBrushProperty =
+        AvaloniaProperty.Register<TimerWindowBase, IBrush>(nameof(BreakBrush), Brushes.MediumSeaGreen);
+
+    /// <summary>The progress line during work.</summary>
+    public IBrush ProgressBrush
+    {
+        get => GetValue(ProgressBrushProperty);
+        private set => SetValue(ProgressBrushProperty, value);
+    }
+
+    /// <summary>The progress line during breaks.</summary>
+    public IBrush BreakBrush
+    {
+        get => GetValue(BreakBrushProperty);
+        private set => SetValue(BreakBrushProperty, value);
+    }
+
+    /// <summary>The digits' font: Inter by default (the timer's own), or Geist.</summary>
+    protected FontFamily DigitFamily => (FontFamily)global::Avalonia.Application.Current!.FindResource(
+        Appearance.DigitFont == "geist" ? "UiFont" : "TimerFont")!;
+
     private void ApplyCommonAppearance()
     {
         TextBrush = new SolidColorBrush(Appearance.TextColor);
+        ProgressBrush = new SolidColorBrush(Appearance.ProgressColor ?? Appearance.TextColor);
+        BreakBrush = new SolidColorBrush(Appearance.BreakColor);
         Opacity = Math.Clamp(Appearance.ClockOpacity, 0.2, 1.0);
         OnAppearanceChanged();
     }

@@ -15,6 +15,7 @@ namespace YAPA.Avalonia.Settings;
 public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicker
 {
     private SettingsPageViewModel _selectedPage;
+    private System.DateTime _pageShownAt = System.DateTime.UtcNow;
 
     public SettingsWindow()
     {
@@ -22,7 +23,8 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
         Pages = new List<SettingsPageViewModel>
         {
             new TimerPageViewModel(bs.Resolve<PomodoroEngineSettings>(), bs.Resolve<GeneralSettings>()),
-            new AppearancePageViewModel(bs.Resolve<AvaloniaYapaThemeSettings>(), bs.Resolve<AvaloniaThemeSettings>()),
+            new AppearancePageViewModel(bs.Resolve<AvaloniaYapaThemeSettings>(), bs.Resolve<AvaloniaThemeSettings>(),
+                bs.Resolve<YAPA.Avalonia.Assistant.TimerLooks>(), bs.Resolve<TimerTexts>()),
             bs.Resolve<SoundsPageFactory>().Create(),
             new AssistantPageViewModel(bs.Resolve<YAPA.Avalonia.Assistant.AssistantSettings>(), bs.Resolve<YAPA.Avalonia.Assistant.AssistantMemory>(),
                 bs.Resolve<YAPA.Avalonia.Assistant.Scheduler>()),
@@ -34,6 +36,12 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
 
         InitializeComponent();
         DataContext = this;
+        // A freshly shown page asks to bring its selected swatches and lists into view, which
+        // scrolled it halfway down; for a moment after a page switch, those requests are ignored.
+        PageHost.AddHandler(RequestBringIntoViewEvent, (_, e) =>
+        {
+            if (System.DateTime.UtcNow - _pageShownAt < System.TimeSpan.FromMilliseconds(600)) e.Handled = true;
+        }, global::Avalonia.Interactivity.RoutingStrategies.Bubble);
         // Before the first map, so the frame comes up dark rather than flipping.
         if (TryGetPlatformHandle() is { HandleDescriptor: "XID" } handle)
             YAPA.Avalonia.Platform.Linux.X11.X11Window.PreferDarkFrame(handle.Handle);
@@ -50,8 +58,10 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
         {
             if (value == null || ReferenceEquals(value, _selectedPage)) return;
             _selectedPage = value;
+            _pageShownAt = System.DateTime.UtcNow;
             Notify();
-            PageScroller?.ScrollToHome(); // a new page starts at its top
+            // A new page starts at its top, once it has been laid out.
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(() => PageScroller?.ScrollToHome(), global::Avalonia.Threading.DispatcherPriority.Loaded);
         }
     }
 
@@ -82,6 +92,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
     {
         foreach (var sounds in Pages.OfType<SoundsPageViewModel>()) { sounds.EndPreviews(); sounds.Detach(); }
         foreach (var assistant in Pages.OfType<AssistantPageViewModel>()) assistant.Detach();
+        foreach (var appearance in Pages.OfType<AppearancePageViewModel>()) appearance.Detach();
         base.OnClosed(e);
     }
 

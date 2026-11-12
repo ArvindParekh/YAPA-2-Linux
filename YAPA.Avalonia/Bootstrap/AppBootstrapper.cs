@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.Extensions.DependencyInjection;
 using YAPA.Avalonia.Audio;
 using YAPA.Avalonia.Persistence;
@@ -37,6 +37,7 @@ public sealed class AppBootstrapper : IDisposable
         services.AddSingleton<AvaloniaYapaThemeSettings>();
         services.AddSingleton<AvaloniaThemeSettings>();
         services.AddSingleton<GeneralSettings>();
+        services.AddSingleton<TimerTexts>();
         services.AddSingleton<AvaloniaMusicPlayerSettings>();
 
         // ── Timer ────────────────────────────────────────────────────────────
@@ -76,6 +77,7 @@ public sealed class AppBootstrapper : IDisposable
             new AvaloniaTimer()));
         services.AddSingleton<YAPA.Avalonia.Assistant.AssistantMemory>(_ => new YAPA.Avalonia.Assistant.AssistantMemory());
         services.AddSingleton<TimerEventLog>(sp => new TimerEventLog(sp.GetRequiredService<IPomodoroEngine>(), sp.GetRequiredService<IClock>()));
+        services.AddSingleton<YAPA.Avalonia.Assistant.TimerLooks>();
         services.AddSingleton<YAPA.Avalonia.Assistant.AppTools.Extras>();
         services.AddSingleton<YAPA.Avalonia.Assistant.AppTools>();
         services.AddSingleton<YAPA.Avalonia.Assistant.AssistantService>();

@@ -91,19 +91,55 @@
                             <GradientStop Offset="1" Color="#FF8E3A3A" />
                         </LinearGradientBrush>
                     </Border.Background>
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="{Binding PreviewOpacity}">
+                    <Border HorizontalAlignment="Center" VerticalAlignment="Center" Background="{Binding PreviewBackdrop}"
+                            CornerRadius="14" Padding="22,10,22,12">
+                    <StackPanel Opacity="{Binding PreviewOpacity}">
                         <TextBlock Text="Work" FontSize="13" FontWeight="Medium" Foreground="{Binding PreviewText}" Opacity="0.85"
                                    FontFamily="{StaticResource TimerFont}" IsVisible="{Binding ShowStatusText}" Margin="3,0,0,0" />
-                        <TextBlock Text="{Binding PreviewTime}" FontSize="{Binding PreviewDigits}" FontWeight="Light"
-                                   FontFamily="{StaticResource TimerFont}" FontFeatures="+tnum" Foreground="{Binding PreviewText}">
+                        <TextBlock Text="{Binding PreviewTime}" FontSize="{Binding PreviewDigits}" FontWeight="{Binding PreviewWeight}"
+                                   FontFamily="{Binding PreviewFamily}" FontFeatures="+tnum" Foreground="{Binding PreviewText}">
                             <TextBlock.Effect>
                                 <DropShadowEffect BlurRadius="6" OffsetX="1.5" OffsetY="1.5"
                                                   Color="{Binding PreviewShadow}" Opacity="{Binding PreviewShadowOpacity}" />
                             </TextBlock.Effect>
                         </TextBlock>
                         <Border Height="3" CornerRadius="2" Background="#33FFFFFF" Margin="4,2,4,0" IsVisible="{Binding ShowProgress}">
-                            <Border Height="3" CornerRadius="2" Background="{Binding PreviewText}" HorizontalAlignment="Left" Width="40" />
+                            <Border Height="3" CornerRadius="2" Background="{Binding PreviewProgress}" HorizontalAlignment="Left" Width="40" />
                         </Border>
+                    </StackPanel>
+                    </Border>
+                </Border>
+
+                <TextBlock Classes="group" Text="Looks" />
+                <Border Classes="card" Padding="14,14,14,10">
+                    <StackPanel Spacing="10">
+                        <ItemsControl ItemsSource="{Binding Looks}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="s:LookChip">
+                                    <Border Classes="look" Classes.current="{Binding IsCurrent}" Margin="0,0,6,6">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Classes="look" Content="{Binding Name}"
+                                                    Command="{Binding $parent[ItemsControl].((s:AppearancePageViewModel)DataContext).ApplyLookCommand}"
+                                                    CommandParameter="{Binding Name}" />
+                                            <Button Classes="look icon" IsVisible="{Binding !BuiltIn}" Width="26"
+                                                    Command="{Binding $parent[ItemsControl].((s:AppearancePageViewModel)DataContext).DeleteLookCommand}"
+                                                    CommandParameter="{Binding Name}" AutomationProperties.Name="Delete this look">
+                                                <Path Classes="icon" Data="{StaticResource IconClose}" Width="9" Height="9" />
+                                            </Button>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                            <TextBox Text="{Binding NewLookName}" PlaceholderText="Name the current look to keep it" />
+                            <Button Grid.Column="1" Content="Save look" Margin="8,0,0,0" Command="{Binding SaveLookCommand}" />
+                        </Grid>
+                        <TextBlock Classes="note" Text="{Binding LookError}" IsVisible="{Binding HasLookError}" Foreground="#FFF0A39A" />
+                        <TextBlock Classes="note" Text="Or ask YAPA to design one: &quot;make me a calm blue look with a glass plate&quot;." />
                     </StackPanel>
                 </Border>
 
@@ -158,6 +194,67 @@
                                 <TextBlock Classes="value" Text="{Binding ShadowText}" Width="48" />
                             </StackPanel>
                         </c:SettingRow>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Classes="group" Text="Style" />
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Digits">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <ComboBox ItemsSource="{Binding DigitFontNames}" SelectedIndex="{Binding DigitFontIndex}" Width="110" />
+                                <ComboBox ItemsSource="{Binding DigitWeightNames}" SelectedIndex="{Binding DigitWeightIndex}" Width="120" />
+                            </StackPanel>
+                        </c:SettingRow>
+                        <c:SettingRow Title="Progress line" Description="During pomodoros; the half-and-half follows the text colour">
+                            <ListBox Classes="swatches" ItemsSource="{Binding ProgressSwatches}" SelectedItem="{Binding ProgressSwatch}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="s:Swatch">
+                                        <Border Width="20" Height="20" CornerRadius="10" Background="{Binding Brush}" BorderBrush="#40FFFFFF" BorderThickness="1" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </c:SettingRow>
+                        <c:SettingRow Title="During breaks">
+                            <ListBox Classes="swatches" ItemsSource="{Binding BreakSwatches}" SelectedItem="{Binding BreakSwatch}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="s:Swatch">
+                                        <Border Width="20" Height="20" CornerRadius="10" Background="{Binding Brush}" BorderBrush="#40FFFFFF" BorderThickness="1" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </c:SettingRow>
+                        <c:SettingRow Title="Backdrop" Description="A rounded plate behind the timer, for busy wallpapers">
+                            <ToggleSwitch IsChecked="{Binding Backdrop}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Backdrop colour" IsVisible="{Binding Backdrop}">
+                            <StackPanel Orientation="Horizontal" Spacing="14">
+                                <ListBox Classes="swatches" ItemsSource="{Binding BackdropSwatches}" SelectedItem="{Binding BackdropSwatch}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="s:Swatch">
+                                            <Border Width="20" Height="20" CornerRadius="10" Background="{Binding Brush}" BorderBrush="#40FFFFFF" BorderThickness="1" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </c:SettingRow>
+                        <c:SettingRow Title="Backdrop strength" IsVisible="{Binding Backdrop}">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Slider Classes="setting" Minimum="0.1" Maximum="1" Value="{Binding BackdropOpacity}" />
+                                <TextBlock Classes="value" Text="{Binding BackdropText}" Width="48" />
+                            </StackPanel>
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Classes="group" Text="Your words" />
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Note on the timer" Description="{Binding NoteHint}">
+                            <TextBox Text="{Binding Note}" Width="250" PlaceholderText="e.g. {left} to go · ship it" />
+                        </c:SettingRow>
+                        <TextBlock Classes="note" Margin="16,0,16,13"
+                                   Text="Any other word on the timer can be changed too: ask YAPA, &quot;call the break Recharge&quot;." />
                     </StackPanel>
                 </Border>
 
@@ -511,7 +608,7 @@
                 </Button>
             </Grid>
             <ScrollViewer Grid.Row="1" x:Name="PageScroller" HorizontalScrollBarVisibility="Disabled">
-                <ContentControl Content="{Binding SelectedPage}" Margin="36,0,36,20" MaxWidth="720" HorizontalAlignment="Stretch" />
+                <ContentControl x:Name="PageHost" Content="{Binding SelectedPage}" Margin="36,0,36,20" MaxWidth="720" HorizontalAlignment="Stretch" />
             </ScrollViewer>
         </Grid>
     </Grid>

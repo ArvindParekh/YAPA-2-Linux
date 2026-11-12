@@ -32,6 +32,19 @@ public sealed partial class TimerViewModel : ObservableObject
     private readonly IPomodoroRepository _repository;
     private readonly IClock _clock;
     private readonly ITimer _forecastTimer;
+    private readonly TimerTexts _texts;
+
+    /// <summary>Settings that are never saved: the fallback wording store for tests.</summary>
+    private sealed class NullEnvironment : IEnvironment
+    {
+        public string GetSettings() => "{}";
+        public void SaveSettings(string settings) { }
+        public string GetLocalSettings() => "{}";
+        public void SaveLocalSettings(string settings) { }
+        public string GetPluginDirectory() => "";
+        public string GetThemeDirectory() => "";
+        public bool PreRelease() => false;
+    }
 
     /// <param name="forecastTimer">
     /// Moves the goal forecast on while nothing else ticks (idle, paused): the time of day
@@ -39,8 +52,11 @@ public sealed partial class TimerViewModel : ObservableObject
     /// </param>
     public TimerViewModel(IPomodoroEngine engine, PomodoroEngineSettings engineSettings, AvaloniaYapaThemeSettings theme,
         IAppNavigator navigator, YAPA.Avalonia.Audio.Ambience.AmbienceSettings ambience, GeneralSettings general,
-        IPomodoroRepository repository, IClock clock, ITimer forecastTimer)
+        IPomodoroRepository repository, IClock clock, ITimer forecastTimer, TimerTexts? texts = null)
     {
+        // Optional so the many places that build a view-model for tests needn't care.
+        _texts = texts ?? new TimerTexts(new YAPA.Shared.Common.JsonYapaSettings(new NullEnvironment(), new YAPA.Shared.Common.NewtonsoftJson()));
+        _texts.PropertyChanged += (_, _) => Refresh();
         _engine = engine;
         _engineSettings = engineSettings;
         _theme = theme;
@@ -114,6 +130,12 @@ public sealed partial class TimerViewModel : ObservableObject
 
     [ObservableProperty] private bool _canStart = true;
     [ObservableProperty] private string _startLabel = "START";
+    [ObservableProperty] private string _pauseLabel = "PAUSE";
+    [ObservableProperty] private string _stopLabel = "STOP";
+    [ObservableProperty] private string _skipLabel = "SKIP";
+
+    /// <summary>" · " and the user's note, live; empty without one.</summary>
+    [ObservableProperty] private string _noteSuffix = "";
     [ObservableProperty] private string _startTooltip = "Start a pomodoro";
     [ObservableProperty] private string _startMenuText = "Start";
     [ObservableProperty] private bool _canPause;
@@ -220,6 +242,7 @@ public sealed partial class TimerViewModel : ObservableObject
             Progress = _engine.Progress;
             UpdateTime(_engine.DisplayValue);
             UpdateSummary();
+            UpdateNote();
             // While running the forecast stands still; while waiting it moves on each second.
             if (e.PropertyName is nameof(IPomodoroEngine.Overrun)) RefreshGoal(requery: false);
         }
@@ -228,6 +251,32 @@ public sealed partial class TimerViewModel : ObservableObject
             // A transition raises a burst of these; only Counter means today's count may have moved.
             Refresh(requeryGoal: e.PropertyName == nameof(IPomodoroEngine.Counter));
         }
+    }
+
+    /// <summary>Fills the note's placeholders; cheap, so it runs with every second.</summary>
+    private void UpdateNote()
+    {
+        var note = _texts.Note;
+        if (note.Length == 0)
+        {
+            NoteSuffix = "";
+            return;
+        }
+        var now = _clock.UtcNow.ToLocalTime();
+        var goal = _general.DailyGoal;
+        string Hm(DateTime t) => Platform.ClockFormat.ShortTime(t);
+        var filled = note
+            .Replace("{done}", _doneToday.ToString())
+            .Replace("{goal}", goal.ToString())
+            .Replace("{left}", Math.Max(0, goal - _doneToday).ToString())
+            .Replace("{pomodoro}", _engine.Index.ToString())
+            .Replace("{cycle_length}", Math.Max(1, _engineSettings.PomodorosBeforeLongBreak).ToString())
+            .Replace("{cycle}", _engine.Cycle.ToString())
+            .Replace("{ends}", _engine.IsRunning ? Hm(now.AddSeconds(_engine.Remaining)) : "–")
+            .Replace("{goal_eta}", Goal.Finish is { } f ? Hm(f) : "–")
+            .Replace("{now}", Hm(now))
+            .Replace("{profile}", _engineSettings.ActiveProfile);
+        NoteSuffix = " · " + filled;
     }
 
     private void UpdateSummary()
@@ -294,22 +343,25 @@ public sealed partial class TimerViewModel : ObservableObject
 
         StatusText = phase switch
         {
-            PomodoroPhase.NotStarted => "Ready",
-            PomodoroPhase.Work => "Work",
-            PomodoroPhase.WorkEnded => "Work done",
-            PomodoroPhase.Break => _engine.IsLongBreak ? "Long break" : "Break",
-            PomodoroPhase.BreakEnded => "Break over",
-            PomodoroPhase.Pause => pausedBreak ? "Break paused" : "Paused",
+            PomodoroPhase.NotStarted => _texts.Or("status_ready", "Ready"),
+            PomodoroPhase.Work => _texts.Or("status_work", "Work"),
+            PomodoroPhase.WorkEnded => _texts.Or("status_work_done", "Work done"),
+            PomodoroPhase.Break => _engine.IsLongBreak ? _texts.Or("status_long_break", "Long break") : _texts.Or("status_break", "Break"),
+            PomodoroPhase.BreakEnded => _texts.Or("status_break_over", "Break over"),
+            PomodoroPhase.Pause => pausedBreak ? _texts.Or("status_break_paused", "Break paused") : _texts.Or("status_paused", "Paused"),
             _ => string.Empty,
         };
 
         CanStart = !_engine.IsRunning;
         (StartLabel, StartMenuText, StartTooltip) = phase switch
         {
-            PomodoroPhase.Pause => ("RESUME", "Resume", pausedBreak ? "Resume the break (Space)" : "Resume the pomodoro (Space)"),
-            PomodoroPhase.WorkEnded => ("BREAK", "Start break", _engine.IsLongBreak ? "Start the long break (Space)" : "Start the break (Space)"),
-            _ => ("START", "Start pomodoro", "Start a pomodoro (Space)"),
+            PomodoroPhase.Pause => (_texts.Or("button_resume", "RESUME"), "Resume", pausedBreak ? "Resume the break (Space)" : "Resume the pomodoro (Space)"),
+            PomodoroPhase.WorkEnded => (_texts.Or("button_break", "BREAK"), "Start break", _engine.IsLongBreak ? "Start the long break (Space)" : "Start the break (Space)"),
+            _ => (_texts.Or("button_start", "START"), "Start pomodoro", "Start a pomodoro (Space)"),
         };
+        PauseLabel = _texts.Or("button_pause", "PAUSE");
+        StopLabel = _texts.Or("button_stop", "STOP");
+        SkipLabel = _texts.Or("button_skip", "SKIP");
         CanPause = _engine.IsRunning;
         CanStop = phase != PomodoroPhase.NotStarted;
         var stoppingBreak = inBreak || phase == PomodoroPhase.WorkEnded;
@@ -336,6 +388,7 @@ public sealed partial class TimerViewModel : ObservableObject
 
         UpdateSummary();
         RefreshGoal(requeryGoal);
+        UpdateNote();
 
         StartCommand.NotifyCanExecuteChanged();
         PauseCommand.NotifyCanExecuteChanged();

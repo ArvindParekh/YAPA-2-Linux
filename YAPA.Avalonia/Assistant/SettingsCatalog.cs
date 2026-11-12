@@ -30,7 +30,7 @@ public sealed class SettingsCatalog
 
     public SettingsCatalog(PomodoroEngineSettings engine, GeneralSettings general, AvaloniaYapaThemeSettings look,
         AvaloniaThemeSettings themes, AmbienceSettings ambience, SoundSettings sounds, AssistantSettings assistant,
-        AvaloniaMusicPlayerSettings music)
+        AvaloniaMusicPlayerSettings music, TimerTexts texts)
     {
         var entries = new List<SettingEntry>
         {
@@ -166,6 +166,30 @@ public sealed class SettingsCatalog
 
         foreach (var cue in SoundSettings.All) entries.Add(Cue(sounds, cue));
 
+        // ── The timer's words ───────────────────────────────────────────────
+        foreach (var (key, what, fallback) in TimerTexts.Labels)
+            entries.Add(Text("text." + key, $"The wording of {what}; \"\" for the built-in \"{fallback}\".", TimerTexts.MaxLabel,
+                () => texts.Get(key), v => texts.Set(key, v)));
+        entries.Add(Text("text.note",
+            "A line of the user's own, shown on the timer after the status. The status line is narrow: keep it to about 18 characters ('{left} to go', 'ship it'), or it is cut off. Placeholders fill in live: "
+            + string.Join(", ", TimerTexts.Placeholders.Select(p => $"{p.Token} ({p.Meaning})")) + ". \"\" for none.",
+            TimerTexts.MaxNote, () => texts.Note, v => texts.Note = v));
+        entries.Add(Text("text.quote", "For the Motivational theme: a quote of the user's own, shown instead of the rotating ones; \"\" for those.",
+            160, () => texts.Quote, v => texts.Quote = v));
+
+        // ── Look details ────────────────────────────────────────────────────
+        entries.Add(Choice("appearance.digit_weight", "How heavy the digits are.",
+            AvaloniaYapaThemeSettings.DigitWeights.Select(w => (w, w)).ToArray(), () => look.DigitWeight, v => look.DigitWeight = v));
+        entries.Add(Choice("appearance.digit_font", "The digits' typeface.",
+            [("inter", "Inter, the classic timer face"), ("geist", "Geist, sharper and more modern")], () => look.DigitFont, v => look.DigitFont = v));
+        entries.Add(AutoColor("appearance.progress_color", "Colour of the progress line during pomodoros; \"auto\" follows the text colour.",
+            () => look.ProgressColor, v => look.ProgressColor = v));
+        entries.Add(Color("appearance.break_color", "Colour of the progress line during breaks.", () => look.BreakColor, v => look.BreakColor = v));
+        entries.Add(Bool("appearance.backdrop", "A rounded plate behind the timer (on the Motivational theme, its card's colour).",
+            () => look.Backdrop, v => look.Backdrop = v));
+        entries.Add(Color("appearance.backdrop_color", "Colour of that plate.", () => look.BackdropColor, v => look.BackdropColor = v));
+        entries.Add(Percent("appearance.backdrop_opacity", "How solid the plate is.", () => look.BackdropOpacity, v => look.BackdropOpacity = v));
+
         // ── Music and own files ─────────────────────────────────────────────
         entries.Add(Media("music.during_pomodoros", "Music that plays during pomodoros.", true, () => music.WorkSong, v => music.WorkSong = v));
         entries.Add(Bool("music.repeat_during_pomodoros", "Loop the pomodoro music.", () => music.RepeatWorkSong, v => music.RepeatWorkSong = v));
@@ -230,6 +254,14 @@ public sealed class SettingsCatalog
         ["appearance.show_progress"] = "progress line",
         ["appearance.controls_on_hover"] = "buttons only on hover",
         ["appearance.flash_when_done"] = "flash when done",
+        ["appearance.digit_weight"] = "digit weight",
+        ["appearance.digit_font"] = "digit font",
+        ["appearance.progress_color"] = "progress colour",
+        ["appearance.break_color"] = "break colour",
+        ["appearance.backdrop"] = "backdrop",
+        ["appearance.backdrop_color"] = "backdrop colour",
+        ["appearance.backdrop_opacity"] = "backdrop strength",
+        ["text.quote"] = "your quote",
         ["window.always_on_top"] = "always on top",
         ["window.all_workspaces"] = "all workspaces",
         ["window.stay_on_show_desktop"] = "stay on Show Desktop",
@@ -248,6 +280,7 @@ public sealed class SettingsCatalog
         ["music.during_long_break"] = "long-break music",
         ["music.repeat_during_long_break"] = "loop long-break music",
         ["ambience.recording_file"] = "recording",
+        ["text.note"] = "the timer's note",
     };
 
     /// <summary>"rain volume to 50%", "auto-start breaks on".</summary>
@@ -256,8 +289,11 @@ public sealed class SettingsCatalog
         var entry = Find(key);
         var label = Labels.TryGetValue(entry.Key, out var l) ? l
             : entry.Key.StartsWith("sound.cue.", StringComparison.Ordinal) ? $"{entry.Key[10..].Replace('_', ' ')} sound"
+            : entry.Key.StartsWith("text.", StringComparison.Ordinal)
+                ? TimerTexts.Labels.FirstOrDefault(t => "text." + t.Key == entry.Key).What?.Replace("the ", "") ?? entry.Key
             : entry.Key[(entry.Key.IndexOf('.') + 1)..].Replace('_', ' ');
         var text = value is JsonValue v && v.TryGetValue<string>(out var str) ? str : value?.ToJsonString() ?? "";
+        if (entry.Type == "text") return text.Length == 0 ? $"{label} back to the default" : $"{label} to \"{text}\"";
         if (entry.Type is "media" or "file" or "cue" && text != "none")
         {
             text = YAPA.Avalonia.Audio.Library.MediaLibrary.Radio.FirstOrDefault(r => r.Reference == text)?.Name
@@ -268,7 +304,7 @@ public sealed class SettingsCatalog
             "bool" => $"{label} {(text == "true" ? "on" : "off")}",
             "percent" => $"{label} to {text}%",
             "integer" when entry.Key.EndsWith("_minutes", StringComparison.Ordinal) => $"{label} to {text} min",
-            "color" => $"{label} to {ColorName(text)}",
+            "color" or "color_auto" => $"{label} to {(text == "auto" ? "follow the text" : ColorName(text))}",
             _ => $"{label} to {text.Replace('_', ' ').Replace('-', ' ')}",
         };
     }
@@ -334,6 +370,15 @@ public sealed class SettingsCatalog
         }
     }
 
+    /// <summary>The value as the setting itself would report it once set ("#bfe9ff" → "#ffbfe9ff"); throws if invalid.</summary>
+    public JsonNode? Normalized(string key, JsonNode? value) => Normalize(Find(key), value);
+
+    /// <summary>Throws, as <see cref="Apply"/> would, if any value isn't valid; changes nothing.</summary>
+    public void Validate(JsonObject changes)
+    {
+        foreach (var (key, value) in changes) Validate(Find(key), value);
+    }
+
     private SettingEntry Find(string key)
         => _entries.TryGetValue(key.Trim(), out var entry)
             ? entry
@@ -347,8 +392,10 @@ public sealed class SettingsCatalog
         "bool" => ParseBool(entry, value),
         "integer" => ParseInt(entry, value, int.MinValue, int.MaxValue),
         "percent" => ParsePercent(entry, value),
-        "color" => ParseColor(entry, value).ToString(),
+        "color" => Hex(ParseColor(entry, value)),
         "cue" => ParseCue(entry, value),
+        "text" => ParseText(entry, value),
+        "color_auto" => ParseAutoColor(entry, value) is { } c ? Hex(c) : "auto",
         "media" or "file" => ParseMedia(entry, value) ?? "none",
         _ => ParseChoice(entry, value),
     };
@@ -390,7 +437,7 @@ public sealed class SettingsCatalog
     {
         SettingEntry? self = null;
         self = new SettingEntry(key, description, "color", "#RRGGBB, or a colour name such as white, tomato, gold",
-            () => get().ToString(), v => set(ParseColor(self!, v)));
+            () => Hex(get()), v => set(ParseColor(self!, v)));
         return self;
     }
 
@@ -425,6 +472,45 @@ public sealed class SettingsCatalog
                     : SoundRef.Parse("builtin:" + value));
             });
         return self;
+    }
+
+    private static SettingEntry AutoColor(string key, string description, Func<Color?> get, Action<Color?> set)
+    {
+        SettingEntry? self = null;
+        self = new SettingEntry(key, description, "color_auto", "auto, #RRGGBB, or a colour name",
+            () => get() is { } c ? Hex(c) : "auto", v => set(ParseAutoColor(self!, v)));
+        return self;
+    }
+
+    /// <summary>
+    /// Always "#aarrggbb": Avalonia's Color.ToString gives a name when one matches ("White"),
+    /// which would make the same colour read two ways.
+    /// </summary>
+    private static string Hex(Color c) => $"#{c.A:x2}{c.R:x2}{c.G:x2}{c.B:x2}";
+
+    private static Color? ParseAutoColor(SettingEntry entry, JsonNode? value)
+        => value is JsonValue v && v.TryGetValue<string>(out var s) && s.Trim().ToLowerInvariant() is "auto" or "" or "text" or "default"
+            ? null
+            : ParseColor(entry, value);
+
+    private static SettingEntry Text(string key, string description, int max, Func<string> get, Action<string> set)
+    {
+        SettingEntry? self = null;
+        self = new SettingEntry(key, description, "text", $"up to {max} characters", () => get(), v => set(ParseText(self!, v)));
+        return self;
+    }
+
+    private static string ParseText(SettingEntry entry, JsonNode? value)
+    {
+        var text = value switch
+        {
+            null => "",
+            JsonValue v when v.TryGetValue<string>(out var s) => s.Trim(),
+            var other => other.ToString().Trim(),
+        };
+        var max = int.Parse(entry.Constraint!.Split(' ')[2], CultureInfo.InvariantCulture);
+        if (text.Length > max) throw new ToolException($"{entry.Key} can be at most {max} characters.");
+        return text;
     }
 
     /// <param name="radio">Radio stations allowed too (music), not only files.</param>

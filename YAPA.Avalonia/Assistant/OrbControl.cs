@@ -122,6 +122,12 @@ public sealed class OrbControl : Control
         StartAnimating();
     }
 
+    /// <summary>
+    /// Starts the motion again after the window was hidden: hiding a window stops the frames,
+    /// and showing it again changes nothing the orb itself can see.
+    /// </summary>
+    public void Resume() => StartAnimating();
+
     private void StartAnimating()
     {
         if (_animating || !IsEffectivelyVisible || TopLevel.GetTopLevel(this) is null) return;
@@ -163,14 +169,14 @@ public sealed class OrbControl : Control
             OrbMood.Acting => 1.0,
             OrbMood.Speaking => 0.55,
             OrbMood.Error => 0.08,
-            _ => 0.2,
+            _ => 0.32,
         };
         // Exponential easing: frame-rate independent, quick to rise and gentle to settle.
         _energy += (target - _energy) * (1 - Math.Exp(-dt * (target > _energy ? 5.0 : 2.2)));
         _impulse *= Math.Exp(-dt * 3.0);
         if (_ring < 1) _ring = Math.Min(1, _ring + dt / 0.9);
         var energy = Math.Min(1.2, _energy + _impulse);
-        _phase += dt * (0.22 + 1.1 * energy);
+        _phase += dt * (0.38 + 1.0 * energy);
 
         var palette = Mood == OrbMood.Error ? OrbPalette.Trouble : Palette;
         EaseColors(palette, dt);
