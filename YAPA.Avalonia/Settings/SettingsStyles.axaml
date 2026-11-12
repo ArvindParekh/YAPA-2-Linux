@@ -2,58 +2,362 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:c="using:YAPA.Avalonia.Settings.Controls">
 
+    <!--
+      The settings window's own look: dark, quiet surfaces, grouped cards with hairlines, one
+      warm accent (the pomodoro's tomato). It always renders dark; the timer floats on the
+      desktop in white, and the assistant panel is dark too, so this belongs with them.
+    -->
+    <Styles.Resources>
+        <ResourceDictionary>
+            <!-- Fluent derives toggles, sliders, checkboxes and accent buttons from these. -->
+            <Color x:Key="SystemAccentColor">#FFFF6B57</Color>
+            <Color x:Key="SystemAccentColorDark1">#FFF25C48</Color>
+            <Color x:Key="SystemAccentColorDark2">#FFE04E3B</Color>
+            <Color x:Key="SystemAccentColorDark3">#FFC9412F</Color>
+            <Color x:Key="SystemAccentColorLight1">#FFFF7D6B</Color>
+            <Color x:Key="SystemAccentColorLight2">#FFFF8F7F</Color>
+            <Color x:Key="SystemAccentColorLight3">#FFFFA294</Color>
+
+            <SolidColorBrush x:Key="Ink" Color="#FFEDEDF0" />
+            <SolidColorBrush x:Key="InkMuted" Color="#FF8F8F99" />
+            <SolidColorBrush x:Key="InkFaint" Color="#FF63636C" />
+            <SolidColorBrush x:Key="WindowSurface" Color="#FF121215" />
+            <SolidColorBrush x:Key="SidebarSurface" Color="#FF17171B" />
+            <SolidColorBrush x:Key="CardSurface" Color="#FF1B1B20" />
+            <SolidColorBrush x:Key="Hairline" Color="#12FFFFFF" />
+            <SolidColorBrush x:Key="Fill" Color="#10FFFFFF" />
+            <SolidColorBrush x:Key="FillHover" Color="#1CFFFFFF" />
+            <SolidColorBrush x:Key="FillPressed" Color="#26FFFFFF" />
+            <SolidColorBrush x:Key="AccentBrush" Color="#FFFF6B57" />
+
+            <!-- Fluent control brushes, quieted to match. -->
+            <SolidColorBrush x:Key="ButtonBackground" Color="#14FFFFFF" />
+            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22FFFFFF" />
+            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#2CFFFFFF" />
+            <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
+            <SolidColorBrush x:Key="ComboBoxBackground" Color="#14FFFFFF" />
+            <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="#22FFFFFF" />
+            <SolidColorBrush x:Key="ComboBoxBackgroundPressed" Color="#2CFFFFFF" />
+            <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="ComboBoxBorderBrushPressed" Color="Transparent" />
+            <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#FF222228" />
+            <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="#1FFFFFFF" />
+            <SolidColorBrush x:Key="TextControlBackground" Color="#14FFFFFF" />
+            <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#1CFFFFFF" />
+            <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#1CFFFFFF" />
+            <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#FFFF6B57" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOff" Color="#26FFFFFF" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOffPointerOver" Color="#33FFFFFF" />
+            <SolidColorBrush x:Key="ToggleSwitchFillOffPressed" Color="#3DFFFFFF" />
+            <SolidColorBrush x:Key="ToggleSwitchStrokeOff" Color="Transparent" />
+            <SolidColorBrush x:Key="ToggleSwitchStrokeOffPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="ToggleSwitchStrokeOffPressed" Color="Transparent" />
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOff" Color="#FFD6D6DC" />
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOffPointerOver" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOffPressed" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="ListBoxItemBackgroundSelected" Color="#14FFFFFF" />
+
+            <!-- Sidebar icons: 24-unit strokes. -->
+            <StreamGeometry x:Key="IconTimer">M 21 12 A 9 9 0 1 1 3 12 A 9 9 0 1 1 21 12 Z M 12 7.5 L 12 12 L 15 14</StreamGeometry>
+            <StreamGeometry x:Key="IconAppearance">M 21 12 A 9 9 0 1 1 3 12 A 9 9 0 1 1 21 12 Z M 12 3 L 12 21 M 12 7 L 17.5 7 M 12 11 L 20.5 11 M 12 15 L 19.5 15</StreamGeometry>
+            <StreamGeometry x:Key="IconSounds">M 4 9.5 L 7.5 9.5 L 12 5.5 L 12 18.5 L 7.5 14.5 L 4 14.5 Z M 15.5 9 A 4 4 0 0 1 15.5 15 M 18.5 6.5 A 7.5 7.5 0 0 1 18.5 17.5</StreamGeometry>
+            <StreamGeometry x:Key="IconAssistant">M 12 3.5 L 13.7 10.3 L 20.5 12 L 13.7 13.7 L 12 20.5 L 10.3 13.7 L 3.5 12 L 10.3 10.3 Z M 18.5 3.5 L 19.1 5 L 20.5 5.5 L 19.1 6 L 18.5 7.5 L 17.9 6 L 16.5 5.5 L 17.9 5 Z</StreamGeometry>
+            <StreamGeometry x:Key="IconGeneral">M 4 7 L 11 7 M 15 7 L 20 7 M 13 4.5 L 13 9.5 M 4 17 L 7 17 M 11 17 L 20 17 M 9 14.5 L 9 19.5</StreamGeometry>
+            <StreamGeometry x:Key="IconAbout">M 21 12 A 9 9 0 1 1 3 12 A 9 9 0 1 1 21 12 Z M 12 11 L 12 16.5 M 12 7.6 L 12 7.7</StreamGeometry>
+            <StreamGeometry x:Key="IconReset">M 4.5 12 A 7.5 7.5 0 1 0 7 6.4 M 4 4 L 4 8.5 L 8.5 8.5</StreamGeometry>
+            <StreamGeometry x:Key="IconCheck">M 5 12.5 L 10 17 L 19 7.5</StreamGeometry>
+            <StreamGeometry x:Key="IconPlay">M 8 5.5 L 18.5 12 L 8 18.5 Z</StreamGeometry>
+            <StreamGeometry x:Key="IconClose">M 7 7 L 17 17 M 17 7 L 7 17</StreamGeometry>
+            <StreamGeometry x:Key="IconFolder">M 3.5 7 L 3.5 18 L 20.5 18 L 20.5 8.5 L 11.5 8.5 L 9.5 6 L 3.5 6 Z</StreamGeometry>
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <!-- ── Rows and cards ────────────────────────────────────────────────── -->
+
     <Style Selector="c|SettingRow">
         <Setter Property="Template">
             <ControlTemplate>
-                <Border Padding="14,10" Background="#0F808080" CornerRadius="6" Margin="0,0,0,4">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
-                            <TextBlock Text="{TemplateBinding Title}" FontSize="14" TextWrapping="Wrap" />
-                            <TextBlock Text="{TemplateBinding Description}" FontSize="12" Opacity="0.65" TextWrapping="Wrap"
-                                       IsVisible="{TemplateBinding Description, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <Grid RowDefinitions="Auto,*" Background="Transparent">
+                    <Border x:Name="Separator" Height="1" Background="{DynamicResource Hairline}" Margin="16,0,0,0" IsVisible="False" />
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="16,11,14,11" MinHeight="32">
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,20,0" Spacing="2">
+                            <TextBlock Text="{TemplateBinding Title}" FontSize="14" Foreground="{DynamicResource Ink}" TextWrapping="Wrap" />
+                            <TextBlock Text="{TemplateBinding Description}" FontSize="12.5" LineHeight="17"
+                                       Foreground="{DynamicResource InkMuted}" TextWrapping="Wrap"
+                                       IsVisible="{TemplateBinding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                         </StackPanel>
                         <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" VerticalAlignment="Center" />
+                    </Grid>
+                </Grid>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="c|SettingRow:disabled">
+        <Setter Property="Opacity" Value="0.45" />
+    </Style>
+    <!-- A hairline between rows, not above the first: rows sit directly in a card's panel, or
+         one level down when an ItemsControl generates them. -->
+    <Style Selector="Border.card StackPanel > c|SettingRow:nth-child(n+2) /template/ Border#Separator">
+        <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <Style Selector="Border.card StackPanel > ContentPresenter:nth-child(n+2) > c|SettingRow /template/ Border#Separator">
+        <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <!-- After a static row, the first generated one needs its line too. -->
+    <Style Selector="Border.card StackPanel > ItemsControl:nth-child(n+2) ContentPresenter:nth-child(1) > c|SettingRow /template/ Border#Separator">
+        <Setter Property="IsVisible" Value="True" />
+    </Style>
+
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{DynamicResource CardSurface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="ClipToBounds" Value="True" />
+        <Setter Property="Margin" Value="0,0,0,26" />
+    </Style>
+
+    <Style Selector="TextBlock.group">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+        <Setter Property="Margin" Value="4,0,0,9" />
+    </Style>
+    <Style Selector="TextBlock.note">
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="LineHeight" Value="18" />
+    </Style>
+    <Style Selector="TextBlock.value">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+        <Setter Property="FontFeatures" Value="+tnum" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ── Controls ──────────────────────────────────────────────────────── -->
+
+    <Style Selector="ToggleSwitch">
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="OnContent" Value="" />
+        <Setter Property="OffContent" Value="" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style Selector="ComboBox">
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="MinHeight" Value="34" />
+        <Setter Property="Padding" Value="12,6,8,6" />
+        <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+        <Setter Property="FontSize" Value="13.5" />
+    </Style>
+    <Style Selector="ComboBoxItem">
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Margin" Value="4,1" />
+        <Setter Property="FontSize" Value="13.5" />
+    </Style>
+
+    <Style Selector="Button">
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="Padding" Value="13,7" />
+        <Setter Property="FontSize" Value="13.5" />
+        <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <!-- Text-only, for secondary actions in headers and rows. -->
+    <Style Selector="Button.ghost">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+        <Setter Property="Padding" Value="10,6" />
+    </Style>
+    <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Fill}" />
+        <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    </Style>
+    <Style Selector="Button.icon">
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Path.icon">
+        <Setter Property="Width" Value="16" />
+        <Setter Property="Height" Value="16" />
+        <Setter Property="Stretch" Value="Uniform" />
+        <Setter Property="StrokeThickness" Value="1.7" />
+        <Setter Property="StrokeLineCap" Value="Round" />
+        <Setter Property="StrokeJoin" Value="Round" />
+        <Setter Property="Stroke" Value="{DynamicResource InkMuted}" />
+    </Style>
+    <Style Selector="Button Path.icon">
+        <Setter Property="Stroke" Value="{DynamicResource Ink}" />
+    </Style>
+    <Style Selector="Button.ghost Path.icon">
+        <Setter Property="Stroke" Value="{DynamicResource InkMuted}" />
+    </Style>
+    <Style Selector="Button.ghost:pointerover Path.icon">
+        <Setter Property="Stroke" Value="{DynamicResource Ink}" />
+    </Style>
+    <Style Selector="Button:disabled Path.icon">
+        <Setter Property="Stroke" Value="{DynamicResource InkFaint}" />
+    </Style>
+
+    <Style Selector="TextBox">
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="MinHeight" Value="34" />
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="FontSize" Value="13.5" />
+    </Style>
+
+    <Style Selector="Slider.setting">
+        <Setter Property="Width" Value="190" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="CheckBox">
+        <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="MinHeight" Value="0" />
+    </Style>
+
+    <!-- The stepper: − 50 min + in one pill. -->
+    <Style Selector="c|Stepper">
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{DynamicResource Fill}" CornerRadius="9" Height="34">
+                    <Grid ColumnDefinitions="32,Auto,Auto,32">
+                        <Button x:Name="PART_Minus" Classes="step" Content="−" />
+                        <TextBox x:Name="PART_Text" Grid.Column="1" Classes="step" MinWidth="34" />
+                        <TextBlock Grid.Column="2" Text="{TemplateBinding Unit}" Classes="value" Margin="0,0,4,1"
+                                   IsVisible="{TemplateBinding Unit, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                        <Button x:Name="PART_Plus" Grid.Column="3" Classes="step" Content="+" />
                     </Grid>
                 </Border>
             </ControlTemplate>
         </Setter>
     </Style>
+    <Style Selector="Button.step">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="FontSize" Value="17" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+    </Style>
+    <Style Selector="Button.step:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource Fill}" />
+        <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    </Style>
+    <Style Selector="Button.step:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource InkFaint}" />
+    </Style>
+    <Style Selector="TextBox.step">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0,7" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="FontFeatures" Value="+tnum" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+    <Style Selector="TextBox.step /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.step:focus /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.step:pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
 
-    <Style Selector="TextBlock.pageTitle">
-        <Setter Property="FontSize" Value="22" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Margin" Value="0,0,0,12" />
-    </Style>
-    <Style Selector="TextBlock.group">
-        <Setter Property="FontSize" Value="13" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Opacity" Value="0.8" />
-        <Setter Property="Margin" Value="2,14,0,6" />
-    </Style>
-    <Style Selector="NumericUpDown.minutes">
-        <Setter Property="Width" Value="130" />
-        <Setter Property="FormatString" Value="0" />
-        <Setter Property="Increment" Value="1" />
-    </Style>
-    <Style Selector="Slider.setting">
-        <Setter Property="Width" Value="200" />
-    </Style>
-
-    <!-- Colour swatches: a horizontal ListBox of circles. -->
+    <!-- Colour swatches: circles with a ring around the chosen one. -->
     <Style Selector="ListBox.swatches">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="ItemsPanel">
-            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="2" /></ItemsPanelTemplate>
+            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4" /></ItemsPanelTemplate>
         </Setter>
     </Style>
     <Style Selector="ListBox.swatches ListBoxItem">
-        <Setter Property="Padding" Value="3" />
+        <Setter Property="Padding" Value="2" />
         <Setter Property="MinWidth" Value="0" />
         <Setter Property="MinHeight" Value="0" />
-        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="BorderThickness" Value="2" />
+        <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="Cursor" Value="Hand" />
     </Style>
+    <Style Selector="ListBox.swatches ListBoxItem /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBox.swatches ListBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="#40FFFFFF" />
+    </Style>
     <Style Selector="ListBox.swatches ListBoxItem:selected /template/ ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
+    <!-- ── Sidebar ───────────────────────────────────────────────────────── -->
+
+    <Style Selector="ListBox.nav">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBox.nav ListBoxItem">
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Margin" Value="0,1" />
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="ListBox.nav ListBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#0AFFFFFF" />
+        <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    </Style>
+    <Style Selector="ListBox.nav ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="#14FFFFFF" />
+        <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    </Style>
+    <Style Selector="ListBox.nav ListBoxItem:selected:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#18FFFFFF" />
+    </Style>
+    <Style Selector="ListBox.nav ListBoxItem:selected Path.navIcon">
+        <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="Path.navIcon">
+        <Setter Property="Width" Value="17" />
+        <Setter Property="Height" Value="17" />
+        <Setter Property="Stretch" Value="Uniform" />
+        <Setter Property="StrokeThickness" Value="1.6" />
+        <Setter Property="StrokeLineCap" Value="Round" />
+        <Setter Property="StrokeJoin" Value="Round" />
+        <Setter Property="Stroke" Value="{DynamicResource InkMuted}" />
+    </Style>
+
+    <!-- Keys in the shortcuts list. -->
+    <Style Selector="Border.keycap">
+        <Setter Property="Background" Value="#1AFFFFFF" />
+        <Setter Property="BorderBrush" Value="#14FFFFFF" />
+        <Setter Property="BorderThickness" Value="0,0,0,2" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="8,3" />
+        <Setter Property="MinWidth" Value="26" />
     </Style>
 </Styles>

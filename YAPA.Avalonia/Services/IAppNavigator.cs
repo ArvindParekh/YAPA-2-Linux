@@ -5,6 +5,7 @@ public enum SettingsPage
     Timer,
     Appearance,
     Sounds,
+    Assistant,
     Notifications,
     General,
     About,

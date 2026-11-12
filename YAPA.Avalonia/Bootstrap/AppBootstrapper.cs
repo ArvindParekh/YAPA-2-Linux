@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.Extensions.DependencyInjection;
 using YAPA.Avalonia.Audio;
 using YAPA.Avalonia.Persistence;
@@ -71,6 +71,12 @@ public sealed class AppBootstrapper : IDisposable
         services.AddSingleton<YAPA.Avalonia.Assistant.AssistantSettings>();
         services.AddSingleton<YAPA.Avalonia.Assistant.SettingsCatalog>();
         services.AddSingleton<YAPA.Avalonia.Assistant.ChangeJournal>();
+        services.AddSingleton<YAPA.Avalonia.Assistant.Scheduler>(sp => new YAPA.Avalonia.Assistant.Scheduler(
+            sp.GetRequiredService<IPomodoroEngine>(), sp.GetRequiredService<IDesktopNotifier>(), sp.GetRequiredService<IClock>(),
+            new AvaloniaTimer()));
+        services.AddSingleton<YAPA.Avalonia.Assistant.AssistantMemory>(_ => new YAPA.Avalonia.Assistant.AssistantMemory());
+        services.AddSingleton<TimerEventLog>(sp => new TimerEventLog(sp.GetRequiredService<IPomodoroEngine>(), sp.GetRequiredService<IClock>()));
+        services.AddSingleton<YAPA.Avalonia.Assistant.AppTools.Extras>();
         services.AddSingleton<YAPA.Avalonia.Assistant.AppTools>();
         services.AddSingleton<YAPA.Avalonia.Assistant.AssistantService>();
         services.AddSingleton<YAPA.Avalonia.Assistant.AssistantViewModel>();
@@ -86,6 +92,9 @@ public sealed class AppBootstrapper : IDisposable
         Resolve<AmbienceEffects>();
         Resolve<NotificationEffects>();
         Resolve<SessionEffects>();
+        // Listen from the first transition: the log records them, the scheduler acts on them.
+        Resolve<TimerEventLog>();
+        Resolve<YAPA.Avalonia.Assistant.Scheduler>();
     }
 
     public void Dispose()

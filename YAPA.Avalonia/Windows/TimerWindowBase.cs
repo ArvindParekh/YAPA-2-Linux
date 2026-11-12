@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Linq;
 using Avalonia;
@@ -44,6 +44,8 @@ public abstract class TimerWindowBase : Window
         PlacementGuard = bs.Resolve<IWindowPlacementGuard>();
         DataContext = ViewModel;
 
+        // The timer keeps Inter throughout: it is the look people know, and the UI font is Geist.
+        FontFamily = (FontFamily)global::Avalonia.Application.Current!.FindResource("TimerFont")!;
         Background = Brushes.Transparent;
         TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent };
         WindowDecorations = WindowDecorations.None;
@@ -322,6 +324,34 @@ public abstract class TimerWindowBase : Window
 
         // Not MoveTo: this move should go through the normal settle, which saves it.
         Position = p;
+        return true;
+    }
+
+    public static readonly string[] Spots =
+        ["top_left", "top_center", "top_right", "center_left", "center", "center_right", "bottom_left", "bottom_center", "bottom_right"];
+
+    /// <summary>
+    /// Moves the timer to a named spot of its screen's work area (the assistant's "put it in the
+    /// bottom right"). Through the normal settle, so it is saved and kept clear of the dock.
+    /// </summary>
+    /// <returns>False for an unknown spot.</returns>
+    public bool MoveToSpot(string spot)
+    {
+        if (Array.IndexOf(Spots, spot) < 0) return false;
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+        if (screen == null) return false;
+        var area = screen.WorkingArea;
+        var size = PixelSize.FromSize(Bounds.Size, DesktopScaling);
+        var gap = (int)(24 * DesktopScaling);
+        int Along(string part, int start, int length, int extent) => part switch
+        {
+            "left" or "top" => start + gap,
+            "right" or "bottom" => start + length - extent - gap,
+            _ => start + (length - extent) / 2,
+        };
+        var parts = spot.Split('_');
+        var (vertical, horizontal) = parts.Length == 2 ? (parts[0], parts[1]) : ("center", "center");
+        Position = new PixelPoint(Along(horizontal, area.X, area.Width, size.Width), Along(vertical, area.Y, area.Height, size.Height));
         return true;
     }
 

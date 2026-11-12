@@ -28,7 +28,9 @@ rebuilt on Avalonia and tuned for GNOME.
   or tell it anything: "I walked for an hour, log it and start the next one", "give me 5 more
   minutes", "if I stop at 6, how many will I have done?", "when do I focus best?", "make the
   text gold". It reads and changes everything, live: the timer, history, statistics, settings
-  and profiles. Every request can be undone in one click. It runs on your own Claude sign-in
+  and profiles. It can act later ("stop at 6", "remind me to stretch in 20 minutes"),
+  remembers what you tell it to across conversations, and knows your breaks and abandoned
+  pomodoros as well as the completed ones. Every request can be undone in one click. It runs on your own Claude sign-in
   through [Claude Code](https://claude.com/code), with no API key, and can reach nothing on
   your computer but YAPA.
 - **Plays well with GNOME**:

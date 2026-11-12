@@ -221,6 +221,21 @@ public static class X11Window
             }
         });
 
+    /// <summary>
+    /// Asks for the dark variant of the window manager's title bar (_GTK_THEME_VARIANT, which
+    /// Mutter reads for any client), so a dark window doesn't sit under a light frame.
+    /// </summary>
+    public static bool PreferDarkFrame(IntPtr xid) => Run(xid, nameof(PreferDarkFrame), display =>
+    {
+        var value = System.Text.Encoding.UTF8.GetBytes("dark");
+        XChangePropertyBytes(display, xid, Atom(display, "_GTK_THEME_VARIANT"), Atom(display, "UTF8_STRING"), 8,
+            Xlib.PropModeReplace, value, value.Length);
+    });
+
+    [DllImport("libX11.so.6", EntryPoint = "XChangeProperty")]
+    private static extern int XChangePropertyBytes(IntPtr display, IntPtr window, IntPtr property, IntPtr type,
+        int format, int mode, byte[] data, int elements);
+
     private static bool Run(IntPtr xid, string operation, Action<IntPtr> body)
     {
         if (xid == IntPtr.Zero) return false;

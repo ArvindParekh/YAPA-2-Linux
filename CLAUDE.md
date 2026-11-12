@@ -79,6 +79,14 @@ Per-machine settings (music paths, window position) live in `localSettings.json`
   Undo reverts a whole request. A new mutating tool must be `Mutates = true`, plus
   `TouchesEngine` if it changes the timer.
 - The model can't see the panel: tell it about UI-side changes with `AssistantService.Note`.
+- Later actions live in `Scheduler` (scheduled.json), notes and past conversations in
+  `AssistantMemory` (DataDirectory/assistant). Transitions go to `TimerEventLog` (table
+  TimerEvents in Yapa.db), which `query_history` exposes as `events`.
+- UI font: Geist, bundled (`App.UiFontUri`); timer windows pin Inter (`TimerFont`). Avalonia 12's
+  TextBox placeholder part is `PART_Placeholder`, not `PART_Watermark`.
+- Settings window styles live in `Settings/SettingsStyles.axaml`: cards are `Border.card`, rows are
+  `SettingRow`; hairlines between rows come from `:nth-child(n+2)` selectors, so keep rows direct
+  children of the card's panel (or of an ItemsControl's panel).
 - Tools must refuse rather than guess when work is at stake (see `GuardWork`); prompt rules
   alone weren't enough. A real run once dropped a 27-minute paused pomodoro.
 - `RequestAnimationFrame` runs the renderer every vsync even when nothing is drawn; the orb

@@ -2,11 +2,15 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:s="using:YAPA.Avalonia.Settings"
         xmlns:c="using:YAPA.Avalonia.Settings.Controls"
+        xmlns:a="using:YAPA.Avalonia.Assistant"
         x:Class="YAPA.Avalonia.Settings.SettingsWindow"
         x:DataType="s:SettingsWindow"
-        Title="YAPA 2 · Settings"
-        Width="780" Height="620" MinWidth="640" MinHeight="460"
-        WindowStartupLocation="CenterScreen">
+        Title="YAPA Settings"
+        Width="900" Height="660" MinWidth="720" MinHeight="480"
+        WindowStartupLocation="CenterScreen"
+        RequestedThemeVariant="Dark"
+        Background="{DynamicResource WindowSurface}"
+        FontFamily="{StaticResource UiFont}">
 
     <Window.Styles>
         <StyleInclude Source="avares://YAPA.Avalonia/Settings/SettingsStyles.axaml" />
@@ -16,166 +20,332 @@
         <!-- ── Timer ─────────────────────────────────────────────────────── -->
         <DataTemplate DataType="s:TimerPageViewModel">
             <StackPanel>
-                <TextBlock Classes="group" Text="Durations" />
-                <c:SettingRow Title="Pomodoro" Description="Minutes of focused work">
-                    <NumericUpDown Classes="minutes" Minimum="1" Maximum="240" Value="{Binding WorkMinutes}" />
-                </c:SettingRow>
-                <c:SettingRow Title="Short break" Description="Minutes between pomodoros">
-                    <NumericUpDown Classes="minutes" Minimum="1" Maximum="120" Value="{Binding BreakMinutes}" />
-                </c:SettingRow>
-                <c:SettingRow Title="Long break" Description="Minutes after the last pomodoro of a cycle">
-                    <NumericUpDown Classes="minutes" Minimum="1" Maximum="240" Value="{Binding LongBreakMinutes}" />
-                </c:SettingRow>
-                <c:SettingRow Title="Pomodoros per cycle" Description="How many pomodoros come before a long break">
-                    <NumericUpDown Classes="minutes" Minimum="1" Maximum="12" Value="{Binding PomodorosBeforeLongBreak}" />
-                </c:SettingRow>
+                <TextBlock Classes="group" Text="Lengths" />
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Pomodoro" Description="Focused work">
+                            <c:Stepper Minimum="1" Maximum="240" Unit="min" Value="{Binding WorkMinutes}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Short break" Description="Between pomodoros">
+                            <c:Stepper Minimum="1" Maximum="120" Unit="min" Value="{Binding BreakMinutes}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Long break" Description="After the last pomodoro of a cycle">
+                            <c:Stepper Minimum="1" Maximum="240" Unit="min" Value="{Binding LongBreakMinutes}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Pomodoros per cycle" Description="How many come before the long break">
+                            <c:Stepper Minimum="1" Maximum="12" Value="{Binding PomodorosBeforeLongBreak}" />
+                        </c:SettingRow>
+                        <Border BorderBrush="{DynamicResource Hairline}" BorderThickness="0,1,0,0" Padding="16,14,16,15">
+                            <StackPanel Spacing="9">
+                                <c:CycleStrip Height="10" Work="{Binding StripWork}" ShortBreak="{Binding StripShortBreak}"
+                                              LongBreak="{Binding StripLongBreak}" Count="{Binding StripCount}" ClipToBounds="True" />
+                                <TextBlock Classes="note" Text="{Binding CycleSummary}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
 
                 <TextBlock Classes="group" Text="Flow" />
-                <c:SettingRow Title="Start breaks automatically" Description="Go straight into the break when a pomodoro ends">
-                    <ToggleSwitch IsChecked="{Binding AutoStartBreak}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Start pomodoros automatically" Description="Begin the next pomodoro as soon as a break ends">
-                    <ToggleSwitch IsChecked="{Binding AutoStartWork}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Count down" Description="Show the time remaining instead of the time elapsed">
-                    <ToggleSwitch IsChecked="{Binding CountBackwards}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Counter" Description="The small number under the buttons">
-                    <ComboBox ItemsSource="{Binding CounterOptions}" SelectedIndex="{Binding CounterIndex}" MinWidth="200" />
-                </c:SettingRow>
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Start breaks automatically" Description="Go straight into the break when a pomodoro ends">
+                            <ToggleSwitch IsChecked="{Binding AutoStartBreak}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Start pomodoros automatically" Description="Begin the next pomodoro as soon as a break ends">
+                            <ToggleSwitch IsChecked="{Binding AutoStartWork}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Count down" Description="Show the time left instead of the time elapsed">
+                            <ToggleSwitch IsChecked="{Binding CountBackwards}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Counter" Description="The small number beside the buttons">
+                            <ComboBox ItemsSource="{Binding CounterOptions}" SelectedIndex="{Binding CounterIndex}" Width="210" />
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Classes="group" Text="Daily goal" />
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Pomodoros a day" Description="Shown beside today's count and in Statistics; 0 for none">
+                            <c:Stepper Minimum="0" Maximum="40" Value="{Binding DailyGoal}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Show when you'll reach it"
+                                      Description="&quot;12 by 18:40&quot; on the timer, if you start each interval when the last one ends">
+                            <ToggleSwitch IsChecked="{Binding ShowGoalForecast}" />
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </DataTemplate>
 
         <!-- ── Appearance ────────────────────────────────────────────────── -->
         <DataTemplate DataType="s:AppearancePageViewModel">
             <StackPanel>
+                <!-- What the timer will look like, on a stand-in for the desktop. -->
+                <Border CornerRadius="14" ClipToBounds="True" Height="150" Margin="0,0,0,26"
+                        BorderBrush="{DynamicResource Hairline}" BorderThickness="1">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                            <GradientStop Offset="0" Color="#FF3A1838" />
+                            <GradientStop Offset="0.55" Color="#FF5C1F45" />
+                            <GradientStop Offset="1" Color="#FF8E3A3A" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="{Binding PreviewOpacity}">
+                        <TextBlock Text="Work" FontSize="13" FontWeight="Medium" Foreground="{Binding PreviewText}" Opacity="0.85"
+                                   FontFamily="{StaticResource TimerFont}" IsVisible="{Binding ShowStatusText}" Margin="3,0,0,0" />
+                        <TextBlock Text="{Binding PreviewTime}" FontSize="{Binding PreviewDigits}" FontWeight="Light"
+                                   FontFamily="{StaticResource TimerFont}" FontFeatures="+tnum" Foreground="{Binding PreviewText}">
+                            <TextBlock.Effect>
+                                <DropShadowEffect BlurRadius="6" OffsetX="1.5" OffsetY="1.5"
+                                                  Color="{Binding PreviewShadow}" Opacity="{Binding PreviewShadowOpacity}" />
+                            </TextBlock.Effect>
+                        </TextBlock>
+                        <Border Height="3" CornerRadius="2" Background="#33FFFFFF" Margin="4,2,4,0" IsVisible="{Binding ShowProgress}">
+                            <Border Height="3" CornerRadius="2" Background="{Binding PreviewText}" HorizontalAlignment="Left" Width="40" />
+                        </Border>
+                    </StackPanel>
+                </Border>
+
                 <TextBlock Classes="group" Text="Timer" />
-                <c:SettingRow Title="Theme" Description="Classic is the compact original; Motivational adds a quote card">
-                    <ComboBox ItemsSource="{Binding Themes}" SelectedIndex="{Binding ThemeIndex}" MinWidth="160" />
-                </c:SettingRow>
-                <c:SettingRow Title="Size">
-                    <Slider Classes="setting" Minimum="120" Maximum="600" Value="{Binding Size}" />
-                </c:SettingRow>
-                <c:SettingRow Title="Opacity">
-                    <Slider Classes="setting" Minimum="0.2" Maximum="1" Value="{Binding ClockOpacity}" />
-                </c:SettingRow>
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Theme" Description="Classic is the compact original; Motivational adds a quote">
+                            <ComboBox ItemsSource="{Binding Themes}" SelectedIndex="{Binding ThemeIndex}" Width="170" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Size">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Slider Classes="setting" Minimum="120" Maximum="600" Value="{Binding Size}" />
+                                <TextBlock Classes="value" Text="{Binding SizeText}" Width="48" />
+                            </StackPanel>
+                        </c:SettingRow>
+                        <c:SettingRow Title="Opacity">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Slider Classes="setting" Minimum="0.2" Maximum="1" Value="{Binding ClockOpacity}" />
+                                <TextBlock Classes="value" Text="{Binding OpacityText}" Width="48" />
+                            </StackPanel>
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
 
                 <TextBlock Classes="group" Text="Colour" />
-                <c:SettingRow Title="Text">
-                    <StackPanel Spacing="6" HorizontalAlignment="Right">
-                        <ListBox Classes="swatches" ItemsSource="{Binding TextColors}" SelectedItem="{Binding TextColor}">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="x:String">
-                                    <Border Width="22" Height="22" CornerRadius="11" Background="{Binding}" BorderBrush="#60808080" BorderThickness="1" />
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                        <TextBox Text="{Binding TextColorHex}" Width="120" HorizontalAlignment="Right" PlaceholderText="#AARRGGBB" />
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Text">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <ListBox Classes="swatches" ItemsSource="{Binding TextColors}" SelectedItem="{Binding TextColor}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <Border Width="20" Height="20" CornerRadius="10" Background="{Binding}" BorderBrush="#40FFFFFF" BorderThickness="1" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBox Text="{Binding TextColorHex}" Width="104" PlaceholderText="#RRGGBB" FontFeatures="+tnum" />
+                            </StackPanel>
+                        </c:SettingRow>
+                        <c:SettingRow Title="Shadow">
+                            <ListBox Classes="swatches" ItemsSource="{Binding ShadowColors}" SelectedItem="{Binding ShadowColor}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Border Width="20" Height="20" CornerRadius="10" Background="{Binding}" BorderBrush="#40FFFFFF" BorderThickness="1" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </c:SettingRow>
+                        <c:SettingRow Title="Shadow strength" Description="Keeps the digits readable on busy wallpapers">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Slider Classes="setting" Minimum="0" Maximum="1" Value="{Binding ShadowOpacity}" />
+                                <TextBlock Classes="value" Text="{Binding ShadowText}" Width="48" />
+                            </StackPanel>
+                        </c:SettingRow>
                     </StackPanel>
-                </c:SettingRow>
-                <c:SettingRow Title="Shadow">
-                    <ListBox Classes="swatches" ItemsSource="{Binding ShadowColors}" SelectedItem="{Binding ShadowColor}">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="x:String">
-                                <Border Width="22" Height="22" CornerRadius="11" Background="{Binding}" BorderBrush="#60808080" BorderThickness="1" />
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </c:SettingRow>
-                <c:SettingRow Title="Shadow strength" Description="Keeps the digits readable on busy wallpapers">
-                    <Slider Classes="setting" Minimum="0" Maximum="1" Value="{Binding ShadowOpacity}" />
-                </c:SettingRow>
+                </Border>
 
                 <TextBlock Classes="group" Text="Details" />
-                <c:SettingRow Title="Show seconds">
-                    <ToggleSwitch IsChecked="{Binding ShowSeconds}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Show status" Description="&quot;Work&quot;, &quot;Break&quot;, &quot;Paused&quot; above the time">
-                    <ToggleSwitch IsChecked="{Binding ShowStatusText}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Show progress line">
-                    <ToggleSwitch IsChecked="{Binding ShowProgress}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Show buttons only on hover" Description="Keeps the timer minimal until you point at it">
-                    <ToggleSwitch IsChecked="{Binding ControlsOnHover}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Flash when an interval ends">
-                    <ToggleSwitch IsChecked="{Binding FlashWhenDone}" OnContent="" OffContent="" />
-                </c:SettingRow>
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Seconds">
+                            <ToggleSwitch IsChecked="{Binding ShowSeconds}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Status line" Description="&quot;Work&quot;, &quot;Break&quot;, &quot;Paused&quot; above the time">
+                            <ToggleSwitch IsChecked="{Binding ShowStatusText}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Progress line">
+                            <ToggleSwitch IsChecked="{Binding ShowProgress}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Buttons only on hover" Description="Keeps the timer minimal until you point at it">
+                            <ToggleSwitch IsChecked="{Binding ControlsOnHover}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Pulse when an interval ends">
+                            <ToggleSwitch IsChecked="{Binding FlashWhenDone}" />
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </DataTemplate>
 
         <!-- ── Sounds ────────────────────────────────────────────────────── -->
         <DataTemplate DataType="s:SoundsPageViewModel">
             <StackPanel>
-                <c:SettingRow Title="Play sounds" Description="{Binding Backend}">
-                    <ToggleSwitch IsChecked="{Binding SoundEnabled}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Volume" IsEnabled="{Binding SoundEnabled}">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Slider Classes="setting" Minimum="0" Maximum="1" Value="{Binding Volume}" />
-                        <TextBlock Text="{Binding VolumeText}" Width="40" VerticalAlignment="Center" />
-                        <Button Content="▶" ToolTip.Tip="Test at this volume" Click="OnPreviewVolumeClick" />
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Play sounds" Description="{Binding Backend}">
+                            <ToggleSwitch IsChecked="{Binding SoundEnabled}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Volume" IsEnabled="{Binding SoundEnabled}">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <Slider Classes="setting" Minimum="0" Maximum="1" Value="{Binding Volume}" />
+                                <TextBlock Classes="value" Text="{Binding VolumeText}" Width="40" />
+                                <Button Classes="icon" Click="OnPreviewVolumeClick" AutomationProperties.Name="Test at this volume">
+                                    <Path Classes="icon" Data="{StaticResource IconPlay}" Width="12" Height="12" />
+                                </Button>
+                            </StackPanel>
+                        </c:SettingRow>
                     </StackPanel>
-                </c:SettingRow>
+                </Border>
 
-                <TextBlock Classes="group" Text="Sound for each event" />
-                <ItemsControl ItemsSource="{Binding Cues}" IsEnabled="{Binding SoundEnabled}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="s:CueRowViewModel">
-                            <c:SettingRow Title="{Binding Label}">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}" Width="200" />
-                                    <Button Content="▶" ToolTip.Tip="Play" Command="{Binding PreviewCommand}" />
-                                </StackPanel>
-                            </c:SettingRow>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <TextBlock Classes="group" Text="A sound for each moment" />
+                <Border Classes="card" IsEnabled="{Binding SoundEnabled}">
+                    <ItemsControl ItemsSource="{Binding Cues}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="s:CueRowViewModel">
+                                <c:SettingRow Title="{Binding Label}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Selected}" Width="210" />
+                                        <Button Classes="icon" Command="{Binding PreviewCommand}" AutomationProperties.Name="Play">
+                                            <Path Classes="icon" Data="{StaticResource IconPlay}" Width="12" Height="12" />
+                                        </Button>
+                                    </StackPanel>
+                                </c:SettingRow>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
 
                 <TextBlock Classes="group" Text="Ambience while you work" />
-                <StackPanel DataContext="{Binding Ambience}" x:DataType="s:AmbienceSectionViewModel">
-                    <c:SettingRow Title="Background sound" Description="Rain and noise are generated live, so they never repeat. Fades in when a pomodoro starts.">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <ComboBox ItemsSource="{Binding Options}" SelectedIndex="{Binding SelectedIndex}" Width="220" />
-                            <Button Content="{Binding PreviewLabel}" Command="{Binding TogglePreviewCommand}" IsEnabled="{Binding CanPreview}" Width="104" HorizontalContentAlignment="Center" />
-                        </StackPanel>
-                    </c:SettingRow>
-                    <c:SettingRow Title="Recording" Description="{Binding FileName}" IsVisible="{Binding IsFile}" />
-                    <c:SettingRow Title="Ambience volume" IsVisible="{Binding HasSound}">
-                        <Slider Classes="setting" Minimum="0" Maximum="1" Value="{Binding Volume}" />
-                    </c:SettingRow>
-                    <c:SettingRow Title="Ticking clock" Description="A soft tick-tock every second while you work">
-                        <ToggleSwitch IsChecked="{Binding Ticking}" OnContent="" OffContent="" />
-                    </c:SettingRow>
-                    <c:SettingRow Title="Ticking volume" IsVisible="{Binding Ticking}">
-                        <Slider Classes="setting" Minimum="0" Maximum="1" Value="{Binding TickVolume}" />
-                    </c:SettingRow>
-                    <c:SettingRow Title="Keep playing during breaks" Description="The ticking always stops for breaks" IsVisible="{Binding HasSound}">
-                        <ToggleSwitch IsChecked="{Binding DuringBreaks}" OnContent="" OffContent="" />
-                    </c:SettingRow>
-                    <c:SettingRow Title="Thin out towards the end" Description="Over the last minute it eases to about half as loud, so the bell doesn't come out of nowhere">
-                        <ToggleSwitch IsChecked="{Binding WindDownBeforeEnd}" OnContent="" OffContent="" />
-                    </c:SettingRow>
-                </StackPanel>
+                <Border Classes="card">
+                    <StackPanel DataContext="{Binding Ambience}" x:DataType="s:AmbienceSectionViewModel">
+                        <c:SettingRow Title="Background sound" Description="Rain and noise are generated live, so they never loop">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <ComboBox ItemsSource="{Binding Options}" SelectedIndex="{Binding SelectedIndex}" Width="210" />
+                                <Button Content="{Binding PreviewLabel}" Command="{Binding TogglePreviewCommand}" IsEnabled="{Binding CanPreview}"
+                                        MinWidth="82" HorizontalContentAlignment="Center" />
+                            </StackPanel>
+                        </c:SettingRow>
+                        <c:SettingRow Title="Recording" Description="{Binding FileName}" IsVisible="{Binding IsFile}" />
+                        <c:SettingRow Title="Volume" IsVisible="{Binding HasSound}">
+                            <Slider Classes="setting" Minimum="0" Maximum="1" Value="{Binding Volume}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Ticking clock" Description="A soft tick-tock every second while you work">
+                            <ToggleSwitch IsChecked="{Binding Ticking}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Ticking volume" IsVisible="{Binding Ticking}">
+                            <Slider Classes="setting" Minimum="0" Maximum="1" Value="{Binding TickVolume}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Keep playing during breaks" Description="The ticking always stops for breaks" IsVisible="{Binding HasSound}">
+                            <ToggleSwitch IsChecked="{Binding DuringBreaks}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Thin out towards the end" Description="Eases to about half as loud over the last minute, so the bell doesn't come out of nowhere">
+                            <ToggleSwitch IsChecked="{Binding WindDownBeforeEnd}" />
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
 
-                <TextBlock Classes="group" Text="Background music" />
-                <ItemsControl ItemsSource="{Binding Music}" IsEnabled="{Binding SoundEnabled}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="s:MusicRowViewModel">
-                            <c:SettingRow Title="{Binding Label}" Description="{Binding Description}">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <CheckBox Content="Loop" IsChecked="{Binding Repeat}" IsVisible="{Binding IsFile}" />
-                                    <ComboBox ItemsSource="{Binding Options}" SelectedIndex="{Binding SelectedIndex}" Width="220" />
-                                    <Button Content="{Binding PreviewLabel}" Command="{Binding TogglePreviewCommand}" IsEnabled="{Binding CanPreview}" Width="104" HorizontalContentAlignment="Center" />
+                <TextBlock Classes="group" Text="Music" />
+                <Border Classes="card" IsEnabled="{Binding SoundEnabled}">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding Music}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="s:MusicRowViewModel">
+                                    <c:SettingRow Title="{Binding Label}" Description="{Binding Description}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <CheckBox Content="Loop" IsChecked="{Binding Repeat}" IsVisible="{Binding IsFile}" />
+                                            <ComboBox ItemsSource="{Binding Options}" SelectedIndex="{Binding SelectedIndex}" Width="210" />
+                                            <Button Content="{Binding PreviewLabel}" Command="{Binding TogglePreviewCommand}" IsEnabled="{Binding CanPreview}"
+                                                    MinWidth="82" HorizontalContentAlignment="Center" />
+                                        </StackPanel>
+                                    </c:SettingRow>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <c:SettingRow Title="Your own sounds" Description="{Binding LibraryFolder, StringFormat='Audio files in {0} show up in these lists'}">
+                            <Button Command="{Binding OpenLibraryFolderCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="7">
+                                    <Path Classes="icon" Data="{StaticResource IconFolder}" Width="14" Height="14" />
+                                    <TextBlock Text="Open folder" />
                                 </StackPanel>
-                            </c:SettingRow>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <c:SettingRow Title="Your own sounds" Description="{Binding LibraryFolder, StringFormat='Audio files in {0} appear in these lists by name'}">
-                    <Button Content="Open folder" Command="{Binding OpenLibraryFolderCommand}" />
-                </c:SettingRow>
+                            </Button>
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- ── Assistant ─────────────────────────────────────────────────── -->
+        <DataTemplate DataType="s:AssistantPageViewModel">
+            <StackPanel>
+                <Border Classes="card">
+                    <StackPanel>
+                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="12,12,14,12">
+                            <a:OrbControl Width="56" Height="56" Margin="-4" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,16,0" Spacing="3">
+                                <TextBlock Text="Ask YAPA" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" />
+                                <TextBlock Classes="note" Text="{Binding Status}" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="2" IsChecked="{Binding Enabled}" VerticalAlignment="Center" />
+                        </Grid>
+                        <c:SettingRow Title="Model" Description="{Binding ModelDetail}" IsEnabled="{Binding IsInstalled}">
+                            <ComboBox ItemsSource="{Binding Models}" SelectedIndex="{Binding ModelIndex}" Width="210" />
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Classes="group" Text="What it remembers about you" />
+                <Border Classes="card">
+                    <StackPanel>
+                        <TextBlock Classes="note" Margin="16,13" IsVisible="{Binding !HasNotes}"
+                                   Text="Nothing yet. Tell it &quot;remember that…&quot; and it keeps that for every conversation." />
+                        <ItemsControl ItemsSource="{Binding Notes}" IsVisible="{Binding HasNotes}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="s:MemoryRow">
+                                    <c:SettingRow Title="{Binding Text}">
+                                        <Button Classes="icon ghost" Command="{Binding $parent[ItemsControl].((s:AssistantPageViewModel)DataContext).RemoveNoteCommand}"
+                                                CommandParameter="{Binding Id}" AutomationProperties.Name="Forget">
+                                            <Path Classes="icon" Data="{StaticResource IconClose}" Width="11" Height="11" />
+                                        </Button>
+                                    </c:SettingRow>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Classes="group" Text="Scheduled" />
+                <Border Classes="card">
+                    <StackPanel>
+                        <TextBlock Classes="note" Margin="16,13" IsVisible="{Binding !HasScheduled}"
+                                   Text="Nothing scheduled. Try &quot;stop at 6&quot; or &quot;remind me to stretch in 20 minutes&quot;." />
+                        <ItemsControl ItemsSource="{Binding Scheduled}" IsVisible="{Binding HasScheduled}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="s:ScheduledRow">
+                                    <c:SettingRow Title="{Binding Text}">
+                                        <Button Classes="icon ghost" Command="{Binding $parent[ItemsControl].((s:AssistantPageViewModel)DataContext).CancelScheduledCommand}"
+                                                CommandParameter="{Binding Id}" AutomationProperties.Name="Cancel">
+                                            <Path Classes="icon" Data="{StaticResource IconClose}" Width="11" Height="11" />
+                                        </Button>
+                                    </c:SettingRow>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Classes="group" Text="Past conversations" />
+                <Border Classes="card">
+                    <c:SettingRow Title="Conversation history" Description="{Binding ConversationsText}">
+                        <Button Content="Clear" Command="{Binding ClearConversationsCommand}" IsEnabled="{Binding HasConversations}" />
+                    </c:SettingRow>
+                </Border>
             </StackPanel>
         </DataTemplate>
 
@@ -183,117 +353,166 @@
         <DataTemplate DataType="s:GeneralPageViewModel">
             <StackPanel>
                 <TextBlock Classes="group" Text="Window" />
-                <c:SettingRow Title="Always on top">
-                    <ToggleSwitch IsChecked="{Binding AlwaysOnTop}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Show on all workspaces">
-                    <ToggleSwitch IsChecked="{Binding ShowOnAllWorkspaces}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Stay visible on Show Desktop" Description="Super+D hides your windows but leaves the timer">
-                    <ToggleSwitch IsChecked="{Binding StayOnShowDesktop}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Show in the dock and Alt+Tab" Description="Off keeps the timer a quiet widget; the tray icon is always there">
-                    <ToggleSwitch IsChecked="{Binding ShowInTaskbar}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Keep clear of the dock and top bar" Description="GNOME swallows clicks over its panels, even where they look empty; the timer moves out of the way">
-                    <ToggleSwitch IsChecked="{Binding AvoidShellPanels}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Hide to tray" Description="The – button hides the timer instead of minimizing it">
-                    <ToggleSwitch IsChecked="{Binding MinimizeToTray}" OnContent="" OffContent="" />
-                </c:SettingRow>
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Always on top">
+                            <ToggleSwitch IsChecked="{Binding AlwaysOnTop}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Show on all workspaces">
+                            <ToggleSwitch IsChecked="{Binding ShowOnAllWorkspaces}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Stay visible on Show Desktop" Description="Super+D hides your windows but leaves the timer">
+                            <ToggleSwitch IsChecked="{Binding StayOnShowDesktop}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Show in the dock and Alt+Tab" Description="Off keeps the timer a quiet widget; the tray icon is always there">
+                            <ToggleSwitch IsChecked="{Binding ShowInTaskbar}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Keep clear of the dock and top bar" Description="GNOME swallows clicks over its panels, even where they look empty">
+                            <ToggleSwitch IsChecked="{Binding AvoidShellPanels}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Hide to tray" Description="The – button hides the timer instead of minimizing it">
+                            <ToggleSwitch IsChecked="{Binding MinimizeToTray}" />
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
 
                 <TextBlock Classes="group" Text="Startup" />
-                <c:SettingRow Title="Launch at login" IsEnabled="{Binding AutostartSupported}">
-                    <ToggleSwitch IsChecked="{Binding LaunchAtLogin}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Start hidden in the tray">
-                    <ToggleSwitch IsChecked="{Binding StartHidden}" OnContent="" OffContent="" />
-                </c:SettingRow>
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Launch at login" IsEnabled="{Binding AutostartSupported}">
+                            <ToggleSwitch IsChecked="{Binding LaunchAtLogin}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Start hidden in the tray">
+                            <ToggleSwitch IsChecked="{Binding StartHidden}" />
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
 
                 <TextBlock Classes="group" Text="Behaviour" />
-                <c:SettingRow Title="Desktop notifications" Description="With buttons to start or skip the break">
-                    <ToggleSwitch IsChecked="{Binding DesktopNotifications}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Pause while the screen is locked" Description="Resumes when you unlock. Sleep never counts as work either way.">
-                    <ToggleSwitch IsChecked="{Binding PauseWhenLocked}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Daily goal" Description="Pomodoros per day, shown beside today's count and in Statistics; 0 to hide">
-                    <NumericUpDown Classes="minutes" Minimum="0" Maximum="40" Value="{Binding DailyGoal}" />
-                </c:SettingRow>
-                <c:SettingRow Title="Show when the goal will be reached"
-                              Description="On the timer: &quot;12 by 18:40&quot;, if you start each interval when the last one ends. The ⋯ menu also has the time without long breaks.">
-                    <ToggleSwitch IsChecked="{Binding ShowGoalForecast}" OnContent="" OffContent="" />
-                </c:SettingRow>
-
-                <TextBlock Classes="group" Text="Assistant" />
-                <c:SettingRow Title="Ask YAPA" Description="Double-click the timer, or press /, to ask about your day or tell it what to do">
-                    <ToggleSwitch IsChecked="{Binding AssistantEnabled}" OnContent="" OffContent="" />
-                </c:SettingRow>
-                <c:SettingRow Title="Model" Description="{Binding AssistantStatus}">
-                    <ComboBox ItemsSource="{Binding AssistantModels}" SelectedIndex="{Binding AssistantModelIndex}" Width="260" />
-                </c:SettingRow>
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Desktop notifications" Description="With buttons to start or skip the break">
+                            <ToggleSwitch IsChecked="{Binding DesktopNotifications}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Pause while the screen is locked" Description="Resumes when you unlock. Sleep never counts as work either way.">
+                            <ToggleSwitch IsChecked="{Binding PauseWhenLocked}" />
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </DataTemplate>
 
         <!-- ── About ─────────────────────────────────────────────────────── -->
         <DataTemplate DataType="s:AboutPageViewModel">
-            <StackPanel Spacing="12">
-                <StackPanel Orientation="Horizontal" Spacing="14">
-                    <Image Source="avares://YAPA.Avalonia/Assets/yapa2_128.png" Width="64" Height="64" />
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="YAPA 2" FontSize="20" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding Version}" Opacity="0.7" />
-                        <TextBlock Text="Yet Another Pomodoro App, for Linux" Opacity="0.7" />
-                    </StackPanel>
-                </StackPanel>
+            <StackPanel>
+                <Border Classes="card">
+                    <Grid ColumnDefinitions="Auto,*" Margin="18,16">
+                        <Image Source="avares://YAPA.Avalonia/Assets/yapa2_128.png" Width="56" Height="56" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0" Spacing="2">
+                            <TextBlock Text="YAPA 2" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" />
+                            <TextBlock Classes="note" Text="{Binding Version}" />
+                            <TextBlock Classes="note" Text="Based on YAPA-2 by floatas and contributors. MIT licensed." />
+                        </StackPanel>
+                    </Grid>
+                </Border>
 
-                <TextBlock Classes="group" Text="Keyboard (when the timer has focus)" />
-                <SelectableTextBlock Text="{Binding ShortcutText}" FontFamily="monospace" FontSize="12" />
+                <TextBlock Classes="group" Text="Keyboard, when the timer has focus" />
+                <Border Classes="card">
+                    <ItemsControl ItemsSource="{Binding Shortcuts}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="s:Shortcut">
+                                <c:SettingRow Title="{Binding Action}">
+                                    <ItemsControl ItemsSource="{Binding Caps}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4" /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <Border Classes="keycap">
+                                                    <TextBlock Text="{Binding}" FontSize="12" FontWeight="Medium" HorizontalAlignment="Center" Foreground="{DynamicResource Ink}" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </c:SettingRow>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
 
                 <TextBlock Classes="group" Text="Command line" />
-                <SelectableTextBlock Text="{Binding Usage}" FontFamily="monospace" FontSize="12" TextWrapping="Wrap" />
+                <Border Classes="card" Padding="16,14">
+                    <SelectableTextBlock Text="{Binding Usage}" FontFamily="avares://YAPA.Avalonia/Assets/Fonts/Geist#Geist, monospace" FontSize="12.5"
+                                         LineHeight="19" Foreground="{DynamicResource InkMuted}" TextWrapping="Wrap" />
+                </Border>
 
                 <TextBlock Classes="group" Text="Files" />
-                <c:SettingRow Title="Settings" Description="{Binding ConfigDirectory}">
-                    <Button Content="Open" Command="{Binding OpenCommand}" CommandParameter="{Binding ConfigDirectory}" />
-                </c:SettingRow>
-                <c:SettingRow Title="History" Description="{Binding DataDirectory}">
-                    <Button Content="Open" Command="{Binding OpenCommand}" CommandParameter="{Binding DataDirectory}" />
-                </c:SettingRow>
-                <c:SettingRow Title="Log" Description="{Binding LogFile}">
-                    <Button Content="Open" Command="{Binding OpenCommand}" CommandParameter="{Binding LogFile}" />
-                </c:SettingRow>
-
-                <TextBlock Opacity="0.6" FontSize="12" TextWrapping="Wrap" Margin="0,8,0,0"
-                           Text="Based on YAPA-2 by floatas and contributors (github.com/YetAnotherPomodoroApp/YAPA-2). MIT licensed." />
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Settings" Description="{Binding ConfigDirectory}">
+                            <Button Content="Open" Command="{Binding OpenCommand}" CommandParameter="{Binding ConfigDirectory}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="History" Description="{Binding DataDirectory}">
+                            <Button Content="Open" Command="{Binding OpenCommand}" CommandParameter="{Binding DataDirectory}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Log" Description="{Binding LogFile}">
+                            <Button Content="Open" Command="{Binding OpenCommand}" CommandParameter="{Binding LogFile}" />
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </DataTemplate>
     </Window.DataTemplates>
 
-    <Grid ColumnDefinitions="190,*">
-        <Border Background="#0C808080" BorderBrush="#22808080" BorderThickness="0,0,1,0">
-            <ListBox x:Name="Nav" ItemsSource="{Binding Pages}" SelectedItem="{Binding SelectedPage}"
-                     Background="Transparent" Margin="8,12">
-                <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="s:SettingsPageViewModel">
-                        <TextBlock Text="{Binding Title}" FontSize="14" Margin="4,2" />
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+    <Grid ColumnDefinitions="224,*">
+        <!-- Sidebar -->
+        <Border Background="{DynamicResource SidebarSurface}" BorderBrush="{DynamicResource Hairline}" BorderThickness="0,0,1,0">
+            <Grid RowDefinitions="Auto,*,Auto" Margin="12,0">
+                <StackPanel Orientation="Horizontal" Spacing="11" Margin="8,22,0,20">
+                    <Image Source="avares://YAPA.Avalonia/Assets/yapa2_128.png" Width="30" Height="30" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="YAPA" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" />
+                        <TextBlock Text="Settings" FontSize="12" Foreground="{DynamicResource InkMuted}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <ListBox Grid.Row="1" x:Name="Nav" Classes="nav" ItemsSource="{Binding Pages}" SelectedItem="{Binding SelectedPage}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="s:SettingsPageViewModel">
+                            <StackPanel Orientation="Horizontal" Spacing="11">
+                                <Path Classes="navIcon" Data="{Binding Icon}" />
+                                <TextBlock Text="{Binding Title}" FontSize="14" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- No Save button anywhere, so say it once. -->
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="7" Margin="10,0,0,18">
+                    <Path Classes="icon" Data="{StaticResource IconCheck}" Width="12" Height="12" Stroke="{DynamicResource InkFaint}" />
+                    <TextBlock Text="Changes apply as you make them" FontSize="12" Foreground="{DynamicResource InkFaint}" />
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto">
-            <TextBlock Classes="pageTitle" Text="{Binding SelectedPage.Title}" Margin="24,18,24,4" />
-            <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
-                <ContentControl Content="{Binding SelectedPage}" Margin="24,0,24,16" />
+        <!-- Page -->
+        <Grid Grid.Column="1" RowDefinitions="Auto,*">
+            <Grid ColumnDefinitions="*,Auto" Margin="36,26,28,18">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{Binding SelectedPage.Title}" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" />
+                    <TextBlock Text="{Binding SelectedPage.Subtitle}" FontSize="13.5" Foreground="{DynamicResource InkMuted}" TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="1" Classes="ghost" Click="OnResetClick" VerticalAlignment="Top" Margin="0,2,0,0"
+                        IsVisible="{Binding SelectedPage.CanReset}" AutomationProperties.Name="Reset this page to defaults">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Path Classes="icon" Data="{StaticResource IconReset}" Width="13" Height="13" />
+                        <TextBlock Text="Reset page" FontSize="13" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+            <ScrollViewer Grid.Row="1" x:Name="PageScroller" HorizontalScrollBarVisibility="Disabled">
+                <ContentControl Content="{Binding SelectedPage}" Margin="36,0,36,20" MaxWidth="720" HorizontalAlignment="Stretch" />
             </ScrollViewer>
-            <Border Grid.Row="2" BorderBrush="#22808080" BorderThickness="0,1,0,0" Padding="24,10">
-                <Grid ColumnDefinitions="*,Auto">
-                    <Button Content="Reset to defaults" Click="OnResetClick"
-                            IsVisible="{Binding SelectedPage.CanReset}" ToolTip.Tip="Resets only this page" />
-                    <Button Grid.Column="1" Content="Close" Click="OnCloseClick" Classes="accent" MinWidth="90" HorizontalContentAlignment="Center" />
-                </Grid>
-            </Border>
         </Grid>
     </Grid>
 </Window>

@@ -30,6 +30,14 @@ A ground-up revival of the Linux port.
   statistics, every setting and the profiles, live. It plans the day on the timer's own rules, answers
   history questions with SQL over a local-time copy of the history, and undoes any request in one click.
   It runs on the user's Claude sign-in through Claude Code, limited to YAPA's own tools.
+- The assistant can also schedule actions and reminders for later (kept across restarts), move the timer,
+  choose music and sound files, export history to CSV, reset a settings section, read the app log,
+  remember notes across conversations and look back through past ones.
+- A timer event log (starts, pauses, stops, breaks) in `Yapa.db`, so breaks and abandoned pomodoros
+  can be asked about, not only completed ones.
+- A redesigned Settings window: dark grouped cards, a sidebar with icons, steppers, a live preview of the
+  timer, a to-scale strip of one cycle, and an Assistant page showing what it remembers and has scheduled.
+- Geist (bundled, OFL) as the interface font; the timer keeps Inter.
 - Timer operations behind it: lengthen or shorten the interval under way, backdate one started late,
   and jump to any place in the cycle without recording anything.
 - Ambience while you work: soft, steady or pouring rain and brown noise (synthesized live,

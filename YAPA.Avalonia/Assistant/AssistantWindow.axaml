@@ -7,7 +7,7 @@
         Title="Ask YAPA"
         Width="400" Height="600"
         RequestedThemeVariant="Dark"
-        FontFamily="{StaticResource TimerFont}">
+        FontFamily="{StaticResource UiFont}">
 
     <!--
       A card in a larger transparent window: the margin is room for the drawn shadow and for
@@ -209,10 +209,10 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
         </Style>
-        <Style Selector="TextBox.prompt /template/ TextBlock#PART_Watermark">
+        <Style Selector="TextBox.prompt /template/ TextBlock#PART_Placeholder">
             <Setter Property="Foreground" Value="#6BFFFFFF" />
         </Style>
-        <Style Selector="TextBox.prompt:focus /template/ TextBlock#PART_Watermark">
+        <Style Selector="TextBox.prompt:focus /template/ TextBlock#PART_Placeholder">
             <Setter Property="Foreground" Value="#6BFFFFFF" />
         </Style>
 
@@ -365,7 +365,7 @@
                         IsVisible="{Binding !IsUnavailable}">
                     <Grid ColumnDefinitions="*,Auto" Margin="10,0,5,0">
                         <TextBox x:Name="Prompt" Classes="prompt" Text="{Binding Input}"
-                                 Watermark="Ask, or tell YAPA what to do"
+                                 PlaceholderText="{Binding Placeholder}"
                                  AcceptsReturn="False" />
                         <Button Grid.Column="1" Classes="round" VerticalAlignment="Bottom" Margin="0,0,0,5"
                                 Command="{Binding SubmitCommand}" IsVisible="{Binding !IsBusy}"

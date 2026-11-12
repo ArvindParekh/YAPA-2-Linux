@@ -85,5 +85,7 @@ internal static class Program
             .WithDeveloperTools()
 #endif
             .WithInterFont()
+            // Geist for everything the app writes; timer windows pin Inter for their own look.
+            .With(new global::Avalonia.Media.FontManagerOptions { DefaultFamilyName = App.UiFontUri })
             .LogToTrace();
 }

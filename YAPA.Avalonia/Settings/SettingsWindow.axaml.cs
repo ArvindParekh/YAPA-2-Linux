@@ -21,10 +21,12 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
         var bs = App.Bootstrapper!;
         Pages = new List<SettingsPageViewModel>
         {
-            new TimerPageViewModel(bs.Resolve<PomodoroEngineSettings>()),
+            new TimerPageViewModel(bs.Resolve<PomodoroEngineSettings>(), bs.Resolve<GeneralSettings>()),
             new AppearancePageViewModel(bs.Resolve<AvaloniaYapaThemeSettings>(), bs.Resolve<AvaloniaThemeSettings>()),
             bs.Resolve<SoundsPageFactory>().Create(),
-            new GeneralPageViewModel(bs.Resolve<GeneralSettings>(), bs.Resolve<AvaloniaYapaThemeSettings>(), bs.Resolve<YAPA.Avalonia.Assistant.AssistantSettings>()),
+            new AssistantPageViewModel(bs.Resolve<YAPA.Avalonia.Assistant.AssistantSettings>(), bs.Resolve<YAPA.Avalonia.Assistant.AssistantMemory>(),
+                bs.Resolve<YAPA.Avalonia.Assistant.Scheduler>()),
+            new GeneralPageViewModel(bs.Resolve<GeneralSettings>(), bs.Resolve<AvaloniaYapaThemeSettings>()),
             new AboutPageViewModel(),
         };
         _selectedPage = Pages[0];
@@ -32,6 +34,9 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
 
         InitializeComponent();
         DataContext = this;
+        // Before the first map, so the frame comes up dark rather than flipping.
+        if (TryGetPlatformHandle() is { HandleDescriptor: "XID" } handle)
+            YAPA.Avalonia.Platform.Linux.X11.X11Window.PreferDarkFrame(handle.Handle);
     }
 
     public new event PropertyChangedEventHandler? PropertyChanged;
@@ -46,6 +51,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
             if (value == null || ReferenceEquals(value, _selectedPage)) return;
             _selectedPage = value;
             Notify();
+            PageScroller?.ScrollToHome(); // a new page starts at its top
         }
     }
 
@@ -60,18 +66,22 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
 
     private void OnResetClick(object? sender, RoutedEventArgs e) => SelectedPage.Reset();
 
-    private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
-
     protected override void OnOpened(System.EventArgs e)
     {
         base.OnOpened(e);
         // Coming back after dropping files into the Sounds folder shows them straight away.
-        Activated += (_, _) => { foreach (var sounds in Pages.OfType<SoundsPageViewModel>()) sounds.RescanLibrary(); };
+        Activated += (_, _) =>
+        {
+            foreach (var sounds in Pages.OfType<SoundsPageViewModel>()) sounds.RescanLibrary();
+            // The assistant may have remembered or scheduled something while this was open.
+            foreach (var assistant in Pages.OfType<AssistantPageViewModel>()) assistant.Reload();
+        };
     }
 
     protected override void OnClosed(System.EventArgs e)
     {
         foreach (var sounds in Pages.OfType<SoundsPageViewModel>()) { sounds.EndPreviews(); sounds.Detach(); }
+        foreach (var assistant in Pages.OfType<AssistantPageViewModel>()) assistant.Detach();
         base.OnClosed(e);
     }
 

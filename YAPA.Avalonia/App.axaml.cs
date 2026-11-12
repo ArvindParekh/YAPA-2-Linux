@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Linq;
 using Avalonia;
@@ -20,6 +20,9 @@ public partial class App : Application
     private static readonly TimeSpan RemoteCommandTimeout = TimeSpan.FromSeconds(2);
 
     public static AppBootstrapper? Bootstrapper { get; internal set; }
+
+    /// <summary>The UI font, bundled: Geist (OFL).</summary>
+    public const string UiFontUri = "avares://YAPA.Avalonia/Assets/Fonts/Geist#Geist";
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -52,7 +55,11 @@ public partial class App : Application
         navigator.Quitting += snapshots.Save;
         navigator.Quitting += tray.Freeze;
         // A conversation's Claude Code process must not outlive the app.
-        navigator.Quitting += () => bs.Resolve<YAPA.Avalonia.Assistant.AssistantService>().End();
+        navigator.Quitting += () =>
+        {
+            bs.Resolve<YAPA.Avalonia.Assistant.AssistantViewModel>().Archive();
+            bs.Resolve<YAPA.Avalonia.Assistant.AssistantService>().End();
+        };
 
         var startup = Program.StartupCommandLine;
         var startHidden = bs.Resolve<GeneralSettings>().StartHidden || startup.Commands.Contains(AppCommand.Hide);

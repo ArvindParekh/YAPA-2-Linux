@@ -19,6 +19,9 @@ internal sealed class TempDatabase : IDisposable
 
     public string FilePath { get; }
 
+    /// <summary>The temp directory, for anything else a test writes beside the database.</summary>
+    public string Folder => _directory;
+
     private SqliteConnection Open()
     {
         // No pooling: a pooled handle would keep the file open behind the repository's back.

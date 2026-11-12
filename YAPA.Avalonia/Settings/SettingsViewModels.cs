@@ -21,8 +21,14 @@ namespace YAPA.Avalonia.Settings;
 public abstract class SettingsPageViewModel : ObservableObject
 {
     public abstract string Title { get; }
+
+    /// <summary>One line under the title: what the page is for.</summary>
+    public abstract string Subtitle { get; }
+
     public abstract SettingsPage Page { get; }
     public virtual bool CanReset => true;
+
+    public global::Avalonia.Media.Geometry Icon => SettingsIcons.For(Page);
 
     public void Reset()
     {
@@ -38,16 +44,49 @@ public abstract class SettingsPageViewModel : ObservableObject
     protected void Changed([CallerMemberName] string? name = null) => OnPropertyChanged(name);
 }
 
-public sealed class TimerPageViewModel(PomodoroEngineSettings s) : SettingsPageViewModel
+public sealed class TimerPageViewModel(PomodoroEngineSettings s, GeneralSettings g) : SettingsPageViewModel
 {
     public override string Title => "Timer";
+    public override string Subtitle => "How long you work and rest, and what happens in between.";
     public override SettingsPage Page => SettingsPage.Timer;
 
+    /// <summary>"One cycle · 3 h 50 min of which 3 h 20 min focused".</summary>
+    public string CycleSummary
+    {
+        get
+        {
+            var count = Math.Max(1, s.PomodorosBeforeLongBreak);
+            var work = s.WorkTime / 60 * count;
+            var total = work + s.BreakTime / 60 * (count - 1) + s.LongBreakTime / 60;
+            return $"One cycle takes {Duration(total)}: {count} × {s.WorkTime / 60} min of focus, then the long break";
+        }
+    }
+
+    private static string Duration(int minutes) => minutes < 60 ? $"{minutes} min" : minutes % 60 == 0 ? $"{minutes / 60} h" : $"{minutes / 60} h {minutes % 60} min";
+
+    public double StripWork => s.WorkTime / 60.0;
+    public double StripShortBreak => s.BreakTime / 60.0;
+    public double StripLongBreak => s.LongBreakTime / 60.0;
+    public int StripCount => Math.Max(1, s.PomodorosBeforeLongBreak);
+
+    public decimal? DailyGoal { get => g.DailyGoal; set { if (value is { } v) { g.DailyGoal = (int)v; Changed(); } } }
+    public bool ShowGoalForecast { get => g.ShowGoalForecast; set { g.ShowGoalForecast = value; Changed(); } }
+
     // NumericUpDown binds to decimal?; a cleared box comes through as null and is ignored.
-    public decimal? WorkMinutes { get => s.WorkTime / 60; set { if (value is { } v) { s.WorkTime = (int)v * 60; Changed(); } } }
-    public decimal? BreakMinutes { get => s.BreakTime / 60; set { if (value is { } v) { s.BreakTime = (int)v * 60; Changed(); } } }
-    public decimal? LongBreakMinutes { get => s.LongBreakTime / 60; set { if (value is { } v) { s.LongBreakTime = (int)v * 60; Changed(); } } }
-    public decimal? PomodorosBeforeLongBreak { get => s.PomodorosBeforeLongBreak; set { if (value is { } v) { s.PomodorosBeforeLongBreak = (int)v; Changed(); } } }
+    public decimal? WorkMinutes { get => s.WorkTime / 60; set { if (value is { } v) { s.WorkTime = (int)v * 60; Changed(); Shape(); } } }
+    public decimal? BreakMinutes { get => s.BreakTime / 60; set { if (value is { } v) { s.BreakTime = (int)v * 60; Changed(); Shape(); } } }
+    public decimal? LongBreakMinutes { get => s.LongBreakTime / 60; set { if (value is { } v) { s.LongBreakTime = (int)v * 60; Changed(); Shape(); } } }
+    public decimal? PomodorosBeforeLongBreak { get => s.PomodorosBeforeLongBreak; set { if (value is { } v) { s.PomodorosBeforeLongBreak = (int)v; Changed(); Shape(); } } }
+
+    /// <summary>The cycle strip and its line follow every length.</summary>
+    private void Shape()
+    {
+        Changed(nameof(CycleSummary));
+        Changed(nameof(StripWork));
+        Changed(nameof(StripShortBreak));
+        Changed(nameof(StripLongBreak));
+        Changed(nameof(StripCount));
+    }
 
     public bool AutoStartBreak { get => s.AutoStartBreak; set { s.AutoStartBreak = value; Changed(); } }
     public bool AutoStartWork { get => s.AutoStartWork; set { s.AutoStartWork = value; Changed(); } }
@@ -61,13 +100,45 @@ public sealed class TimerPageViewModel(PomodoroEngineSettings s) : SettingsPageV
         set { if (value >= 0) { s.Counter = (CounterEnum)value; Changed(); } }
     }
 
-    protected override void ResetToDefaults() => s.ResetToDefaults();
+    protected override void ResetToDefaults()
+    {
+        s.ResetToDefaults();
+        g.DailyGoal = 8;
+        g.ShowGoalForecast = true;
+    }
 }
 
 public sealed class AppearancePageViewModel(AvaloniaYapaThemeSettings s, AvaloniaThemeSettings themes) : SettingsPageViewModel
 {
     public override string Title => "Appearance";
+    public override string Subtitle => "How the timer looks on your desktop.";
     public override SettingsPage Page => SettingsPage.Appearance;
+
+    // ── Live preview ─────────────────────────────────────────────────────
+    public IBrush PreviewText => new SolidColorBrush(s.TextColor);
+    public Color PreviewShadow => s.ShadowColor;
+    public double PreviewShadowOpacity => s.ShadowOpacity;
+    public double PreviewOpacity => Math.Clamp(s.ClockOpacity, 0.2, 1);
+    public string PreviewTime => s.HideSeconds ? "24" : "24:59";
+    /// <summary>The preview grows and shrinks with the size slider, within its frame.</summary>
+    public double PreviewDigits => Math.Clamp(s.Width / 200.0 * 58, 34, 76);
+
+    protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+        if (e.PropertyName is nameof(PreviewText) or nameof(PreviewShadow) or nameof(PreviewShadowOpacity) or nameof(PreviewOpacity)
+            or nameof(PreviewTime) or nameof(PreviewDigits)) return;
+        OnPropertyChanged(nameof(PreviewText));
+        OnPropertyChanged(nameof(PreviewShadow));
+        OnPropertyChanged(nameof(PreviewShadowOpacity));
+        OnPropertyChanged(nameof(PreviewOpacity));
+        OnPropertyChanged(nameof(PreviewTime));
+        OnPropertyChanged(nameof(PreviewDigits));
+    }
+
+    public string SizeText => $"{s.Width} px";
+    public string OpacityText => $"{s.ClockOpacity:P0}";
+    public string ShadowText => $"{s.ShadowOpacity:P0}";
 
     public IReadOnlyList<string> Themes { get; } = ["Classic", "Motivational"];
 
@@ -100,9 +171,9 @@ public sealed class AppearancePageViewModel(AvaloniaYapaThemeSettings s, Avaloni
         set { if (value != null && Color.TryParse(value, out var c)) { s.ShadowColor = c; Changed(); } }
     }
 
-    public double Size { get => s.Width; set { s.Width = (int)Math.Round(value); Changed(); } }
-    public double ClockOpacity { get => s.ClockOpacity; set { s.ClockOpacity = Math.Round(value, 2); Changed(); } }
-    public double ShadowOpacity { get => s.ShadowOpacity; set { s.ShadowOpacity = Math.Round(value, 2); Changed(); } }
+    public double Size { get => s.Width; set { s.Width = (int)Math.Round(value); Changed(); Changed(nameof(SizeText)); } }
+    public double ClockOpacity { get => s.ClockOpacity; set { s.ClockOpacity = Math.Round(value, 2); Changed(); Changed(nameof(OpacityText)); } }
+    public double ShadowOpacity { get => s.ShadowOpacity; set { s.ShadowOpacity = Math.Round(value, 2); Changed(); Changed(nameof(ShadowText)); } }
 
     public bool ShowSeconds { get => !s.HideSeconds; set { s.HideSeconds = !value; Changed(); } }
     public bool ShowStatusText { get => s.ShowStatusText; set { s.ShowStatusText = value; Changed(); } }
@@ -120,9 +191,10 @@ public sealed class AppearancePageViewModel(AvaloniaYapaThemeSettings s, Avaloni
         => palette.FirstOrDefault(p => Color.Parse(p) == color);
 }
 
-public sealed class GeneralPageViewModel(GeneralSettings g, AvaloniaYapaThemeSettings theme, YAPA.Avalonia.Assistant.AssistantSettings assistant) : SettingsPageViewModel
+public sealed class GeneralPageViewModel(GeneralSettings g, AvaloniaYapaThemeSettings theme) : SettingsPageViewModel
 {
     public override string Title => "General";
+    public override string Subtitle => "Window behaviour, startup and notifications.";
     public override SettingsPage Page => SettingsPage.General;
 
     public bool AlwaysOnTop { get => g.AlwaysOnTop; set { g.AlwaysOnTop = value; Changed(); } }
@@ -133,30 +205,6 @@ public sealed class GeneralPageViewModel(GeneralSettings g, AvaloniaYapaThemeSet
     public bool MinimizeToTray { get => theme.MinimizeToTray; set { theme.MinimizeToTray = value; Changed(); } }
     public bool PauseWhenLocked { get => g.PauseWhenLocked; set { g.PauseWhenLocked = value; Changed(); } }
     public bool DesktopNotifications { get => g.DesktopNotifications; set { g.DesktopNotifications = value; Changed(); } }
-    public decimal? DailyGoal { get => g.DailyGoal; set { if (value is { } v) { g.DailyGoal = (int)v; Changed(); } } }
-    public bool ShowGoalForecast { get => g.ShowGoalForecast; set { g.ShowGoalForecast = value; Changed(); } }
-
-    public bool AssistantEnabled { get => assistant.Enabled; set { assistant.Enabled = value; Changed(); } }
-
-    public IReadOnlyList<string> AssistantModels { get; } =
-        YAPA.Avalonia.Assistant.AssistantSettings.Models.Select(m => $"{m.Name} · {m.Short}").ToList();
-
-    public int AssistantModelIndex
-    {
-        get => YAPA.Avalonia.Assistant.AssistantSettings.Models.ToList().FindIndex(m => m.Id == assistant.Model);
-        set
-        {
-            if (value < 0 || value >= YAPA.Avalonia.Assistant.AssistantSettings.Models.Count) return;
-            assistant.Model = YAPA.Avalonia.Assistant.AssistantSettings.Models[value].Id;
-            Changed();
-        }
-    }
-
-    /// <summary>Where the assistant's Claude Code is, or how to get it.</summary>
-    public string AssistantStatus => YAPA.Avalonia.Assistant.ClaudeCli.Locate() != null
-        ? "Uses your Claude sign-in, through Claude Code. It can see and change YAPA, and nothing else on your computer."
-        : "Needs Claude Code: install it from claude.com/code and sign in. It runs on your Claude plan, with no API key.";
-
     public bool AutostartSupported => Autostart.IsSupported;
 
     public bool LaunchAtLogin
@@ -178,15 +226,25 @@ public sealed class GeneralPageViewModel(GeneralSettings g, AvaloniaYapaThemeSet
 
     protected override void ResetToDefaults()
     {
+        // Not the goal: it lives on the Timer page now, and resets there.
+        var goal = g.DailyGoal;
+        var forecast = g.ShowGoalForecast;
         g.ResetToDefaults();
+        g.DailyGoal = goal;
+        g.ShowGoalForecast = forecast;
         theme.MinimizeToTray = true;
-        assistant.ResetToDefaults();
     }
+}
+
+public sealed record Shortcut(string Keys, string Action)
+{
+    public IReadOnlyList<string> Caps => Keys.Split(' ');
 }
 
 public sealed partial class AboutPageViewModel : SettingsPageViewModel
 {
     public override string Title => "About";
+    public override string Subtitle => "Yet Another Pomodoro App, rebuilt for Linux.";
     public override SettingsPage Page => SettingsPage.About;
     public override bool CanReset => false;
     protected override void ResetToDefaults() { }
@@ -197,20 +255,19 @@ public sealed partial class AboutPageViewModel : SettingsPageViewModel
     public string LogFile => Diagnostics.Logging.LogFile;
     public string Usage => SingleInstance.CommandLine.Usage;
 
-    public IReadOnlyList<(string Keys, string Action)> Shortcuts { get; } =
+    public IReadOnlyList<Shortcut> Shortcuts { get; } =
     [
-        ("Space", "Start, pause or resume"),
-        ("Esc", "Stop: abandon the pomodoro, or end the break"),
-        ("S", "Skip the break"),
-        ("L", "Take the long break now"),
-        ("Ctrl+,", "Settings"),
-        ("Ctrl+I", "Statistics"),
-        ("Ctrl+H", "Hide to tray"),
-        ("Ctrl+Q", "Quit"),
-        ("Right-click", "All actions"),
+        new("Space", "Start, pause or resume"),
+        new("Esc", "Stop: abandon the pomodoro, or end the break"),
+        new("S", "Skip the break"),
+        new("L", "Take the long break now"),
+        new("/", "Ask YAPA (or double-click the timer)"),
+        new("Ctrl ,", "Settings"),
+        new("Ctrl I", "Statistics"),
+        new("Ctrl H", "Hide to tray"),
+        new("Ctrl Q", "Quit"),
+        new("Right-click", "Settings; ⋯ has every action"),
     ];
-
-    public string ShortcutText => string.Join("\n", Shortcuts.Select(s => $"{s.Keys,-12} {s.Action}"));
 
     [RelayCommand]
     private static void Open(string path) => OpenPath(path);

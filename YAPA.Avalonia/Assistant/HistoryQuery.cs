@@ -36,9 +36,27 @@ public static class HistoryQuery
           minutes      INTEGER  its length in minutes (0 in very old records)
           count        INTEGER  pomodoros the row stands for (almost always 1; sum this to count)
           profile      TEXT     the profile it was done in (may be NULL in old records)
+
+        Table events, every timer transition since this log began (it is newer than the history), in order:
+          id            INTEGER  order of events
+          at            TEXT     'YYYY-MM-DD HH:MM:SS' local time
+          date          TEXT     'YYYY-MM-DD' local date
+          kind          TEXT     WorkStarted, BreakStarted, Paused, Resumed, WorkCompleted, BreakCompleted, Stopped,
+                                 Reset, Restored, MarkedDone, OverrunStopped, Adjusted, Moved
+          from_phase    TEXT     NotStarted, Work, WorkEnded, Break, BreakEnded, Pause
+          to_phase      TEXT     same values
+          pomodoro      INTEGER  position in the cycle after the event
+          cycle         INTEGER  cycle of the day after the event
+          long_break    INTEGER  1 if the break involved is the long one
+          automatic     INTEGER  1 if the timer did it by itself (auto-start, an interval running out)
+          length_sec    INTEGER  length of the current interval after the event
+          elapsed_sec   INTEGER  how far the interval had got (for Stopped/Reset: before it was dropped)
+        A Stopped event from Work or a Work pause is an abandoned pomodoro. A break runs from BreakStarted to the next
+        BreakCompleted, Stopped or WorkStarted; subtract paused stretches (Paused to Resumed) for its real length.
         """;
 
-    public static JsonObject Run(string sql, IReadOnlyList<PomodoroEntity> history, TimeZoneInfo zone)
+    public static JsonObject Run(string sql, IReadOnlyList<PomodoroEntity> history, TimeZoneInfo zone,
+        IReadOnlyList<Persistence.TimerEventRecord>? events = null)
     {
         var text = sql.Trim().TrimEnd(';').Trim();
         if (text.Length == 0) throw new ToolException("The query is empty.");
@@ -46,6 +64,7 @@ public static class HistoryQuery
         using var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
         Load(connection, history, zone);
+        LoadEvents(connection, events ?? [], zone);
 
         // After loading, nothing may change: a query like "DELETE FROM pomodoros" fails here
         // instead of quietly emptying the copy and reporting success.
@@ -137,6 +156,38 @@ public static class HistoryQuery
             parameters[8].Value = p.DurationMin;
             parameters[9].Value = p.Count;
             parameters[10].Value = (object?)p.ProfileName ?? DBNull.Value;
+            insert.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
+    private static void LoadEvents(SqliteConnection connection, IReadOnlyList<Persistence.TimerEventRecord> events, TimeZoneInfo zone)
+    {
+        Execute(connection, """
+            CREATE TABLE events (
+                id INTEGER PRIMARY KEY, at TEXT, date TEXT, kind TEXT, from_phase TEXT, to_phase TEXT, pomodoro INTEGER,
+                cycle INTEGER, long_break INTEGER, automatic INTEGER, length_sec INTEGER, elapsed_sec INTEGER);
+            CREATE INDEX events_date ON events(date);
+            """);
+        using var transaction = connection.BeginTransaction();
+        using var insert = connection.CreateCommand();
+        insert.CommandText = "INSERT INTO events VALUES ($id, $at, $date, $kind, $from, $to, $pomodoro, $cycle, $long, $auto, $length, $elapsed);";
+        foreach (var e in events)
+        {
+            var local = TimeZoneInfo.ConvertTimeFromUtc(e.AtUtc, zone);
+            insert.Parameters.Clear();
+            insert.Parameters.AddWithValue("$id", e.Id);
+            insert.Parameters.AddWithValue("$at", local.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
+            insert.Parameters.AddWithValue("$date", local.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+            insert.Parameters.AddWithValue("$kind", e.Kind);
+            insert.Parameters.AddWithValue("$from", e.From);
+            insert.Parameters.AddWithValue("$to", e.To);
+            insert.Parameters.AddWithValue("$pomodoro", e.Pomodoro);
+            insert.Parameters.AddWithValue("$cycle", e.Cycle);
+            insert.Parameters.AddWithValue("$long", e.LongBreak ? 1 : 0);
+            insert.Parameters.AddWithValue("$auto", e.Automatic ? 1 : 0);
+            insert.Parameters.AddWithValue("$length", e.LengthSeconds);
+            insert.Parameters.AddWithValue("$elapsed", e.ElapsedSeconds);
             insert.ExecuteNonQuery();
         }
         transaction.Commit();

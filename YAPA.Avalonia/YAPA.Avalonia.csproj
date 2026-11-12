@@ -50,5 +50,8 @@
     <EmbeddedResource Include="Assets\ding.wav" LogicalName="YAPA.Avalonia.Assets.ding.wav" />
     <!-- Tray icon embedded as Avalonia resource -->
     <AvaloniaResource Include="Assets\pomoTray.ico" />
+    <AvaloniaResource Include="Assets\yapa2_128.png" />
+    <!-- Geist (OFL, see OFL.txt beside it): the UI font everywhere but the timer's own digits. -->
+    <AvaloniaResource Include="Assets\Fonts\Geist\*.ttf" />
   </ItemGroup>
 </Project>

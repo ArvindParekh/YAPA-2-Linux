@@ -19,7 +19,7 @@ namespace YAPA.Avalonia.Assistant;
 /// the same engine, settings and history the rest of the app uses, so the timer, tray and
 /// open windows follow at once, and every change lands in the <see cref="ChangeJournal"/>.
 /// </summary>
-public sealed class AppTools
+public sealed partial class AppTools
 {
     private const int MaxLogged = 24;
 
@@ -36,8 +36,9 @@ public sealed class AppTools
 
     public AppTools(IPomodoroEngine engine, PomodoroEngineSettings profiles, GeneralSettings general, IPomodoroRepository history,
         AppNavigator navigator, SettingsCatalog catalog, ChangeJournal journal, AmbienceSettings ambience,
-        AmbienceEffects ambienceEffects, IClock clock)
+        AmbienceEffects ambienceEffects, IClock clock, Extras extras)
     {
+        _extras = extras;
         _engine = engine;
         _profiles = profiles;
         _general = general;
@@ -131,6 +132,7 @@ public sealed class AppTools
         };
         var others = _profiles.Profiles.Keys.Where(k => k != _profiles.ActiveProfile).ToArray();
         if (others.Length > 0) state["other_profiles"] = new JsonArray(others.Select(o => (JsonNode)o).ToArray());
+        AddExtrasTo(state, now);
         return state;
     }
 
@@ -143,7 +145,9 @@ public sealed class AppTools
 
     // ── Tools ────────────────────────────────────────────────────────────────
 
-    public IEnumerable<AssistantTool> All() =>
+    public IEnumerable<AssistantTool> All() => Core().Concat(More());
+
+    private IEnumerable<AssistantTool> Core() =>
     [
         new AssistantTool
         {
@@ -261,11 +265,11 @@ public sealed class AppTools
         new AssistantTool
         {
             Name = "query_history",
-            Description = "Runs a read-only SQLite query over the complete pomodoro history, for any question the statistics don't answer directly (weekdays, ranges, profiles, specific days, records). Returns up to 200 rows; aggregate in SQL. " + HistoryQuery.Schema,
+            Description = "Runs a read-only SQLite query over the complete pomodoro history and the timer's event log, for any question the statistics don't answer directly (weekdays, ranges, profiles, specific days, breaks, abandoned pomodoros, when the day started). Returns up to 200 rows; aggregate in SQL. " + HistoryQuery.Schema,
             Schema = Object(("sql", Str("One SELECT statement (WITH … SELECT is fine)."), true)),
             Activity = _ => "Looking through your history",
             OffUiThread = true,
-            Run = a => new ToolResult(HistoryQuery.Run(a.RequiredString("sql"), _history.All(), TimeZoneInfo.Local)),
+            Run = a => new ToolResult(HistoryQuery.Run(a.RequiredString("sql"), _history.All(), TimeZoneInfo.Local, _extras.Events.All())),
         },
 
         new AssistantTool

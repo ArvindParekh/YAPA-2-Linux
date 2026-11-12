@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -364,6 +364,7 @@ public sealed class SoundsPageViewModel : SettingsPageViewModel
     }
 
     public override string Title => "Sounds";
+    public override string Subtitle => "Cues for each moment, rain while you work, and music.";
     public override SettingsPage Page => SettingsPage.Sounds;
 
     /// <summary>Set by the hosting window.</summary>

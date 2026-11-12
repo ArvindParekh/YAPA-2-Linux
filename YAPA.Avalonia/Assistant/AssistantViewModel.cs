@@ -56,10 +56,13 @@ public sealed partial class Exchange : ObservableObject
 /// </summary>
 public sealed partial class AssistantViewModel : ObservableObject
 {
-    private const string ReadyCaption = "Ask me anything, or tell me what to do.";
-
     private readonly AssistantService _service;
     private readonly IPomodoroEngine _engine;
+    private readonly IPomodoroRepository _history;
+    private readonly Specifics.GeneralSettings _general;
+    private readonly AssistantMemory _memory;
+    private string _greeting = "";
+    private DateTime _startedUtc = DateTime.UtcNow;
     private Exchange? _current;
     private bool _replaceOnNextText; // the text so far led up to a tool call; the answer comes after it
     private bool _interrupted;
@@ -70,10 +73,15 @@ public sealed partial class AssistantViewModel : ObservableObject
     // belongs to an earlier, finished exchange.
     private int _outstanding;
 
-    public AssistantViewModel(AssistantService service, IPomodoroEngine engine)
+    public AssistantViewModel(AssistantService service, IPomodoroEngine engine, IPomodoroRepository history, Specifics.GeneralSettings general,
+        AssistantMemory memory)
     {
+        _memory = memory;
         _service = service;
         _engine = engine;
+        _history = history;
+        _general = general;
+        PickVoice();
         _service.Event += OnEvent;
         _service.ToolActivity += OnToolActivity;
         _service.Crashed += OnCrashed;
@@ -88,7 +96,8 @@ public sealed partial class AssistantViewModel : ObservableObject
     public ObservableCollection<Suggestion> Suggestions { get; } = [];
 
     [ObservableProperty] private string _input = "";
-    [ObservableProperty] private string _caption = ReadyCaption;
+    [ObservableProperty] private string _caption = "";
+    [ObservableProperty] private string _placeholder = "";
     [ObservableProperty] private OrbMood _mood = OrbMood.Idle;
     [ObservableProperty] private OrbPalette _palette = OrbPalette.Calm;
     [ObservableProperty] private bool _isBusy;
@@ -111,9 +120,20 @@ public sealed partial class AssistantViewModel : ObservableObject
     partial void OnIsUnavailableChanged(bool value) => OnPropertyChanged(nameof(ShowSuggestions));
 
     /// <summary>The panel is opening: warm Claude Code up while the user types.</summary>
+    /// <summary>A fresh greeting and placeholder for the moment.</summary>
+    private void PickVoice()
+    {
+        var line = Voice.For(_engine.Phase, _engine.PausedPhase, DateTime.Now, _history.CompletedToday(), _general.DailyGoal);
+        _greeting = line.Greeting;
+        Placeholder = line.Placeholder;
+    }
+
+    private string ReadyCaption => _greeting;
+
     public void Opened()
     {
         UpdatePalette();
+        if (!IsBusy) PickVoice();
         if (!HasConversation) UpdateSuggestions();
         if (!AssistantService.IsInstalled)
         {
@@ -158,6 +178,10 @@ public sealed partial class AssistantViewModel : ObservableObject
         if (IsBusy) Stop();
 
         if (_current != null) _current.IsLatest = false;
+        // The conversation behind the panel ended (idle, or a crash) but the panel still shows
+        // it: a new one starts with a recap, so "as I said" still means something.
+        if (!_service.IsRunning && Exchanges.Count > 0) _service.Note(Recap());
+        if (Exchanges.Count == 0) _startedUtc = DateTime.UtcNow;
         _current = new Exchange(text);
         Exchanges.Add(_current);
         HasConversation = true;
@@ -201,11 +225,12 @@ public sealed partial class AssistantViewModel : ObservableObject
         RefreshUndo();
     }
 
-    /// <summary>Starts over: a fresh conversation.</summary>
+    /// <summary>Starts over: a fresh conversation. The old one is archived, for recall_conversations.</summary>
     [RelayCommand]
     private void NewConversation()
     {
         if (IsBusy) Stop();
+        Archive();
         _service.End();
         _outstanding = 0;
         Exchanges.Clear();
@@ -215,6 +240,24 @@ public sealed partial class AssistantViewModel : ObservableObject
         Mood = OrbMood.Idle;
         UpdateSuggestions();
         _service.EnsureStarted();
+    }
+
+    /// <summary>Keeps the conversation on screen in the archive (on a new conversation, and when YAPA quits).</summary>
+    public void Archive()
+    {
+        var done = Exchanges.Where(x => !x.IsPending).ToList();
+        if (done.Count == 0) return;
+        _memory.Archive(new ArchivedConversation(_startedUtc,
+            done.Select(x => new ArchivedExchange(DateTime.UtcNow, x.Question, x.Answer, x.Actions.ToList())).ToList()));
+    }
+
+    private string Recap()
+    {
+        static string Clip(string s, int n) => s.Length > n ? s[..n] + "…" : s;
+        var lines = Exchanges.Where(x => !x.IsPending).TakeLast(6).Select(x =>
+            $"- The user asked: \"{Clip(x.Question, 200)}\". You answered: \"{Clip(x.Answer, 300)}\"" +
+            (x.Actions.Count > 0 ? $" and changed: {string.Join("; ", x.Actions)}" : "") + (x.WasUndone ? " (later undone)" : ""));
+        return "Your conversation process restarted; this is what was said before it, still on the user's screen:\n" + string.Join("\n", lines);
     }
 
     // ── Stream ───────────────────────────────────────────────────────────────

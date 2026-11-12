@@ -29,7 +29,8 @@ public sealed class SettingsCatalog
     private readonly Dictionary<string, SettingEntry> _entries;
 
     public SettingsCatalog(PomodoroEngineSettings engine, GeneralSettings general, AvaloniaYapaThemeSettings look,
-        AvaloniaThemeSettings themes, AmbienceSettings ambience, SoundSettings sounds, AssistantSettings assistant)
+        AvaloniaThemeSettings themes, AmbienceSettings ambience, SoundSettings sounds, AssistantSettings assistant,
+        AvaloniaMusicPlayerSettings music)
     {
         var entries = new List<SettingEntry>
         {
@@ -165,6 +166,20 @@ public sealed class SettingsCatalog
 
         foreach (var cue in SoundSettings.All) entries.Add(Cue(sounds, cue));
 
+        // ── Music and own files ─────────────────────────────────────────────
+        entries.Add(Media("music.during_pomodoros", "Music that plays during pomodoros.", true, () => music.WorkSong, v => music.WorkSong = v));
+        entries.Add(Bool("music.repeat_during_pomodoros", "Loop the pomodoro music.", () => music.RepeatWorkSong, v => music.RepeatWorkSong = v));
+        entries.Add(Media("music.during_breaks", "Music that plays during short breaks.", true, () => music.BreakSong, v => music.BreakSong = v));
+        entries.Add(Bool("music.repeat_during_breaks", "Loop the break music.", () => music.RepeatBreakSong, v => music.RepeatBreakSong = v));
+        entries.Add(Media("music.during_long_break", "Music that plays during the long break.", true, () => music.SessionBreakSong, v => music.SessionBreakSong = v));
+        entries.Add(Bool("music.repeat_during_long_break", "Loop the long-break music.", () => music.RepeatSessionBreakSong, v => music.RepeatSessionBreakSong = v));
+        entries.Add(Media("ambience.recording_file", "The user's own recording for the \"own_recording\" background sound.", false,
+            () => ambience.FilePath, v =>
+            {
+                ambience.FilePath = v;
+                if (v == null && ambience.Sound == AmbientSound.File) ambience.Sound = AmbientSound.None;
+            }));
+
         _entries = entries.ToDictionary(e => e.Key, StringComparer.OrdinalIgnoreCase);
     }
 
@@ -226,6 +241,13 @@ public sealed class SettingsCatalog
         ["general.launch_at_login"] = "launch at login",
         ["general.start_hidden"] = "start hidden",
         ["assistant.model"] = "assistant model",
+        ["music.during_pomodoros"] = "pomodoro music",
+        ["music.repeat_during_pomodoros"] = "loop pomodoro music",
+        ["music.during_breaks"] = "break music",
+        ["music.repeat_during_breaks"] = "loop break music",
+        ["music.during_long_break"] = "long-break music",
+        ["music.repeat_during_long_break"] = "loop long-break music",
+        ["ambience.recording_file"] = "recording",
     };
 
     /// <summary>"rain volume to 50%", "auto-start breaks on".</summary>
@@ -236,6 +258,11 @@ public sealed class SettingsCatalog
             : entry.Key.StartsWith("sound.cue.", StringComparison.Ordinal) ? $"{entry.Key[10..].Replace('_', ' ')} sound"
             : entry.Key[(entry.Key.IndexOf('.') + 1)..].Replace('_', ' ');
         var text = value is JsonValue v && v.TryGetValue<string>(out var str) ? str : value?.ToJsonString() ?? "";
+        if (entry.Type is "media" or "file" or "cue" && text != "none")
+        {
+            text = YAPA.Avalonia.Audio.Library.MediaLibrary.Radio.FirstOrDefault(r => r.Reference == text)?.Name
+                ?? (text.StartsWith('/') ? YAPA.Avalonia.Audio.Library.MediaLibrary.NameFor(text) : text);
+        }
         return entry.Type switch
         {
             "bool" => $"{label} {(text == "true" ? "on" : "off")}",
@@ -280,6 +307,33 @@ public sealed class SettingsCatalog
         return applied;
     }
 
+    /// <summary>
+    /// Sets each value back, skipping any that no longer applies (a sound file since deleted):
+    /// one stale value mustn't stop the rest of an undo. Twice, because some values depend on
+    /// others (the own-recording sound needs its file first).
+    /// </summary>
+    public void Restore(JsonObject values)
+    {
+        var pending = values.ToList();
+        for (var pass = 0; pass < 2 && pending.Count > 0; pass++)
+        {
+            var failed = new List<KeyValuePair<string, JsonNode?>>();
+            foreach (var (key, value) in pending)
+            {
+                try
+                {
+                    var entry = Find(key);
+                    if (!JsonNode.DeepEquals(entry.Get(), value)) entry.Set(value?.DeepClone());
+                }
+                catch (ToolException)
+                {
+                    failed.Add(new(key, value));
+                }
+            }
+            pending = failed;
+        }
+    }
+
     private SettingEntry Find(string key)
         => _entries.TryGetValue(key.Trim(), out var entry)
             ? entry
@@ -294,6 +348,8 @@ public sealed class SettingsCatalog
         "integer" => ParseInt(entry, value, int.MinValue, int.MaxValue),
         "percent" => ParsePercent(entry, value),
         "color" => ParseColor(entry, value).ToString(),
+        "cue" => ParseCue(entry, value),
+        "media" or "file" => ParseMedia(entry, value) ?? "none",
         _ => ParseChoice(entry, value),
     };
 
@@ -353,23 +409,78 @@ public sealed class SettingsCatalog
                 _ => "break_over",
             },
             $"Sound for \"{SoundSettings.Label(cue)}\".",
-            "choice",
-            "none; " + string.Join("; ", names) + ". A sound file chosen in Settings shows as \"file:<name>\" and can only be picked there.",
+            "cue",
+            "none; " + string.Join("; ", names) + "; or an audio file: one of the user's Sounds (list_sounds) or an absolute path",
             () => sounds.Get(cue) switch
             {
                 { IsNone: true } => "none",
-                { FilePath: { } path } => "file:" + Path.GetFileName(path),
+                { FilePath: { } path } => path,
                 var s => s.Serialize().Replace("builtin:", ""),
             },
             v =>
             {
-                var name = ParseChoice(self!, v);
-                sounds.Set(cue, name == "none" ? SoundRef.None : SoundRef.Parse("builtin:" + name));
+                var value = ParseCue(self!, v);
+                sounds.Set(cue, value == "none" ? SoundRef.None
+                    : value.StartsWith('/') ? SoundRef.Parse("file:" + value)
+                    : SoundRef.Parse("builtin:" + value));
             });
         return self;
     }
 
+    /// <param name="radio">Radio stations allowed too (music), not only files.</param>
+    private static SettingEntry Media(string key, string description, bool radio, Func<string?> get, Action<string?> set)
+    {
+        SettingEntry? self = null;
+        self = new SettingEntry(key, description, radio ? "media" : "file",
+            radio ? "none; a radio station (list_sounds); one of the user's Sounds; or an absolute path to an audio file"
+                  : "none; one of the user's Sounds (list_sounds); or an absolute path to an audio file",
+            () => get() is { Length: > 0 } stored ? stored : "none",
+            v => set(ParseMedia(self!, v)));
+        return self;
+    }
+
     // ── Parsing ─────────────────────────────────────────────────────────────
+
+    /// <summary>A built-in cue name, "none", or the absolute path of an audio file.</summary>
+    private static string ParseCue(SettingEntry entry, JsonNode? value)
+    {
+        var text = value is JsonValue v && v.TryGetValue<string>(out var s) ? s.Trim() : null;
+        if (string.IsNullOrEmpty(text)) throw Invalid(entry, value);
+        var builtIn = SoundRef.BuiltIns.Select(b => b.Serialize().Replace("builtin:", ""))
+            .FirstOrDefault(n => n.Replace('-', '_') == text.ToLowerInvariant().Replace(' ', '_').Replace('-', '_'));
+        if (builtIn != null) return builtIn;
+        if (text.Equals("none", StringComparison.OrdinalIgnoreCase)) return "none";
+        return ResolveFile(text) ?? throw Invalid(entry, value);
+    }
+
+    /// <returns>The stored reference ("radio:…" or a path), or null for none.</returns>
+    private static string? ParseMedia(SettingEntry entry, JsonNode? value)
+    {
+        var text = value is JsonValue v && v.TryGetValue<string>(out var s) ? s.Trim() : null;
+        if (string.IsNullOrEmpty(text) || text.Equals("none", StringComparison.OrdinalIgnoreCase)) return null;
+        if (entry.Type == "media")
+        {
+            var key = text.ToLowerInvariant().Replace("radio:", "").Replace(' ', '-').Replace('_', '-');
+            var station = YAPA.Avalonia.Audio.Library.MediaLibrary.Radio.FirstOrDefault(r =>
+                r.Reference == "radio:" + key || r.Name.ToLowerInvariant().Replace(' ', '-') == key);
+            if (station != null) return station.Reference;
+        }
+        return ResolveFile(text) ?? throw Invalid(entry, value);
+    }
+
+    /// <summary>One of the user's Sounds by name or file name, or an existing absolute (or ~) path.</summary>
+    private static string? ResolveFile(string text)
+    {
+        var library = YAPA.Avalonia.Audio.Library.MediaLibrary.LibraryFiles();
+        var named = library.FirstOrDefault(f => string.Equals(f.Name, text, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Path.GetFileName(f.Location), text, StringComparison.OrdinalIgnoreCase));
+        if (named != null) return named.Location;
+
+        var path = text.StartsWith("file:", StringComparison.Ordinal) ? text[5..] : text;
+        if (path.StartsWith("~/", StringComparison.Ordinal))
+            path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), path[2..]);
+        return Path.IsPathRooted(path) && File.Exists(path) ? Path.GetFullPath(path) : null;
+    }
 
     private static ToolException Invalid(SettingEntry entry, JsonNode? value)
         => new($"{entry.Key} can't be {value?.ToJsonString() ?? "empty"}: it takes {entry.Constraint ?? entry.Type}.");
