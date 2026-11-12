@@ -35,6 +35,7 @@ public sealed class AppCommandHandler(TimerViewModel vm, IAppNavigator navigator
                 case AppCommand.LongBreak: vm.Engine.StartLongBreak(); break;
                 case AppCommand.ToggleAmbience: vm.ToggleAmbienceCommand.Execute(null); break;
                 case AppCommand.Reset: vm.Engine.Reset(); break;
+                case AppCommand.MarkDone: vm.Engine.MarkDone(); break;
                 case AppCommand.Settings: navigator.ShowSettings(); break;
                 case AppCommand.Statistics: navigator.ShowStatistics(); break;
                 case AppCommand.Status: output.Add(StatusLine()); break;

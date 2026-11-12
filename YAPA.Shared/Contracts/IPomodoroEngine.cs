@@ -76,6 +76,15 @@ namespace YAPA.Shared.Contracts
 
         bool CanStartLongBreak { get; }
 
+        /// <summary>
+        /// Credits a pomodoro done away from the timer, together with its break: it is
+        /// recorded like a completed one and the timer waits at the pomodoro after it.
+        /// Only while nothing is running or paused (idle, or waiting after an interval).
+        /// </summary>
+        void MarkDone();
+
+        bool CanMarkDone { get; }
+
         /// <summary>Back to the first pomodoro of the cycle.</summary>
         void Reset();
 
@@ -110,7 +119,8 @@ namespace YAPA.Shared.Contracts
         BreakCompleted,
         Stopped,
         Reset,
-        Restored
+        Restored,
+        MarkedDone
     }
 
     public sealed class PomodoroTransition

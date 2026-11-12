@@ -12,6 +12,8 @@
     <MenuItem Header="Skip break" Command="{Binding SkipCommand}" IsVisible="{Binding CanSkip}" InputGesture="S" />
     <MenuItem Header="{Binding LongBreakMenuText}" Command="{Binding LongBreakCommand}" IsVisible="{Binding CanLongBreak}" InputGesture="L" />
     <MenuItem Header="{Binding StopMenuText}" Command="{Binding StopCommand}" IsVisible="{Binding CanStop}" InputGesture="Escape" />
+    <!-- No key shortcut, unlike its neighbours: it writes history, and a stray keypress has no undo. -->
+    <MenuItem Header="Mark a pomodoro done" Command="{Binding MarkDoneCommand}" IsVisible="{Binding CanMarkDone}" />
     <MenuItem Header="Reset cycle" Command="{Binding ResetCommand}" IsEnabled="{Binding CanReset}" />
     <Separator />
     <MenuItem Header="{Binding AmbienceMenuText}" Command="{Binding ToggleAmbienceCommand}"

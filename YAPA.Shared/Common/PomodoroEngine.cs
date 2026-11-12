@@ -380,6 +380,33 @@ namespace YAPA.Shared.Common
             Raise(PomodoroTransitionKind.BreakStarted, from, false, isLongBreak: true);
         }
 
+        // Not while paused or running: the interval under way would have to be thrown
+        // away or credited too, and either guess could be wrong.
+        public bool CanMarkDone => _phase == PomodoroPhase.NotStarted
+            || _phase == PomodoroPhase.WorkEnded
+            || _phase == PomodoroPhase.BreakEnded;
+
+        public void MarkDone()
+        {
+            if (!CanMarkDone) return;
+
+            var from = _phase;
+            // Waiting after an interval, the break that was due has been taken by now
+            // (after work) or is over (after a break): the credited pomodoro is the next one.
+            if (from != PomodoroPhase.NotStarted) AdvanceIndex();
+
+            _completedThisSession++;
+            _cycleHasWork = true;
+            OnPomodoroCompleted?.Invoke(); // recorded in history like one that ran
+
+            // Its break was taken off the timer too; after the cycle's last one that is the
+            // long break, so the cycle closes and starts over.
+            AdvanceIndex();
+            ResetInterval();
+            NotifyPropertyChanged(nameof(Counter));
+            Raise(PomodoroTransitionKind.MarkedDone, from, false);
+        }
+
         public void Reset()
         {
             var from = _phase;
@@ -619,6 +646,7 @@ namespace YAPA.Shared.Common
             NotifyPropertyChanged(nameof(CurrentIntervalLength));
             NotifyPropertyChanged(nameof(Counter));
             NotifyPropertyChanged(nameof(CanStartLongBreak));
+            NotifyPropertyChanged(nameof(CanMarkDone));
         }
 
         private void Raise(PomodoroTransitionKind kind, PomodoroPhase from, bool automatic, bool? isLongBreak = null)

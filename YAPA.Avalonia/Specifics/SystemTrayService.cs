@@ -24,6 +24,7 @@ public sealed class SystemTrayService : IDisposable
     private readonly NativeMenuItem _skip = new("Skip break");
     private readonly NativeMenuItem _longBreak = new("Take long break now");
     private readonly NativeMenuItem _stop = new("Stop");
+    private readonly NativeMenuItem _markDone = new("Mark a pomodoro done");
     private readonly NativeMenuItem _reset = new("Reset cycle");
     private readonly NativeMenuItem _ambience = new("Ambience") { ToggleType = MenuItemToggleType.CheckBox };
     private bool _disposed;
@@ -71,6 +72,7 @@ public sealed class SystemTrayService : IDisposable
         _skip.Click += (_, _) => _vm.SkipCommand.Execute(null);
         _longBreak.Click += (_, _) => _vm.LongBreakCommand.Execute(null);
         _stop.Click += (_, _) => _vm.StopCommand.Execute(null);
+        _markDone.Click += (_, _) => _vm.MarkDoneCommand.Execute(null);
         _reset.Click += (_, _) => _vm.ResetCommand.Execute(null);
         _ambience.Click += (_, _) => _vm.ToggleAmbienceCommand.Execute(null);
 
@@ -89,6 +91,7 @@ public sealed class SystemTrayService : IDisposable
         menu.Add(_skip);
         menu.Add(_longBreak);
         menu.Add(_stop);
+        menu.Add(_markDone);
         menu.Add(_reset);
         menu.Add(new NativeMenuItemSeparator());
         menu.Add(_ambience);
@@ -107,6 +110,7 @@ public sealed class SystemTrayService : IDisposable
         if (e.PropertyName == nameof(TimerViewModel.Summary)) _tray.ToolTipText = _vm.Summary;
         else if (e.PropertyName is nameof(TimerViewModel.CanStart) or nameof(TimerViewModel.CanPause)
                  or nameof(TimerViewModel.CanSkip) or nameof(TimerViewModel.CanStop) or nameof(TimerViewModel.CanReset)
+                 or nameof(TimerViewModel.CanMarkDone)
                  or nameof(TimerViewModel.CanLongBreak) or nameof(TimerViewModel.LongBreakMenuText)
                  or nameof(TimerViewModel.AmbienceOn) or nameof(TimerViewModel.AmbienceMenuText)
                  or nameof(TimerViewModel.StartMenuText) or nameof(TimerViewModel.StopMenuText))
@@ -125,6 +129,7 @@ public sealed class SystemTrayService : IDisposable
         _longBreak.IsVisible = _vm.CanLongBreak;
         _stop.Header = _vm.StopMenuText;
         _stop.IsVisible = _vm.CanStop;
+        _markDone.IsVisible = _vm.CanMarkDone;
         _reset.IsEnabled = _vm.CanReset;
         _ambience.Header = _vm.AmbienceMenuText;
         _ambience.IsChecked = _vm.AmbienceOn;

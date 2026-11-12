@@ -106,6 +106,14 @@ public class CommandLineTests
         => CollectionAssert.AreEqual(new[] { AppCommand.LongBreak }, CommandLine.Parse(["--long-break"]).Commands.ToArray());
 
     [TestMethod]
+    public void Mark_done_command_parses_and_is_not_query_only()
+    {
+        var parsed = CommandLine.Parse(["--mark-done"]);
+        CollectionAssert.AreEqual(new[] { AppCommand.MarkDone }, parsed.Commands.ToArray());
+        Assert.IsFalse(parsed.IsQueryOnly, "it changes state, so it launches YAPA if needed");
+    }
+
+    [TestMethod]
     public void Unknown_arguments_are_reported_not_fatal()
     {
         var parsed = CommandLine.Parse(["--bogus", "--skip"]);
@@ -362,6 +370,26 @@ public class TimerViewModelTests
         Assert.IsTrue(vm.CanSkip);
         Assert.IsTrue(vm.IsWorkEndedAlert);
         Assert.AreEqual("End break", vm.StopMenuText);
+    }
+
+    [TestMethod]
+    public void A_pomodoro_done_off_the_timer_is_recorded_and_the_cycle_moves_on()
+    {
+        var (rig, vm) = Create();
+        _ = new YAPA.Shared.Common.Dashboard(rig.Engine, rig.Repository, rig.EngineSettings); // writes history, as in the app
+        Assert.IsTrue(vm.CanMarkDone);
+
+        vm.MarkDoneCommand.Execute(null);
+
+        rig.Repository.Received(1).Add(Arg.Is<PomodoroEntity>(p => p.Count == 1 && p.DurationMin == 25));
+        Assert.AreEqual("2/4", vm.CounterText);
+        Assert.AreEqual("START", vm.StartLabel);
+        Assert.IsTrue(vm.CanMarkDone, "once per pomodoro missed");
+
+        rig.Engine.Start();
+        Assert.IsFalse(vm.CanMarkDone, "hidden while one runs");
+        rig.Engine.Pause();
+        Assert.IsFalse(vm.CanMarkDone);
     }
 
     [TestMethod]
@@ -651,6 +679,24 @@ public class CrashRecoveryTests
         Assert.IsTrue(restore.Restore(resume: false), "the session survives the crash");
         Assert.AreEqual(PomodoroPhase.Pause, second.Engine.Phase);
         Assert.AreEqual(600, second.Engine.Elapsed);
+    }
+
+    [TestMethod]
+    public void Idle_after_a_finished_cycle_keeps_the_cycle_across_a_restart()
+    {
+        var first = new Rig(@"{""PomodoroEngine"":{""Profiles"":{""Pomodoro"":{""WorkTime"":1500,""BreakTime"":300,""LongBreakTime"":900,""PomodorosBeforeLongBreak"":1}}}}");
+        using (new YAPA.Avalonia.Persistence.SnapshotService(first.Engine, first.Clock, new NewtonsoftJson()))
+        {
+            first.Engine.MarkDone(); // the cycle's only pomodoro, and its long break
+            Assert.AreEqual(1, first.Engine.Index);
+            Assert.AreEqual(2, first.Engine.Cycle);
+        }
+
+        var second = new Rig(@"{""PomodoroEngine"":{""Profiles"":{""Pomodoro"":{""WorkTime"":1500,""BreakTime"":300,""LongBreakTime"":900,""PomodorosBeforeLongBreak"":1}}}}");
+        second.Clock.UtcNow = first.Clock.UtcNow.AddMinutes(1);
+        using var restore = new YAPA.Avalonia.Persistence.SnapshotService(second.Engine, second.Clock, new NewtonsoftJson());
+        Assert.IsTrue(restore.Restore(resume: false));
+        Assert.AreEqual(2, second.Engine.Cycle);
     }
 
     [TestMethod]

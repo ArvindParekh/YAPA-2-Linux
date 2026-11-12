@@ -17,6 +17,7 @@ public enum AppCommand
     LongBreak,
     ToggleAmbience,
     Reset,
+    MarkDone,
     Settings,
     Statistics,
     Status,
@@ -50,6 +51,7 @@ public static class CommandLine
         ["long-break"] = AppCommand.LongBreak,
         ["ambience"] = AppCommand.ToggleAmbience,
         ["reset"] = AppCommand.Reset,
+        ["mark-done"] = AppCommand.MarkDone,
         ["settings"] = AppCommand.Settings,
         ["stats"] = AppCommand.Statistics,
         ["statistics"] = AppCommand.Statistics,
@@ -64,6 +66,7 @@ public static class CommandLine
         With no command, starts YAPA 2 or brings the running timer to the front.
 
         Timer:     --start  --pause  --toggle  --stop  --skip  --long-break  --reset
+                   --mark-done         count a pomodoro and its break done off the timer
         Sound:     --ambience          switch the rain / ticking on or off
         Windows:   --show  --hide  --toggle-window  --settings  --stats
         Scripting: --status [--json]   print the running timer's state

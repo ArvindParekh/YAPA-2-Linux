@@ -120,6 +120,7 @@ public sealed partial class TimerViewModel : ObservableObject
     [ObservableProperty] private string _stopMenuText = "Stop";
     [ObservableProperty] private bool _canSkip;
     [ObservableProperty] private bool _canReset;
+    [ObservableProperty] private bool _canMarkDone;
     [ObservableProperty] private bool _canLongBreak;
     [ObservableProperty] private string _longBreakMenuText = "Take long break now";
 
@@ -148,6 +149,10 @@ public sealed partial class TimerViewModel : ObservableObject
 
     [RelayCommand]
     private void Reset() => _engine.Reset();
+
+    /// <summary>For a pomodoro done without the timer running: credits it and its break.</summary>
+    [RelayCommand]
+    private void MarkDone() => _engine.MarkDone();
 
     [RelayCommand]
     private void LongBreak() => _engine.StartLongBreak();
@@ -303,6 +308,7 @@ public sealed partial class TimerViewModel : ObservableObject
         StopMenuText = stoppingBreak ? "End break" : "Abandon pomodoro";
         CanSkip = phase is PomodoroPhase.WorkEnded or PomodoroPhase.Break or PomodoroPhase.BreakEnded || pausedBreak;
         CanReset = !(phase == PomodoroPhase.NotStarted && _engine.Index == 1);
+        CanMarkDone = _engine.CanMarkDone;
         CanLongBreak = _engine.CanStartLongBreak;
         LongBreakMenuText = phase is PomodoroPhase.Break || pausedBreak ? "Make this a long break" : "Take long break now";
 

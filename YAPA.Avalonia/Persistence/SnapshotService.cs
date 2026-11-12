@@ -102,7 +102,9 @@ public sealed class SnapshotService : IDisposable
     {
         var age = _clock.UtcNow - DateTime.SpecifyKind(snapshot.StartDate, DateTimeKind.Utc);
         if (age < TimeSpan.Zero || age > MaxAge) return false;
-        if (snapshot.Phase == PomodoroPhase.NotStarted && snapshot.PomodoroIndex <= 1) return false;
+        // A fresh start has nothing to restore, but idle at pomodoro 1 after a finished
+        // cycle still carries the day's cycle count.
+        if (snapshot.Phase == PomodoroPhase.NotStarted && snapshot.PomodoroIndex <= 1 && snapshot.CyclesFinished <= 0) return false;
 
         if (snapshot.Phase is PomodoroPhase.Work or PomodoroPhase.Break)
         {

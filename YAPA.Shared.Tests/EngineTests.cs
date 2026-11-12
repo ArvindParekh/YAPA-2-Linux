@@ -804,5 +804,102 @@ namespace YAPA.Shared.Tests
             Assert.AreEqual(PomodoroPhase.Break, _engine.Phase);
             Assert.IsNull(_engine.Overrun);
         }
+
+        // ── Marking a pomodoro done off the timer ────────────────────────────
+
+        [TestMethod]
+        public void Marking_one_done_from_idle_credits_it_and_waits_at_the_next()
+        {
+            Create();
+            var completed = 0;
+            _engine.OnPomodoroCompleted += () => completed++;
+
+            _engine.MarkDone();
+
+            Assert.AreEqual(1, completed, "recorded like a pomodoro that ran");
+            Assert.AreEqual(PomodoroPhase.NotStarted, _engine.Phase);
+            Assert.AreEqual(2, _engine.Index);
+            Assert.AreEqual(PomodoroTransitionKind.MarkedDone, LastKind);
+            Assert.IsFalse(_timer.IsRunning);
+
+            _engine.Start();
+            Assert.AreEqual(PomodoroPhase.Work, _engine.Phase);
+            Assert.AreEqual(2, _engine.Index, "the next start is the second pomodoro");
+        }
+
+        [TestMethod]
+        public void Marking_one_done_while_waiting_credits_the_pomodoro_after_the_last()
+        {
+            // After work, waiting to start the break: that break has been taken by now.
+            Create();
+            _engine.Start();
+            Elapse(Work);
+            Assert.AreEqual(PomodoroPhase.WorkEnded, _engine.Phase);
+            _engine.MarkDone();
+            Assert.AreEqual(3, _engine.Index);
+            Assert.IsNull(_engine.Overrun, "the count-up ends");
+
+            // After a break, waiting to start work.
+            Create();
+            _engine.Start();
+            Elapse(Work);
+            _engine.Start();
+            Elapse(ShortBreak);
+            Assert.AreEqual(PomodoroPhase.BreakEnded, _engine.Phase);
+            _engine.MarkDone();
+            Assert.AreEqual(3, _engine.Index);
+            Assert.AreEqual(PomodoroPhase.NotStarted, _engine.Phase);
+        }
+
+        [TestMethod]
+        public void Marking_the_cycles_last_one_done_takes_its_long_break_too()
+        {
+            Create(cycle: 2);
+            _engine.MarkDone();
+            Assert.AreEqual(2, _engine.Index);
+            Assert.IsTrue(_engine.IsLongBreak, "the long break is due after this one");
+
+            _engine.MarkDone();
+            Assert.AreEqual(1, _engine.Index);
+            Assert.AreEqual(2, _engine.Cycle, "the cycle closed");
+        }
+
+        [TestMethod]
+        public void Nothing_is_marked_while_an_interval_runs_or_is_paused()
+        {
+            Create();
+            var completed = 0;
+            _engine.OnPomodoroCompleted += () => completed++;
+
+            _engine.Start();
+            Assert.IsFalse(_engine.CanMarkDone);
+            _engine.MarkDone();
+            _engine.Pause();
+            Assert.IsFalse(_engine.CanMarkDone);
+            _engine.MarkDone();
+            _engine.Start();
+            Elapse(Work);
+            _engine.Start(); // the break
+            Assert.IsFalse(_engine.CanMarkDone);
+            _engine.MarkDone();
+
+            Assert.AreEqual(1, completed, "only the pomodoro that ran");
+            Assert.AreEqual(PomodoroPhase.Break, _engine.Phase);
+        }
+
+        [TestMethod]
+        public void A_marked_pomodoro_counts_this_session_and_survives_a_restart()
+        {
+            Create();
+            _engineSettings.Counter = CounterEnum.CompletedThisSession;
+            _engine.MarkDone();
+            Assert.AreEqual(1, _engine.Counter);
+
+            var snapshot = _engine.GetSnapshot();
+            Create();
+            _engine.LoadSnapshot(snapshot);
+            Assert.AreEqual(2, _engine.Index);
+            Assert.AreEqual(PomodoroPhase.NotStarted, _engine.Phase);
+        }
     }
 }
