@@ -37,6 +37,9 @@ namespace YAPA.Shared.Common
         /// taken (see <see cref="PomodoroEngine.Overrun"/>). Null when not waiting, or from older builds.
         /// </summary>
         public int? OverrunSeconds { get; set; }
+
+        /// <summary>The overrun had been stopped (<see cref="PomodoroEngine.StopOverrun"/>): it stays stopped.</summary>
+        public bool OverrunStopped { get; set; }
     }
 
     /// <summary>
@@ -86,6 +89,7 @@ namespace YAPA.Shared.Common
         /// <summary>When the interval ran out, while waiting in WorkEnded/BreakEnded.</summary>
         private TimeSpan? _endedAt;
         private int? _lastNotifiedOverrun;
+        private bool _overrunStopped;
 
         public PomodoroEngine(PomodoroEngineSettings settings, ITimer timer, IClock clock, IThreading threading, ISettings globalSettings, IPomodoroRepository repository)
         {
@@ -176,6 +180,25 @@ namespace YAPA.Shared.Common
         public int? Overrun => IsWaiting && _endedAt is { } ended
             ? Math.Max(0, (int)Math.Floor((_clock.Monotonic - ended).TotalSeconds))
             : (int?)null;
+
+        /// <summary>Waiting after an interval, with the overrun stopped: nothing counts or calls for attention.</summary>
+        // An explicit flag, not "waiting without _endedAt": a completing interval is briefly
+        // in that state between SetPhase and StartWaiting, and would read as stopped.
+        public bool OverrunStopped => IsWaiting && _overrunStopped;
+
+        public void StopOverrun()
+        {
+            if (Overrun == null) return;
+
+            var from = _phase;
+            _endedAt = null;
+            _overrunStopped = true;
+            // A delayed auto-start still needs its ticks; otherwise there's nothing left to count.
+            if (!_autoStartAt.HasValue) _timer.Stop();
+            NotifyOverrun();
+            NotifyPropertyChanged(nameof(OverrunStopped));
+            Raise(PomodoroTransitionKind.OverrunStopped, from, false); // saved, so a restart doesn't count again
+        }
 
         public TimeSpan? NextSecondAt
         {
@@ -438,6 +461,7 @@ namespace YAPA.Shared.Common
                 CyclesDate = _cyclesFinished > 0 ? _cyclesDate : (DateTime?)null,
                 CycleHasWork = _cycleHasWork,
                 OverrunSeconds = Overrun,
+                OverrunStopped = OverrunStopped,
             };
         }
 
@@ -470,7 +494,12 @@ namespace YAPA.Shared.Common
             var phase = snapshot.Phase;
             SetPhase(phase);
             if (IsRunning) _timer.Start();
-            if (IsWaiting)
+            if (IsWaiting && snapshot.OverrunStopped)
+            {
+                _endedAt = null;
+                _overrunStopped = true;
+            }
+            else if (IsWaiting)
             {
                 // Like a running interval, the overrun carries on from where it was: time the
                 // app was closed isn't counted, because nothing can tell a restart from a night
@@ -559,6 +588,7 @@ namespace YAPA.Shared.Common
         private void StartWaiting(TimeSpan endedAt)
         {
             _endedAt = endedAt;
+            _overrunStopped = false;
             _timer.Start();
             ScheduleNextTick();
             NotifyOverrun();
@@ -635,6 +665,7 @@ namespace YAPA.Shared.Common
         {
             if (_phase == phase) return;
             _phase = phase;
+            _overrunStopped = false; // belongs to the interval that just ended
             if (!IsWaiting && _endedAt != null)
             {
                 _endedAt = null;
@@ -647,6 +678,7 @@ namespace YAPA.Shared.Common
             NotifyPropertyChanged(nameof(Counter));
             NotifyPropertyChanged(nameof(CanStartLongBreak));
             NotifyPropertyChanged(nameof(CanMarkDone));
+            NotifyPropertyChanged(nameof(OverrunStopped));
         }
 
         private void Raise(PomodoroTransitionKind kind, PomodoroPhase from, bool automatic, bool? isLongBreak = null)

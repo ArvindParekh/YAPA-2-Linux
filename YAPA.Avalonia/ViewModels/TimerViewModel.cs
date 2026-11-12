@@ -154,6 +154,10 @@ public sealed partial class TimerViewModel : ObservableObject
     [RelayCommand]
     private void MarkDone() => _engine.MarkDone();
 
+    /// <summary>A click on the timer after an interval ends: "seen it", so stop counting and pulsing.</summary>
+    [RelayCommand]
+    private void StopOverrun() => _engine.StopOverrun();
+
     [RelayCommand]
     private void LongBreak() => _engine.StartLongBreak();
 
@@ -319,8 +323,10 @@ public sealed partial class TimerViewModel : ObservableObject
             PomodoroPhase.BreakEnded => TimerAlert.BreakEnded,
             _ => TimerAlert.None,
         };
-        IsWorkEndedAlert = flashing && Alert == TimerAlert.WorkEnded;
-        IsBreakEndedAlert = flashing && Alert == TimerAlert.BreakEnded;
+        // The pulse is a call for attention; once the overrun is stopped it has been answered.
+        var calling = flashing && !_engine.OverrunStopped;
+        IsWorkEndedAlert = calling && Alert == TimerAlert.WorkEnded;
+        IsBreakEndedAlert = calling && Alert == TimerAlert.BreakEnded;
         IsAlerting = IsWorkEndedAlert || IsBreakEndedAlert;
 
         UpdateSummary();

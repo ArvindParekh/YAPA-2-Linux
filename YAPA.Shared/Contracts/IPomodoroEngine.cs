@@ -85,6 +85,15 @@ namespace YAPA.Shared.Contracts
 
         bool CanMarkDone { get; }
 
+        /// <summary>
+        /// Stops the overrun count-up after an interval has ended. The timer keeps waiting
+        /// for the next interval to be started. No-op unless the overrun is counting.
+        /// </summary>
+        void StopOverrun();
+
+        /// <summary>Waiting after an interval, with the overrun stopped.</summary>
+        bool OverrunStopped { get; }
+
         /// <summary>Back to the first pomodoro of the cycle.</summary>
         void Reset();
 
@@ -120,7 +129,8 @@ namespace YAPA.Shared.Contracts
         Stopped,
         Reset,
         Restored,
-        MarkedDone
+        MarkedDone,
+        OverrunStopped
     }
 
     public sealed class PomodoroTransition

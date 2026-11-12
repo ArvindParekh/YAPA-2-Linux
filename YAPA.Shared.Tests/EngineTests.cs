@@ -805,6 +805,82 @@ namespace YAPA.Shared.Tests
             Assert.IsNull(_engine.Overrun);
         }
 
+        // ── Stopping the overrun ─────────────────────────────────────────────
+
+        [TestMethod]
+        public void Stopping_the_overrun_keeps_the_timer_waiting_for_the_next_interval()
+        {
+            Create();
+            _engine.Start();
+            Elapse(Work + 40);
+            Assert.AreEqual(40, _engine.Overrun);
+
+            _engine.StopOverrun();
+
+            Assert.IsNull(_engine.Overrun);
+            Assert.IsTrue(_engine.OverrunStopped);
+            Assert.AreEqual(PomodoroPhase.WorkEnded, _engine.Phase, "still waiting for the break");
+            Assert.AreEqual(PomodoroTransitionKind.OverrunStopped, LastKind);
+            Assert.IsFalse(_timer.IsRunning, "nothing ticks while it waits");
+            Assert.AreEqual(0, _engine.Remaining);
+
+            _clock.Advance(TimeSpan.FromMinutes(10));
+            Assert.IsNull(_engine.Overrun, "and it doesn't start again on its own");
+
+            _engine.Start();
+            Assert.AreEqual(PomodoroPhase.Break, _engine.Phase);
+            Assert.IsFalse(_engine.OverrunStopped);
+
+            Elapse(ShortBreak + 3);
+            Assert.AreEqual(3, _engine.Overrun, "the next ended interval counts again");
+            _engine.StopOverrun();
+            _engine.Start();
+            Assert.AreEqual(PomodoroPhase.Work, _engine.Phase);
+            Assert.AreEqual(2, _engine.Index);
+        }
+
+        [TestMethod]
+        public void Stopping_the_overrun_is_a_no_op_unless_it_counts()
+        {
+            Create();
+            _engine.StopOverrun();
+            _engine.Start();
+            Elapse(10);
+            _engine.StopOverrun();
+            Assert.AreEqual(PomodoroPhase.Work, _engine.Phase);
+            Assert.IsTrue(_timer.IsRunning);
+            Assert.IsFalse(_engine.OverrunStopped);
+            Assert.IsFalse(_transitions.Any(t => t.Kind == PomodoroTransitionKind.OverrunStopped));
+        }
+
+        [TestMethod]
+        public void A_stopped_overrun_stays_stopped_after_a_restart()
+        {
+            Create();
+            _engine.Start();
+            Elapse(Work + 40);
+            _engine.StopOverrun();
+            var snapshot = _engine.GetSnapshot();
+
+            Create();
+            _engine.LoadSnapshot(snapshot);
+            Assert.AreEqual(PomodoroPhase.WorkEnded, _engine.Phase);
+            Assert.IsNull(_engine.Overrun);
+            Assert.IsTrue(_engine.OverrunStopped);
+            Assert.IsFalse(_timer.IsRunning);
+        }
+
+        [TestMethod]
+        public void A_delayed_auto_start_still_happens_after_the_overrun_is_stopped()
+        {
+            Create(autoBreak: true);
+            _engine.Start();
+            Elapse(Work);
+            _engine.StopOverrun();
+            Elapse(2);
+            Assert.AreEqual(PomodoroPhase.Break, _engine.Phase);
+        }
+
         // ── Marking a pomodoro done off the timer ────────────────────────────
 
         [TestMethod]

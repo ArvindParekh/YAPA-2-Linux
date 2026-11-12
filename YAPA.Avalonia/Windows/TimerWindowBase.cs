@@ -144,6 +144,9 @@ public abstract class TimerWindowBase : Window
         if (button.IsLeftButtonPressed)
         {
             // Controls mark their presses handled, so this only fires on the background.
+            // On the press, not the release: once BeginMoveDrag hands the pointer to the
+            // window manager the release can't be relied on. So a drag also counts as "seen it".
+            ViewModel.StopOverrunCommand.Execute(null);
             BeginMoveDrag(e);
             e.Handled = true;
         }

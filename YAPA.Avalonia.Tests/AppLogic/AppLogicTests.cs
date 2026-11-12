@@ -574,6 +574,30 @@ public class TimerViewModelTests
         Assert.AreEqual(TimerAlert.WorkEnded, vm.Alert);
         Assert.IsFalse(vm.IsAlerting);
     }
+
+    [TestMethod]
+    public void A_click_after_the_interval_ends_stops_the_count_up_and_the_pulse()
+    {
+        var (rig, vm) = Create();
+        rig.Engine.Start();
+        rig.Elapse(25 * 60);
+        rig.Elapse(5);
+        Assert.IsTrue(vm.IsOverrun);
+        Assert.AreEqual("+00:05", vm.TimeText);
+        Assert.IsTrue(vm.IsAlerting);
+
+        vm.StopOverrunCommand.Execute(null);
+
+        Assert.IsFalse(vm.IsOverrun);
+        Assert.IsFalse(vm.TimeText.StartsWith('+'), vm.TimeText);
+        Assert.IsFalse(vm.IsAlerting, "answered: no more pulsing");
+        Assert.AreEqual(TimerAlert.WorkEnded, vm.Alert);
+        Assert.AreEqual("BREAK", vm.StartLabel, "still waiting for the break");
+
+        vm.StartCommand.Execute(null);
+        rig.Elapse(rig.Engine.BreakTime);
+        Assert.IsTrue(vm.IsAlerting, "the next ended interval calls again");
+    }
 }
 
 [TestClass]
