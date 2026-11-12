@@ -624,7 +624,7 @@ public class NotificationEffectsTests
             && n.Persistent
             && n.Actions.Any(a => a.Key == "start-break")
             && n.Actions.Any(a => a.Key == "skip-break")
-            && n.Body.Contains("5 minutes")));
+            && n.Body.Contains("5-minute break")));
     }
 
     [TestMethod]

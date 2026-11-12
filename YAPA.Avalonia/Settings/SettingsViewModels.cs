@@ -352,6 +352,13 @@ public sealed class GeneralPageViewModel(GeneralSettings g, AvaloniaYapaThemeSet
     public bool MinimizeToTray { get => theme.MinimizeToTray; set { theme.MinimizeToTray = value; Changed(); } }
     public bool PauseWhenLocked { get => g.PauseWhenLocked; set { g.PauseWhenLocked = value; Changed(); } }
     public bool DesktopNotifications { get => g.DesktopNotifications; set { g.DesktopNotifications = value; Changed(); } }
+
+    public IReadOnlyList<string> NotificationStyles { get; } = ["On the timer", "On the desktop"];
+    public int NotificationStyleIndex
+    {
+        get => g.NotificationStyle == "desktop" ? 1 : 0;
+        set { if (value >= 0) { g.NotificationStyle = value == 1 ? "desktop" : "timer"; Changed(); } }
+    }
     public bool AutostartSupported => Autostart.IsSupported;
 
     public bool LaunchAtLogin

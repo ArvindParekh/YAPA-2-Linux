@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace YAPA.Avalonia.Audio;
 
@@ -48,6 +48,9 @@ public static class DefaultCueSounds
     public static SoundRef Stop { get; } = SoundRef.BuiltIn(BuiltInSound.ChimeDown);
     public static SoundRef WorkCompleted { get; } = SoundRef.BuiltIn(BuiltInSound.Bell);
     public static SoundRef BreakCompleted { get; } = SoundRef.BuiltIn(BuiltInSound.BrightBell);
+
+    // The original YAPA ding: unlike the interval cues, so a reminder never reads as "time's up".
+    public static SoundRef Reminder { get; } = SoundRef.BuiltIn(BuiltInSound.ClassicDing);
 }
 
 internal sealed class NullCuePlayer : ISoundCuePlayer

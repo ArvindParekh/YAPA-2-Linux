@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using YAPA.Shared.Contracts;
 
 namespace YAPA.Avalonia.Audio;
@@ -11,6 +11,9 @@ public enum SoundCue
     Stop,
     WorkCompleted,
     BreakCompleted,
+
+    /// <summary>A reminder, or something done on the user's say-so while they were away.</summary>
+    Reminder,
 }
 
 /// <summary>Which sound plays for each timer event. Volume and mute live in the engine settings, where they always were.</summary>
@@ -27,7 +30,7 @@ public sealed class SoundSettings
     }
 
     public static IReadOnlyList<SoundCue> All { get; } =
-        [SoundCue.Start, SoundCue.Pause, SoundCue.Resume, SoundCue.Stop, SoundCue.WorkCompleted, SoundCue.BreakCompleted];
+        [SoundCue.Start, SoundCue.Pause, SoundCue.Resume, SoundCue.Stop, SoundCue.WorkCompleted, SoundCue.BreakCompleted, SoundCue.Reminder];
 
     public SoundRef Get(SoundCue cue)
     {
@@ -66,6 +69,7 @@ public sealed class SoundSettings
         SoundCue.Resume => DefaultCueSounds.Resume,
         SoundCue.Stop => DefaultCueSounds.Stop,
         SoundCue.WorkCompleted => DefaultCueSounds.WorkCompleted,
+        SoundCue.Reminder => DefaultCueSounds.Reminder,
         _ => DefaultCueSounds.BreakCompleted,
     };
 
@@ -76,6 +80,7 @@ public sealed class SoundSettings
         SoundCue.Resume => "Resumed",
         SoundCue.Stop => "Stopped",
         SoundCue.WorkCompleted => "Pomodoro complete",
+        SoundCue.Reminder => "Reminder or notice",
         _ => "Break over",
     };
 }

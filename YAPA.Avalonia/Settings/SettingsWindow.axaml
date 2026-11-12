@@ -488,8 +488,11 @@
                 <TextBlock Classes="group" Text="Behaviour" />
                 <Border Classes="card">
                     <StackPanel>
-                        <c:SettingRow Title="Desktop notifications" Description="With buttons to start or skip the break">
+                        <c:SettingRow Title="Desktop notifications" Description="When an interval ends, with buttons to start or skip the break">
                             <ToggleSwitch IsChecked="{Binding DesktopNotifications}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Reminders" Description="What the assistant schedules for you: a bubble on the timer with a chime, or the desktop's own">
+                            <ComboBox ItemsSource="{Binding NotificationStyles}" SelectedIndex="{Binding NotificationStyleIndex}" Width="170" />
                         </c:SettingRow>
                         <c:SettingRow Title="Pause while the screen is locked" Description="Resumes when you unlock. Sleep never counts as work either way.">
                             <ToggleSwitch IsChecked="{Binding PauseWhenLocked}" />

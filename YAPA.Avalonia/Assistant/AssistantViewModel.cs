@@ -107,6 +107,9 @@ public sealed partial class AssistantViewModel : ObservableObject
     /// <summary>The orb should ripple: something was just done.</summary>
     public event Action? ActionCompleted;
 
+    /// <summary>An answer is complete: the orb settles with a soft ripple.</summary>
+    public event Action? Answered;
+
     /// <summary>A piece of the answer arrived: the orb moves with it, like a voice.</summary>
     public event Action? Spoke;
 
@@ -379,6 +382,7 @@ public sealed partial class AssistantViewModel : ObservableObject
         }
 
         if (_service.Journal.EndTurn()) exchange.CanUndo = true;
+        if (error == null) Answered?.Invoke();
         RefreshUndo();
         Caption = error != null ? "Something went wrong." : "";
         IsBusy = false;

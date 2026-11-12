@@ -90,6 +90,10 @@ Per-machine settings (music paths, window position) live in `localSettings.json`
   `OrbControl.Resume()` whenever the panel opens.
 - The panel closes on outside clicks through `X11PointerWatch` (polled XQueryPointer): clicks on
   the shell's top bar, dock or bare desktop never move focus, so deactivation alone misses them.
+- `IDesktopNotifier` is `NotificationRouter`: reminder-category notices (the scheduler's) go to
+  `NotificationBubble` on the timer, everything else to the D-Bus notifier. The bubble is
+  `ShowActivated = false` and transient for the desktop anchor, so it neither steals focus nor
+  ends Show Desktop.
 - Settings window styles live in `Settings/SettingsStyles.axaml`: cards are `Border.card`, rows are
   `SettingRow`; hairlines between rows come from `:nth-child(n+2)` selectors, so keep rows direct
   children of the card's panel (or of an ItemsControl's panel).

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -148,6 +148,9 @@ public sealed class SettingsCatalog
                 () => general.PauseWhenLocked, v => general.PauseWhenLocked = v),
             Bool("general.desktop_notifications", "Show a desktop notification when an interval ends.",
                 () => general.DesktopNotifications, v => general.DesktopNotifications = v),
+            Choice("general.notification_style", "Where reminders and scheduled actions announce themselves (interval endings always use desktop notifications).",
+                [("timer", "a bubble beside the timer (the desktop's own while it is hidden)"), ("desktop", "the desktop's own notifications")],
+                () => general.NotificationStyle, v => general.NotificationStyle = v),
             Bool("general.launch_at_login", "Start YAPA when the user logs in.",
                 () => Autostart.IsEnabled, v => Autostart.SetEnabled(v, general.StartHidden)),
             Bool("general.start_hidden", "Start in the tray, without showing the timer.",
@@ -453,6 +456,7 @@ public sealed class SettingsCatalog
                 SoundCue.Resume => "resume",
                 SoundCue.Stop => "stop",
                 SoundCue.WorkCompleted => "pomodoro_done",
+                SoundCue.Reminder => "reminder",
                 _ => "break_over",
             },
             $"Sound for \"{SoundSettings.Label(cue)}\".",

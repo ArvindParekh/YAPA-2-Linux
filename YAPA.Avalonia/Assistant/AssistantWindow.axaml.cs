@@ -76,7 +76,8 @@ public partial class AssistantWindow : Window
         };
 
         vm.ActionCompleted += () => Orb.Pulse();
-        vm.Spoke += () => Orb.Nudge(0.07);
+        vm.Spoke += () => Orb.Nudge(0.16);
+        vm.Answered += () => Orb.Pulse();
         vm.ContentGrew += () => Dispatcher.UIThread.Post(() => Scroller.ScrollToEnd(), DispatcherPriority.Background);
 
         Deactivated += OnDeactivated;

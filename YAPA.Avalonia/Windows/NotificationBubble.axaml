@@ -1,0 +1,110 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:w="using:YAPA.Avalonia.Windows"
+        x:Class="YAPA.Avalonia.Windows.NotificationBubble"
+        Classes="transparent"
+        Title="YAPA notice"
+        Width="372" SizeToContent="Height"
+        RequestedThemeVariant="Dark"
+        FontFamily="{StaticResource UiFont}">
+
+    <!--
+      A notice beside the timer instead of the desktop's: what happened, and the next step
+      as a button. The transparent margin holds the drawn shadow and the tail; an input shape
+      keeps clicks there going through.
+    -->
+    <Window.Styles>
+        <Style Selector="Border#Card">
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Offset="0" Color="#F7242429" />
+                    <GradientStop Offset="1" Color="#F718181C" />
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="BorderBrush" Value="#26FFFFFF" />
+            <Setter Property="BoxShadow" Value="0 12 32 -8 #A0000000, 0 2 8 0 #50000000" />
+        </Style>
+        <Style Selector="Panel#Root">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="RenderTransform" Value="translateY(-6px) scale(0.97)" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.18" Easing="CubicEaseOut" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.26" Easing="BackEaseOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Panel#Root.above">
+            <Setter Property="RenderTransform" Value="translateY(6px) scale(0.97)" />
+        </Style>
+        <Style Selector="Panel#Root.shown">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="RenderTransform" Value="translateY(0px) scale(1)" />
+        </Style>
+
+        <Style Selector="Button.act">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Background" Value="#16FFFFFF" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="#EDFFFFFF" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+        </Style>
+        <Style Selector="Button.act:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#26FFFFFF" />
+            <Setter Property="Foreground" Value="#FFFFFFFF" />
+        </Style>
+        <Style Selector="Button.act.primary">
+            <Setter Property="Background" Value="{Binding $parent[w:NotificationBubble].Accent}" />
+            <Setter Property="Foreground" Value="#FF16161A" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.act.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{Binding $parent[w:NotificationBubble].Accent}" />
+            <Setter Property="Foreground" Value="#FF16161A" />
+            <Setter Property="Opacity" Value="0.88" />
+        </Style>
+        <Style Selector="Button.close">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="#80FFFFFF" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.close:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="Foreground" Value="#FFFFFFFF" />
+        </Style>
+    </Window.Styles>
+
+    <Panel x:Name="Root" Margin="14,4,14,22">
+        <!-- The tail: a small diamond tucked under the card, pointing at the timer. -->
+        <Border x:Name="Tail" Width="14" Height="14" Background="#F7242429" BorderBrush="#26FFFFFF" BorderThickness="1,1,0,0"
+                CornerRadius="3" RenderTransform="rotate(45deg)" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,3,0,0" />
+        <Border x:Name="Card" Margin="0,9,0,0">
+            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" Margin="14,12,10,13">
+                <Ellipse x:Name="Dot" Width="9" Height="9" Fill="{Binding $parent[w:NotificationBubble].Accent}" VerticalAlignment="Center" Margin="2,0,10,0" />
+                <TextBlock x:Name="TitleText" Grid.Column="1" FontSize="14" FontWeight="SemiBold" Foreground="#F5FFFFFF"
+                           TextWrapping="Wrap" VerticalAlignment="Center" />
+                <Button Grid.Column="2" Classes="close" Click="OnCloseClick" Margin="6,-4,0,-4" AutomationProperties.Name="Dismiss">
+                    <Path Width="9" Height="9" Stretch="Uniform" StrokeThickness="1.7" StrokeLineCap="Round"
+                          Stroke="{Binding $parent[Button].Foreground}" Data="M 0 0 L 10 10 M 10 0 L 0 10" />
+                </Button>
+                <TextBlock x:Name="BodyText" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" FontSize="13" LineHeight="18"
+                           Foreground="#A8FFFFFF" TextWrapping="Wrap" Margin="0,3,8,0" />
+                <WrapPanel x:Name="Actions" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,11,0,0" />
+            </Grid>
+        </Border>
+    </Panel>
+</Window>

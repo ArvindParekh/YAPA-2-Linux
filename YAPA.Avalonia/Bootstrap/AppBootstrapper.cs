@@ -63,7 +63,9 @@ public sealed class AppBootstrapper : IDisposable
         services.AddSingleton<AppCommandHandler>();
         services.AddSingleton<SystemTrayService>();
         services.AddSingleton(_ => YAPA.Avalonia.Platform.Linux.X11.X11PlacementGuard.Create());
-        services.AddSingleton(_ => DesktopIntegration.CreateNotifier());
+        // Every notice goes through the router: a bubble on the timer, or the desktop's own.
+        services.AddSingleton<IDesktopNotifier>(sp => new NotificationRouter(DesktopIntegration.CreateNotifier(),
+            sp.GetRequiredService<GeneralSettings>(), sp.GetRequiredService<AppNavigator>(), sp.GetRequiredService<SoundEffects>));
         services.AddSingleton(_ => DesktopIntegration.CreateSessionMonitor());
         services.AddSingleton<NotificationEffects>();
         services.AddSingleton<SessionEffects>();

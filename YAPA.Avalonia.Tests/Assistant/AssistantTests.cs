@@ -485,7 +485,10 @@ public class AssistantExtraToolTests
         rig.Scheduler.CheckDue();
         Assert.AreEqual(PomodoroPhase.NotStarted, rig.Engine.Phase);
         Assert.AreEqual(0, rig.Scheduler.Items.Count);
-        Assert.AreEqual("Done, as you asked", rig.Notifier.Shown.Single().Title);
+        var notice = rig.Notifier.Shown.Single();
+        Assert.AreEqual("Done, as you asked", notice.Title);
+        Assert.IsTrue(notice.Chime, "a scheduled action brings its own sound");
+        Assert.AreEqual(YAPA.Avalonia.Platform.DesktopNotification.ReminderCategory, notice.Category, "so it goes to the timer's bubble");
     }
 
     [TestMethod]

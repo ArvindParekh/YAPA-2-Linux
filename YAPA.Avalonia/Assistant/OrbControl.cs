@@ -41,6 +41,17 @@ public readonly record struct OrbPalette(Color A, Color B, Color C)
     public static readonly OrbPalette Rest = new(Color.Parse("#2FB874"), Color.Parse("#2CD4C0"), Color.Parse("#B4E85A"));
 
     public static readonly OrbPalette Trouble = new(Color.Parse("#C2423A"), Color.Parse("#7D3A3A"), Color.Parse("#E07A5F"));
+
+    /// <summary>Thinking: a cool shimmer, whatever the phase, so a request in flight is unmistakable.</summary>
+    public static readonly OrbPalette Thinking = new(Color.Parse("#8B5CFF"), Color.Parse("#36C8F0"), Color.Parse("#FF5FB0"));
+
+    /// <summary>Changing something: warm and bright.</summary>
+    public static readonly OrbPalette Acting = new(Color.Parse("#FFB347"), Color.Parse("#FF5F6D"), Color.Parse("#FFE08A"));
+
+    /// <summary>The same colours, lit up: speaking.</summary>
+    public OrbPalette Brighter() => new(Lift(A), Lift(B), Lift(C));
+
+    private static Color Lift(Color c) => Color.FromRgb((byte)(c.R + (255 - c.R) * 0.25), (byte)(c.G + (255 - c.G) * 0.25), (byte)(c.B + (255 - c.B) * 0.25));
 }
 
 /// <summary>
@@ -77,6 +88,7 @@ public sealed class OrbControl : Control
     private double _energy = 0.2; // 0 calm … 1 busy, eased toward the mood's level
     private double _impulse;      // short bursts (keystrokes, a finished action), decaying
     private double _ring;         // 0..1 progress of the "done" ripple; 1 = none
+    private double _breath;       // the outline's slow swell, as a fraction of the radius
     private Vector3 _a, _b, _c;   // current colours, eased toward the palette
     private bool _animating;
     private double _lastStirred; // last keystroke, answer text or action: the orb was being watched
@@ -178,8 +190,27 @@ public sealed class OrbControl : Control
         var energy = Math.Min(1.2, _energy + _impulse);
         _phase += dt * (0.38 + 1.0 * energy);
 
-        var palette = Mood == OrbMood.Error ? OrbPalette.Trouble : Palette;
+        // Each mood wears its own colours; the eased blend makes every change a visible shift.
+        var palette = Mood switch
+        {
+            OrbMood.Error => OrbPalette.Trouble,
+            OrbMood.Thinking => OrbPalette.Thinking,
+            OrbMood.Acting => OrbPalette.Acting,
+            OrbMood.Speaking => Palette.Brighter(),
+            _ => Palette,
+        };
         EaseColors(palette, dt);
+
+        // The breath: slow and deep when idle, quick when busy, swelling with each word spoken.
+        var t = now;
+        _breath = Mood switch
+        {
+            OrbMood.Thinking => 0.030 * Math.Sin(t * 4.0),
+            OrbMood.Acting => 0.040 * Math.Sin(t * 7.0),
+            OrbMood.Speaking => 0.012 * Math.Sin(t * 2.4) + 0.06 * _impulse,
+            OrbMood.Error => 0.006 * Math.Sin(t * 1.0),
+            _ => 0.022 * Math.Sin(t * 1.5),
+        };
 
         // Frames cost CPU wherever the GPU doesn't draw them: only as many as the motion needs.
         InvalidateVisual();
@@ -206,7 +237,7 @@ public sealed class OrbControl : Control
     public override void Render(DrawingContext context)
     {
         var energy = (float)Math.Min(1.2, _energy + _impulse);
-        context.Custom(new OrbDraw(new Rect(Bounds.Size), (float)_phase, energy, (float)_ring, _a, _b, _c));
+        context.Custom(new OrbDraw(new Rect(Bounds.Size), (float)_phase, energy, (float)_ring, (float)_breath, _a, _b, _c));
     }
 
     internal readonly record struct Vector3(float X, float Y, float Z)
@@ -217,7 +248,7 @@ public sealed class OrbControl : Control
             => new((float)(X + (to.X - X) * k), (float)(Y + (to.Y - Y) * k), (float)(Z + (to.Z - Z) * k));
     }
 
-    private sealed class OrbDraw(Rect bounds, float time, float energy, float ring, Vector3 a, Vector3 b, Vector3 c) : ICustomDrawOperation
+    private sealed class OrbDraw(Rect bounds, float time, float energy, float ring, float breath, Vector3 a, Vector3 b, Vector3 c) : ICustomDrawOperation
     {
         public Rect Bounds => bounds;
 
@@ -243,6 +274,7 @@ public sealed class OrbControl : Control
                     ["time"] = time,
                     ["energy"] = energy,
                     ["ring"] = ring,
+                    ["breath"] = breath,
                     ["colA"] = new[] { a.X, a.Y, a.Z },
                     ["colB"] = new[] { b.X, b.Y, b.Z },
                     ["colC"] = new[] { c.X, c.Y, c.Z },
@@ -295,6 +327,7 @@ internal static class OrbShader
         uniform float time;
         uniform float energy;
         uniform float ring;
+        uniform float breath;
         uniform float3 colA;
         uniform float3 colB;
         uniform float3 colC;
@@ -329,10 +362,11 @@ internal static class OrbShader
             float r = length(uv);
             float ang = atan(uv.y, uv.x);
 
-            // The outline breathes, and ripples more the busier it is.
-            float wobble = (0.010 + 0.028 * energy) * (sin(ang * 3.0 + time * 1.7) + 0.6 * sin(ang * 5.0 - time * 2.3))
-                         + 0.012 * sin(time * 0.9);
-            float radius = 0.68 + wobble;
+            // The outline breathes, and turns blobby the busier it is: low lobes that drift
+            // round, and a finer ripple on top once there's energy to spare.
+            float wobble = (0.010 + 0.045 * energy) * (sin(ang * 3.0 + time * 1.7) + 0.6 * sin(ang * 5.0 - time * 2.3))
+                         + 0.03 * energy * energy * sin(ang * 7.0 + time * 3.1);
+            float radius = 0.64 + breath + wobble;
             float aa = 2.4 / size;
             float inside = 1.0 - smoothstep(radius - aa, radius + aa, r);
             float rr = clamp(r / radius, 0.0, 1.0);

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -138,7 +138,8 @@ public sealed class Scheduler : IDisposable
         var done = Perform(item);
         Trace.WriteLine($"[schedule] {item.Action}: {done ?? "nothing to do"}");
         if (done != null)
-            _ = _notifier.ShowAsync(new DesktopNotification(item.Action == "remind" ? "Reminder" : "Done, as you asked", done, []));
+            _ = _notifier.ShowAsync(new DesktopNotification(item.Action == "remind" ? "Reminder" : "Done, as you asked", done, [],
+                Persistent: item.Action == "remind", Category: DesktopNotification.ReminderCategory, Chime: true));
     }
 
     /// <returns>What happened, or null when the timer wasn't in a state the action applies to.</returns>

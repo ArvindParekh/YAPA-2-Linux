@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using YAPA.Shared.Contracts;
 
@@ -70,6 +70,16 @@ public sealed class GeneralSettings : IPluginSettings, INotifyPropertyChanged
         set => Set(value);
     }
 
+    /// <summary>
+    /// Where reminders and scheduled actions appear: "timer" (a bubble beside the timer,
+    /// falling back to the desktop while it is hidden) or "desktop" (the desktop's own).
+    /// </summary>
+    public string NotificationStyle
+    {
+        get => _s.Get(nameof(NotificationStyle), "timer") is "desktop" ? "desktop" : "timer";
+        set => Set(value == "desktop" ? "desktop" : "timer");
+    }
+
     /// <summary>Daily target shown on the statistics page; 0 hides it.</summary>
     public int DailyGoal
     {
@@ -94,6 +104,7 @@ public sealed class GeneralSettings : IPluginSettings, INotifyPropertyChanged
         StartHidden = false;
         PauseWhenLocked = false;
         DesktopNotifications = true;
+        NotificationStyle = "timer";
         DailyGoal = 8;
         ShowGoalForecast = true;
     }

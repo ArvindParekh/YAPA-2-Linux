@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -17,13 +17,20 @@ public sealed record NotificationAction(string Key, string Label);
 /// </param>
 /// <param name="IconName">Themed icon name or absolute file path; null or empty for none.</param>
 /// <param name="Category">freedesktop category hint; vendor categories use the <c>x-</c> prefix.</param>
+/// <param name="Chime">Play the reminder cue with it: for notices no timer cue already announces.</param>
 public sealed record DesktopNotification(
     string Title,
     string Body,
     IReadOnlyList<NotificationAction> Actions,
     bool Persistent = false,
     string? IconName = "yapa2",
-    string Category = "x-yapa.timer");
+    string Category = "x-yapa.timer",
+    bool Chime = false)
+{
+    public const string WorkCategory = "x-yapa.work";
+    public const string BreakCategory = "x-yapa.break";
+    public const string ReminderCategory = "x-yapa.reminder";
+}
 
 public interface IDesktopNotifier : IDisposable
 {

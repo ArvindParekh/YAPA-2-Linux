@@ -38,6 +38,9 @@ A ground-up revival of the Linux port.
 - Looks: six built-in styles (Classic, Glass, Minimal, Bold, Neon, Paper) and your own, saved by name or
   designed by YAPA on request; new style options for the digits (font, weight), the progress line colours,
   and a backdrop plate.
+- Reminders and actions the assistant scheduled announce themselves in a bubble on the timer, with
+  a chime (a new "Reminder or notice" cue, the original YAPA ding); the desktop's own notification
+  while the timer is hidden, or always if chosen in Settings → General.
 - A timer event log (starts, pauses, stops, breaks) in `Yapa.db`, so breaks and abandoned pomodoros
   can be asked about, not only completed ones.
 - A redesigned Settings window: dark grouped cards, a sidebar with icons, steppers, a live preview of the

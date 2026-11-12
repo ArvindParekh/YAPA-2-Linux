@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using YAPA.Avalonia.Audio;
 using YAPA.Avalonia.Specifics;
@@ -59,6 +59,12 @@ public sealed class SoundEffects : IDisposable
     public IBackgroundMusicPlayer Music { get; }
 
     public void Preview(SoundRef sound) => Cues.Play(sound, _engineSettings.Volume);
+
+    /// <summary>Plays a cue outside the timer's own transitions (a reminder), unless sounds are off.</summary>
+    public void Play(SoundCue cue)
+    {
+        if (!_engineSettings.DisableSoundNotifications) Cues.Play(_sounds.Get(cue), _engineSettings.Volume);
+    }
 
     private bool _musicPreview;
 

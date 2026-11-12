@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Avalonia.Threading;
 using YAPA.Avalonia.Platform;
 using YAPA.Avalonia.Specifics;
@@ -77,7 +77,8 @@ public sealed class NotificationEffects : IDisposable
         {
             return new DesktopNotification("Pomodoro complete",
                 $"{BreakTitle(longBreak)} of {Minutes(_engine.BreakTime)} starts now.",
-                [new NotificationAction(SkipBreak, "Skip break"), new NotificationAction(ShowTimer, "Show timer")]);
+                [new NotificationAction(SkipBreak, "Skip break"), new NotificationAction(ShowTimer, "Show timer")],
+                Category: DesktopNotification.WorkCategory);
         }
 
         // Offer the long break early unless it's already the long break's turn.
@@ -86,9 +87,10 @@ public sealed class NotificationEffects : IDisposable
             : [new(StartBreak, "Start break"), new(LongBreak, "Long break"), new(SkipBreak, "Skip break"), new(ShowTimer, "Show timer")];
 
         return new DesktopNotification("Pomodoro complete",
-            $"Time for a {Minutes(_engine.BreakTime)} {(longBreak ? "long break" : "break")}.",
+            $"Time for a {(int)Math.Round(_engine.BreakTime / 60.0)}-minute {(longBreak ? "long break" : "break")}.",
             actions,
-            Persistent: true);
+            Persistent: true,
+            Category: DesktopNotification.WorkCategory);
     }
 
     private DesktopNotification BreakCompleted()
@@ -96,7 +98,7 @@ public sealed class NotificationEffects : IDisposable
         if (_engineSettings.AutoStartWork)
         {
             return new DesktopNotification("Break's over", $"Next pomodoro started: {Minutes(_engine.WorkTime)} of focus.",
-                [new NotificationAction(ShowTimer, "Show timer")]);
+                [new NotificationAction(ShowTimer, "Show timer")], Category: DesktopNotification.BreakCategory);
         }
 
         return new DesktopNotification("Break's over", "Ready for the next pomodoro?",
@@ -105,7 +107,8 @@ public sealed class NotificationEffects : IDisposable
                 new NotificationAction(LongBreak, "Long break"),
                 new NotificationAction(ShowTimer, "Show timer"),
             ],
-            Persistent: true);
+            Persistent: true,
+            Category: DesktopNotification.BreakCategory);
     }
 
     private void OnAction(string key)
