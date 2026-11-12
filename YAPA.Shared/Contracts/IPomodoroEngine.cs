@@ -94,6 +94,42 @@ namespace YAPA.Shared.Contracts
         /// <summary>Waiting after an interval, with the overrun stopped.</summary>
         bool OverrunStopped { get; }
 
+        /// <summary>
+        /// Seconds added to (negative: taken off) the length of the interval under way, by
+        /// <see cref="ExtendInterval"/>. Included in <see cref="CurrentIntervalLength"/>; zero
+        /// again when the next interval begins.
+        /// </summary>
+        int ExtraTime { get; }
+
+        /// <summary>
+        /// Length in seconds of the pomodoro just completed or credited, for
+        /// <see cref="OnPomodoroCompleted"/> handlers: it can differ from <see cref="WorkTime"/>
+        /// when the pomodoro was extended.
+        /// </summary>
+        int LastPomodoroLength { get; }
+
+        /// <summary>An interval is running or paused, so it can be extended or moved along.</summary>
+        bool CanAdjustInterval { get; }
+
+        /// <summary>
+        /// Lengthens (or, negative, shortens) the interval under way. Shortened to no more
+        /// than has already run, it ends now. No-op unless an interval is running or paused.
+        /// </summary>
+        void ExtendInterval(int seconds);
+
+        /// <summary>
+        /// Sets how far into the interval under way the timer is, for a pomodoro started late
+        /// ("I began ten minutes ago"). Clamped to the interval; at its length it ends now.
+        /// </summary>
+        void SetElapsed(int seconds);
+
+        /// <summary>
+        /// Moves to pomodoro <paramref name="index"/> of the cycle without recording anything
+        /// and, given <paramref name="cycle"/>, makes it that cycle of the day. The timer waits
+        /// there, idle. Only while <see cref="CanMarkDone"/>.
+        /// </summary>
+        void MoveTo(int index, int? cycle = null);
+
         /// <summary>Back to the first pomodoro of the cycle.</summary>
         void Reset();
 
@@ -130,7 +166,13 @@ namespace YAPA.Shared.Contracts
         Reset,
         Restored,
         MarkedDone,
-        OverrunStopped
+        OverrunStopped,
+
+        /// <summary>The interval under way was lengthened, shortened or moved along.</summary>
+        Adjusted,
+
+        /// <summary>The timer was moved to another place in the cycle.</summary>
+        Moved
     }
 
     public sealed class PomodoroTransition

@@ -67,6 +67,26 @@ Per-machine settings (music paths, window position) live in `localSettings.json`
 - Settings changes apply immediately (no Save/Cancel). Persistence is debounced and atomic.
 - Comments explain *why*, not *what*. File-scoped namespaces, nullable enabled in new code.
 
+## The assistant (`YAPA.Avalonia/Assistant/`)
+
+- One conversation = one `claude -p` process (stream-json in and out) plus an in-process MCP
+  server (`McpServer`, HttpListener on 127.0.0.1, bearer token in a 0600 config file). Claude
+  Code runs with `--tools ""`, `--strict-mcp-config` and `--setting-sources ""`: no shell, no files,
+  none of the user's plugins, hooks or CLAUDE.md. Tools are in `AppTools`; settings go through
+  `SettingsCatalog`, never raw keys.
+- Every mutating tool runs inside `ChangeJournal`, which records history rows via
+  `IPomodoroRepository.Changed`, settings via their old values, and the engine as a snapshot, so
+  Undo reverts a whole request. A new mutating tool must be `Mutates = true`, plus
+  `TouchesEngine` if it changes the timer.
+- The model can't see the panel: tell it about UI-side changes with `AssistantService.Note`.
+- Tools must refuse rather than guess when work is at stake (see `GuardWork`); prompt rules
+  alone weren't enough. A real run once dropped a 27-minute paused pomodoro.
+- `RequestAnimationFrame` runs the renderer every vsync even when nothing is drawn; the orb
+  paces itself with a timer instead. On software rendering, the shader costs about 4 ms a frame.
+- End-to-end test: the nested GNOME Shell. Seed history with real rows, double-click the timer,
+  and type with an XTest helper. Never test against the user's own Claude conversations.
+  Each request uses their plan.
+
 ## Desktop facts that drive design (GNOME / X11)
 
 - On X11, GNOME Shell captures every click inside its stage input region, which

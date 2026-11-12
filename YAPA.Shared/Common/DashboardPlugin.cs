@@ -53,7 +53,7 @@ namespace YAPA.Shared.Common
             {
                 Count = 1,
                 DateTime = DateTime.UtcNow,
-                DurationMin = _engine.WorkTime / 60,
+                DurationMin = _engine.LastPomodoroLength / 60,
                 ProfileName = _engineSettings.ActiveProfile
             });
         }

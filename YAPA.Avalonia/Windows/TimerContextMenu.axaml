@@ -1,4 +1,4 @@
-<ContextMenu xmlns="https://github.com/avaloniaui"
+﻿<ContextMenu xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:YAPA.Avalonia.ViewModels"
              x:Class="YAPA.Avalonia.Windows.TimerContextMenu"
@@ -19,6 +19,8 @@
     <MenuItem Header="{Binding AmbienceMenuText}" Command="{Binding ToggleAmbienceCommand}"
               ToggleType="CheckBox" IsChecked="{Binding AmbienceOn, Mode=OneWay}" />
     <Separator />
+    <!-- Opened by "/" or a double-click on the timer as well; no gesture shown, Avalonia would print "OemQuestion". -->
+    <MenuItem Header="Ask YAPA…" Command="{Binding OpenAssistantCommand}" />
     <MenuItem Header="Statistics…" Command="{Binding OpenStatisticsCommand}" InputGesture="Ctrl+I" />
     <MenuItem Header="Settings…" Command="{Binding OpenSettingsCommand}" InputGesture="Ctrl+OemComma" />
     <Separator />

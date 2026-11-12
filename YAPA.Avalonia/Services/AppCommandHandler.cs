@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using YAPA.Avalonia.SingleInstance;
@@ -38,6 +38,7 @@ public sealed class AppCommandHandler(TimerViewModel vm, IAppNavigator navigator
                 case AppCommand.MarkDone: vm.Engine.MarkDone(); break;
                 case AppCommand.Settings: navigator.ShowSettings(); break;
                 case AppCommand.Statistics: navigator.ShowStatistics(); break;
+                case AppCommand.Assistant: navigator.ShowAssistant(); break;
                 case AppCommand.Status: output.Add(StatusLine()); break;
                 case AppCommand.StatusJson: output.Add(StatusJson()); break;
                 case AppCommand.Quit: navigator.Quit(); break;
@@ -45,7 +46,7 @@ public sealed class AppCommandHandler(TimerViewModel vm, IAppNavigator navigator
         }
 
         // A state-changing command answers with the new state, which is handy from a shortcut script.
-        if (output.Count == 0 && commands.Any(c => c is not (AppCommand.Show or AppCommand.Hide or AppCommand.Quit)))
+        if (output.Count == 0 && commands.Any(c => c is not (AppCommand.Show or AppCommand.Hide or AppCommand.Quit or AppCommand.Assistant)))
             output.Add(StatusLine());
 
         return string.Join('\n', output);

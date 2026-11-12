@@ -24,6 +24,13 @@ rebuilt on Avalonia and tuned for GNOME.
 - **Notifications with buttons**: *Start break* / *Skip break* / *Start pomodoro*
   right from the notification, even while the timer is hidden.
 - **Statistics**: today, this week, streaks, a daily goal, a year heatmap and a two-week chart.
+- **An assistant that runs the app**: double-click the timer (or press <kbd>/</kbd>) and ask
+  or tell it anything: "I walked for an hour, log it and start the next one", "give me 5 more
+  minutes", "if I stop at 6, how many will I have done?", "when do I focus best?", "make the
+  text gold". It reads and changes everything, live: the timer, history, statistics, settings
+  and profiles. Every request can be undone in one click. It runs on your own Claude sign-in
+  through [Claude Code](https://claude.com/code), with no API key, and can reach nothing on
+  your computer but YAPA.
 - **Plays well with GNOME**:
   - Stays clear of the dock and top bar, where GNOME on X11 would swallow its clicks.
   - Shows on every workspace, stays on top, and stays put through Show Desktop (Super+D).
@@ -56,6 +63,7 @@ The tray icon on GNOME needs the AppIndicator extension. Ubuntu ships it enabled
 | | |
 |---|---|
 | Drag anywhere | move the timer |
+| Double-click, or <kbd>/</kbd> | ask YAPA |
 | Right-click | settings |
 | ⋯ button (or <kbd>Menu</kbd>) | every action, Statistics, Quit |
 | <kbd>Space</kbd> | start / pause / resume |
@@ -73,6 +81,13 @@ already rested counts). When it ends, the cycle starts over at pomodoro 1.
 **Stop vs. finish.** Stopping a pomodoro abandons it: it isn't recorded, and the
 same pomodoro starts over. Stopping during a break ends the break.
 
+**Ask YAPA.** The assistant opens beside the timer and closes when you click away
+or press <kbd>Esc</kbd>; reopening within a few minutes carries on the same
+conversation. Under each reply it lists what it changed, with **Undo**. It needs
+Claude Code installed and signed in; Settings → General picks the model (Sonnet by
+default). It starts Claude Code only while you use it, with none of your Claude Code
+tools, plugins or MCP servers: only YAPA's own.
+
 ### Global shortcut
 
 GNOME Settings → Keyboard → View and Customise Shortcuts → Custom Shortcuts → add
@@ -83,7 +98,7 @@ GNOME Settings → Keyboard → View and Customise Shortcuts → Custom Shortcut
 ```text
 yapa2 --start | --pause | --toggle | --stop | --skip | --long-break | --reset
 yapa2 --ambience            # rain / ticking on or off
-yapa2 --show | --hide | --toggle-window | --settings | --stats
+yapa2 --show | --hide | --toggle-window | --settings | --stats | --ask
 yapa2 --status [--json]     # e.g. "Work 12:34"
 yapa2 --quit
 ```

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using Avalonia.Controls;
 using Avalonia.Platform;
@@ -76,6 +76,8 @@ public sealed class SystemTrayService : IDisposable
         _reset.Click += (_, _) => _vm.ResetCommand.Execute(null);
         _ambience.Click += (_, _) => _vm.ToggleAmbienceCommand.Execute(null);
 
+        var ask = new NativeMenuItem("Ask YAPA…");
+        ask.Click += (_, _) => _navigator.ShowAssistant();
         var stats = new NativeMenuItem("Statistics…");
         stats.Click += (_, _) => _navigator.ShowStatistics();
         var settings = new NativeMenuItem("Settings…");
@@ -96,6 +98,7 @@ public sealed class SystemTrayService : IDisposable
         menu.Add(new NativeMenuItemSeparator());
         menu.Add(_ambience);
         menu.Add(new NativeMenuItemSeparator());
+        menu.Add(ask);
         menu.Add(stats);
         menu.Add(settings);
         menu.Add(new NativeMenuItemSeparator());

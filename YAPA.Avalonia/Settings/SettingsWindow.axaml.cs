@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -24,7 +24,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
             new TimerPageViewModel(bs.Resolve<PomodoroEngineSettings>()),
             new AppearancePageViewModel(bs.Resolve<AvaloniaYapaThemeSettings>(), bs.Resolve<AvaloniaThemeSettings>()),
             bs.Resolve<SoundsPageFactory>().Create(),
-            new GeneralPageViewModel(bs.Resolve<GeneralSettings>(), bs.Resolve<AvaloniaYapaThemeSettings>()),
+            new GeneralPageViewModel(bs.Resolve<GeneralSettings>(), bs.Resolve<AvaloniaYapaThemeSettings>(), bs.Resolve<YAPA.Avalonia.Assistant.AssistantSettings>()),
             new AboutPageViewModel(),
         };
         _selectedPage = Pages[0];
@@ -47,6 +47,11 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
             _selectedPage = value;
             Notify();
         }
+    }
+
+    public void RefreshPages()
+    {
+        foreach (var page in Pages) page.Refresh();
     }
 
     public void Navigate(SettingsPage page) => SelectedPage = Pages.FirstOrDefault(p => p.Page == page) ?? Pages[0];

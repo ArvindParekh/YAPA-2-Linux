@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -113,10 +113,18 @@ public sealed class SqlitePomodoroRepository : IPomodoroRepository, IDisposable
             .Sum(p => p.Count);
     }
 
+    public event Action<HistoryChange>? Changed;
+
     public void Add(PomodoroEntity pomo)
     {
         ArgumentNullException.ThrowIfNull(pomo);
 
+        AddRow(pomo);
+        Changed?.Invoke(new HistoryChange(HistoryChangeKind.Added, null!, pomo.Clone()));
+    }
+
+    private void AddRow(PomodoroEntity pomo)
+    {
         lock (_gate)
         {
             ThrowIfDisposed();
@@ -136,13 +144,52 @@ public sealed class SqlitePomodoroRepository : IPomodoroRepository, IDisposable
 
     public void Delete(int id)
     {
+        PomodoroEntity? before;
         lock (_gate)
         {
             ThrowIfDisposed();
+            before = Find(id);
             using var command = _connection.CreateCommand();
             command.CommandText = """DELETE FROM "Pomodoros" WHERE "Id" = $id;""";
             command.Parameters.AddWithValue("$id", id);
             command.ExecuteNonQuery();
+        }
+        if (before != null) Changed?.Invoke(new HistoryChange(HistoryChangeKind.Deleted, before, null!));
+    }
+
+    public bool Update(PomodoroEntity pomo)
+    {
+        ArgumentNullException.ThrowIfNull(pomo);
+
+        PomodoroEntity? before;
+        lock (_gate)
+        {
+            ThrowIfDisposed();
+            before = Find(pomo.Id);
+            if (before == null) return false;
+            using var command = _connection.CreateCommand();
+            command.CommandText = """
+                UPDATE "Pomodoros"
+                SET "ProfileName" = $profile, "DateTime" = $dateTime, "Count" = $count, "DurationMin" = $duration
+                WHERE "Id" = $id;
+                """;
+            command.Parameters.AddWithValue("$id", pomo.Id);
+            command.Parameters.AddWithValue("$profile", (object?)pomo.ProfileName ?? DBNull.Value);
+            command.Parameters.AddWithValue("$dateTime", Format(pomo.DateTime));
+            command.Parameters.AddWithValue("$count", pomo.Count);
+            command.Parameters.AddWithValue("$duration", pomo.DurationMin);
+            command.ExecuteNonQuery();
+        }
+        Changed?.Invoke(new HistoryChange(HistoryChangeKind.Updated, before, Find(pomo.Id)!));
+        return true;
+    }
+
+    public PomodoroEntity? Find(int id)
+    {
+        // The lock is re-entrant, so Delete and Update can read the old row inside theirs.
+        lock (_gate)
+        {
+            return Query("""WHERE "Id" = $id""", ("$id", id.ToString(CultureInfo.InvariantCulture))).FirstOrDefault();
         }
     }
 

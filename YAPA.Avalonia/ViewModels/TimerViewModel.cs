@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -64,6 +64,8 @@ public sealed partial class TimerViewModel : ObservableObject
 
         _engine.PropertyChanged += OnEngineChanged;
         _theme.PropertyChanged += OnThemeChanged;
+        // Today's count can change with no transition at all (the assistant edits history).
+        _repository.Changed += _ => Refresh();
         Refresh();
     }
 
@@ -197,6 +199,9 @@ public sealed partial class TimerViewModel : ObservableObject
 
     [RelayCommand]
     private void OpenStatistics() => _navigator.ShowStatistics();
+
+    [RelayCommand]
+    private void OpenAssistant() => _navigator.ShowAssistant();
 
     [RelayCommand]
     private void HideToTray() => _navigator.HideTimer();

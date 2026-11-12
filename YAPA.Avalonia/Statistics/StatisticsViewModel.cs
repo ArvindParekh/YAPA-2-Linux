@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -43,7 +43,8 @@ public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
         _engine = engine;
         _general = general;
         _engineSettings = engineSettings;
-        _engine.OnPomodoroCompleted += OnCompleted;
+        // Any change to the history, not only a pomodoro finishing: the assistant edits it too.
+        _repository.Changed += OnHistoryChanged;
     }
 
     public ObservableCollection<StatCard> Cards { get; } = [];
@@ -65,7 +66,7 @@ public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedProfileChanged(string value) => _ = LoadAsync();
 
-    private void OnCompleted() => Dispatcher.UIThread.Post(() => _ = LoadAsync());
+    private void OnHistoryChanged(HistoryChange change) => Dispatcher.UIThread.Post(() => _ = LoadAsync());
 
     public async Task LoadAsync()
     {
@@ -173,5 +174,5 @@ public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
         return m == 0 ? $"{h} h focused" : $"{h} h {m} min focused";
     }
 
-    public void Dispose() => _engine.OnPomodoroCompleted -= OnCompleted;
+    public void Dispose() => _repository.Changed -= OnHistoryChanged;
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 
 namespace YAPA.Avalonia.Platform.Linux.X11;
@@ -140,6 +140,17 @@ internal static class XShape
 
     [DllImport(Lib)] public static extern bool XShapeQueryExtension(IntPtr display, out int eventBase, out int errorBase);
     [DllImport(Lib)] public static extern void XShapeSelectInput(IntPtr display, IntPtr window, IntPtr mask);
+
+    public const int ShapeSet = 0;
+    public const int Unsorted = 0;
+
+    [DllImport(Lib)]
+    public static extern void XShapeCombineRectangles(IntPtr display, IntPtr dest, int destKind, int xOff, int yOff,
+        XRectangle[] rectangles, int count, int op, int ordering);
+
+    /// <summary>With <c>src</c> None (zero) and ShapeSet, resets the shape to the whole window.</summary>
+    [DllImport(Lib)]
+    public static extern void XShapeCombineMask(IntPtr display, IntPtr dest, int destKind, int xOff, int yOff, IntPtr src, int op);
 
     /// <returns>Array of XRectangle, freed with XFree.</returns>
     [DllImport(Lib)]

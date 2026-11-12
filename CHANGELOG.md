@@ -25,6 +25,13 @@ A ground-up revival of the Linux port.
 - Digits jittered and clipped. They now use tabular figures, and the digit-spacing workaround is gone.
 
 ### Added
+- **Ask YAPA**, an assistant that runs the whole app. Double-click the timer, press <kbd>/</kbd>, or use
+  the menu, tray or `--ask`, and ask or tell it anything. It sees and changes the timer, history,
+  statistics, every setting and the profiles, live. It plans the day on the timer's own rules, answers
+  history questions with SQL over a local-time copy of the history, and undoes any request in one click.
+  It runs on the user's Claude sign-in through Claude Code, limited to YAPA's own tools.
+- Timer operations behind it: lengthen or shorten the interval under way, backdate one started late,
+  and jump to any place in the cycle without recording anything.
 - Ambience while you work: soft, steady or pouring rain and brown noise (synthesized live,
   never looping), a ticking clock, or your own recording on loop. It fades with the
   session, optionally continues through breaks, and has a quick switch in the menu, tray and CLI.

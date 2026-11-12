@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.Extensions.DependencyInjection;
 using YAPA.Avalonia.Audio;
 using YAPA.Avalonia.Persistence;
@@ -66,6 +66,14 @@ public sealed class AppBootstrapper : IDisposable
         services.AddSingleton(_ => DesktopIntegration.CreateSessionMonitor());
         services.AddSingleton<NotificationEffects>();
         services.AddSingleton<SessionEffects>();
+
+        // ── Assistant ────────────────────────────────────────────────────────
+        services.AddSingleton<YAPA.Avalonia.Assistant.AssistantSettings>();
+        services.AddSingleton<YAPA.Avalonia.Assistant.SettingsCatalog>();
+        services.AddSingleton<YAPA.Avalonia.Assistant.ChangeJournal>();
+        services.AddSingleton<YAPA.Avalonia.Assistant.AppTools>();
+        services.AddSingleton<YAPA.Avalonia.Assistant.AssistantService>();
+        services.AddSingleton<YAPA.Avalonia.Assistant.AssistantViewModel>();
 
         _provider = services.BuildServiceProvider();
     }

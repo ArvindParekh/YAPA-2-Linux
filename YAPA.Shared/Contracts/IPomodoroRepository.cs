@@ -13,10 +13,23 @@ namespace YAPA.Shared.Contracts
     /// </remarks>
     public interface IPomodoroRepository
     {
+        /// <summary>
+        /// Raised after the history changed (a record added, updated or deleted), on the thread
+        /// that changed it. Anything showing counts listens, so edits made away from the timer
+        /// (the assistant) show at once.
+        /// </summary>
+        event Action<HistoryChange> Changed;
+
         void Delete(int id);
 
         /// <summary>Inserts the record and assigns its <see cref="PomodoroEntity.Id"/>.</summary>
         void Add(PomodoroEntity pomo);
+
+        /// <summary>Overwrites the record with the same <see cref="PomodoroEntity.Id"/>; false when there is none.</summary>
+        bool Update(PomodoroEntity pomo);
+
+        /// <summary>The record, or null.</summary>
+        PomodoroEntity Find(int id);
 
         /// <summary>Sum of <see cref="PomodoroEntity.Count"/> on the current local calendar day.</summary>
         int CompletedToday();
@@ -31,8 +44,21 @@ namespace YAPA.Shared.Contracts
         IReadOnlyList<PomodoroEntity> All();
     }
 
+    public enum HistoryChangeKind
+    {
+        Added,
+        Updated,
+        Deleted,
+    }
+
+    /// <param name="Before">The record before the change; null for <see cref="HistoryChangeKind.Added"/>.</param>
+    /// <param name="After">The record after it; null for <see cref="HistoryChangeKind.Deleted"/>.</param>
+    public sealed record HistoryChange(HistoryChangeKind Kind, PomodoroEntity Before, PomodoroEntity After);
+
     public class PomodoroEntity
     {
+        public PomodoroEntity Clone() => (PomodoroEntity)MemberwiseClone();
+
         public int Id { get; set; }
         public string ProfileName { get; set; }
 

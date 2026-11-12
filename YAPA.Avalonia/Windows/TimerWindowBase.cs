@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Linq;
 using Avalonia;
@@ -39,6 +39,7 @@ public abstract class TimerWindowBase : Window
         ViewModel = bs.Resolve<TimerViewModel>();
         Appearance = bs.Resolve<AvaloniaYapaThemeSettings>();
         General = bs.Resolve<GeneralSettings>();
+        Assistant = bs.Resolve<YAPA.Avalonia.Assistant.AssistantSettings>();
         _settings = bs.Resolve<ISettings>();
         PlacementGuard = bs.Resolve<IWindowPlacementGuard>();
         DataContext = ViewModel;
@@ -76,6 +77,7 @@ public abstract class TimerWindowBase : Window
     protected TimerViewModel ViewModel { get; }
     protected AvaloniaYapaThemeSettings Appearance { get; }
     protected GeneralSettings General { get; }
+    private YAPA.Avalonia.Assistant.AssistantSettings Assistant { get; }
     private IWindowPlacementGuard PlacementGuard { get; }
 
     /// <summary>Where the actions menu opens from when invoked by keyboard (the ⋯ button).</summary>
@@ -141,7 +143,14 @@ public abstract class TimerWindowBase : Window
         if (e.Handled) return;
 
         var button = e.GetCurrentPoint(this).Properties;
-        if (button.IsLeftButtonPressed)
+        if (button.IsLeftButtonPressed && e.ClickCount == 2 && Assistant.Enabled)
+        {
+            // The first press already started a move; with no motion the window manager let
+            // go on its release, so this second press arrives here as usual.
+            ViewModel.OpenAssistantCommand.Execute(null);
+            e.Handled = true;
+        }
+        else if (button.IsLeftButtonPressed)
         {
             // Controls mark their presses handled, so this only fires on the background.
             // On the press, not the release: once BeginMoveDrag hands the pointer to the
@@ -175,6 +184,15 @@ public abstract class TimerWindowBase : Window
         if (e.Handled) return;
 
         var ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+        // "/" opens the assistant, as it opens search in many apps. By symbol, not key, so it
+        // works on any keyboard layout.
+        if (e.KeySymbol == "/" && !ctrl && Assistant.Enabled)
+        {
+            ViewModel.OpenAssistantCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
         switch (e.Key)
         {
             case Key.Space:

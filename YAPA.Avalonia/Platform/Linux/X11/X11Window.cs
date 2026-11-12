@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -194,6 +194,32 @@ public static class X11Window
     }
 
     private static IntPtr Atom(IntPtr display, string name) => Xlib.XInternAtom(display, name, false);
+
+    /// <summary>
+    /// Limits where the window takes pointer input to <paramref name="region"/> (window
+    /// coordinates, physical pixels); null takes it everywhere again. Clicks elsewhere go
+    /// to whatever is below, which a transparent margin (room for a drawn shadow, or for a
+    /// card to grow into) would otherwise swallow.
+    /// </summary>
+    public static bool SetInputRegion(IntPtr xid, (int X, int Y, int Width, int Height)? region)
+        => Run(xid, nameof(SetInputRegion), display =>
+        {
+            if (region is { } r)
+            {
+                var rect = new XRectangle
+                {
+                    x = (short)Math.Clamp(r.X, short.MinValue, short.MaxValue),
+                    y = (short)Math.Clamp(r.Y, short.MinValue, short.MaxValue),
+                    width = (ushort)Math.Clamp(r.Width, 0, ushort.MaxValue),
+                    height = (ushort)Math.Clamp(r.Height, 0, ushort.MaxValue),
+                };
+                XShape.XShapeCombineRectangles(display, xid, XShape.ShapeInput, 0, 0, [rect], 1, XShape.ShapeSet, XShape.Unsorted);
+            }
+            else
+            {
+                XShape.XShapeCombineMask(display, xid, XShape.ShapeInput, 0, 0, IntPtr.Zero, XShape.ShapeSet);
+            }
+        });
 
     private static bool Run(IntPtr xid, string operation, Action<IntPtr> body)
     {

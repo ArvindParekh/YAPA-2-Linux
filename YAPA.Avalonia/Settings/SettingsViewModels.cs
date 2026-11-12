@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -31,6 +31,9 @@ public abstract class SettingsPageViewModel : ObservableObject
     }
 
     protected abstract void ResetToDefaults();
+
+    /// <summary>Re-reads every value; they may have been changed from outside the page.</summary>
+    public void Refresh() => OnPropertyChanged(string.Empty);
 
     protected void Changed([CallerMemberName] string? name = null) => OnPropertyChanged(name);
 }
@@ -117,7 +120,7 @@ public sealed class AppearancePageViewModel(AvaloniaYapaThemeSettings s, Avaloni
         => palette.FirstOrDefault(p => Color.Parse(p) == color);
 }
 
-public sealed class GeneralPageViewModel(GeneralSettings g, AvaloniaYapaThemeSettings theme) : SettingsPageViewModel
+public sealed class GeneralPageViewModel(GeneralSettings g, AvaloniaYapaThemeSettings theme, YAPA.Avalonia.Assistant.AssistantSettings assistant) : SettingsPageViewModel
 {
     public override string Title => "General";
     public override SettingsPage Page => SettingsPage.General;
@@ -132,6 +135,27 @@ public sealed class GeneralPageViewModel(GeneralSettings g, AvaloniaYapaThemeSet
     public bool DesktopNotifications { get => g.DesktopNotifications; set { g.DesktopNotifications = value; Changed(); } }
     public decimal? DailyGoal { get => g.DailyGoal; set { if (value is { } v) { g.DailyGoal = (int)v; Changed(); } } }
     public bool ShowGoalForecast { get => g.ShowGoalForecast; set { g.ShowGoalForecast = value; Changed(); } }
+
+    public bool AssistantEnabled { get => assistant.Enabled; set { assistant.Enabled = value; Changed(); } }
+
+    public IReadOnlyList<string> AssistantModels { get; } =
+        YAPA.Avalonia.Assistant.AssistantSettings.Models.Select(m => $"{m.Name} · {m.Short}").ToList();
+
+    public int AssistantModelIndex
+    {
+        get => YAPA.Avalonia.Assistant.AssistantSettings.Models.ToList().FindIndex(m => m.Id == assistant.Model);
+        set
+        {
+            if (value < 0 || value >= YAPA.Avalonia.Assistant.AssistantSettings.Models.Count) return;
+            assistant.Model = YAPA.Avalonia.Assistant.AssistantSettings.Models[value].Id;
+            Changed();
+        }
+    }
+
+    /// <summary>Where the assistant's Claude Code is, or how to get it.</summary>
+    public string AssistantStatus => YAPA.Avalonia.Assistant.ClaudeCli.Locate() != null
+        ? "Uses your Claude sign-in, through Claude Code. It can see and change YAPA, and nothing else on your computer."
+        : "Needs Claude Code: install it from claude.com/code and sign in. It runs on your Claude plan, with no API key.";
 
     public bool AutostartSupported => Autostart.IsSupported;
 
@@ -156,6 +180,7 @@ public sealed class GeneralPageViewModel(GeneralSettings g, AvaloniaYapaThemeSet
     {
         g.ResetToDefaults();
         theme.MinimizeToTray = true;
+        assistant.ResetToDefaults();
     }
 }
 

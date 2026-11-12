@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:s="using:YAPA.Avalonia.Settings"
         xmlns:c="using:YAPA.Avalonia.Settings.Controls"
@@ -223,6 +223,14 @@
                 <c:SettingRow Title="Show when the goal will be reached"
                               Description="On the timer: &quot;12 by 18:40&quot;, if you start each interval when the last one ends. The ⋯ menu also has the time without long breaks.">
                     <ToggleSwitch IsChecked="{Binding ShowGoalForecast}" OnContent="" OffContent="" />
+                </c:SettingRow>
+
+                <TextBlock Classes="group" Text="Assistant" />
+                <c:SettingRow Title="Ask YAPA" Description="Double-click the timer, or press /, to ask about your day or tell it what to do">
+                    <ToggleSwitch IsChecked="{Binding AssistantEnabled}" OnContent="" OffContent="" />
+                </c:SettingRow>
+                <c:SettingRow Title="Model" Description="{Binding AssistantStatus}">
+                    <ComboBox ItemsSource="{Binding AssistantModels}" SelectedIndex="{Binding AssistantModelIndex}" Width="260" />
                 </c:SettingRow>
             </StackPanel>
         </DataTemplate>

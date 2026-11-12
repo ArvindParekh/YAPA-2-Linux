@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Globalization;
 
@@ -13,6 +13,8 @@ namespace YAPA.Avalonia.Platform;
 public static class ClockFormat
 {
     private static readonly Lazy<bool> Uses24HourClock = new(Detect);
+
+    public static bool Is24Hour => Uses24HourClock.Value;
 
     public static string ShortTime(DateTime local)
         => local.ToString(Uses24HourClock.Value ? "HH:mm" : CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern,

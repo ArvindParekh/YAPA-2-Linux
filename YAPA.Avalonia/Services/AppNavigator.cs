@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using YAPA.Avalonia.Assistant;
 using YAPA.Avalonia.Settings;
 using YAPA.Avalonia.Specifics;
 using YAPA.Avalonia.Windows;
@@ -18,6 +19,7 @@ public sealed class AppNavigator : IAppNavigator
     private TimerWindowBase? _timer;
     private SettingsWindow? _settings;
     private StatisticsWindow? _statistics;
+    private AssistantWindow? _assistant;
     private bool _quitting;
 
     public AppNavigator(AvaloniaThemeSettings themeSettings)
@@ -35,6 +37,16 @@ public sealed class AppNavigator : IAppNavigator
     public TimerWindowBase? TimerWindow => _timer;
 
     internal SettingsWindow? SettingsWindowForTests => _settings;
+
+    public bool IsSettingsOpen => _settings != null;
+
+    public bool IsStatisticsOpen => _statistics != null;
+
+    /// <summary>
+    /// Settings changed elsewhere (the assistant): an open settings window shows the new
+    /// values, since its pages only notice changes made through them.
+    /// </summary>
+    public void RefreshSettings() => _settings?.RefreshPages();
 
     public void ShowTimer()
     {
@@ -84,6 +96,15 @@ public sealed class AppNavigator : IAppNavigator
         _statistics.Activate();
     }
 
+    /// <summary>Created once and kept: it holds the conversation's on-screen state between openings.</summary>
+    public void ShowAssistant()
+    {
+        _assistant ??= new AssistantWindow();
+        _assistant.ShowNear(IsTimerShowing ? _timer : null);
+    }
+
+    public bool IsAssistantShowing => _assistant?.IsShowing == true;
+
     public void Quit()
     {
         if (_quitting) return;
@@ -91,6 +112,7 @@ public sealed class AppNavigator : IAppNavigator
         Quitting?.Invoke();
         _settings?.Close();
         _statistics?.Close();
+        _assistant?.Close();
         _timer?.Close();
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
             lifetime.Shutdown();

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Linq;
 using Avalonia;
@@ -51,6 +51,8 @@ public partial class App : Application
         navigator.TimerShowingChanged += tray.SetTimerVisible;
         navigator.Quitting += snapshots.Save;
         navigator.Quitting += tray.Freeze;
+        // A conversation's Claude Code process must not outlive the app.
+        navigator.Quitting += () => bs.Resolve<YAPA.Avalonia.Assistant.AssistantService>().End();
 
         var startup = Program.StartupCommandLine;
         var startHidden = bs.Resolve<GeneralSettings>().StartHidden || startup.Commands.Contains(AppCommand.Hide);

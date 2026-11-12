@@ -1,4 +1,4 @@
-namespace YAPA.Avalonia.Services;
+﻿namespace YAPA.Avalonia.Services;
 
 public enum SettingsPage
 {
@@ -21,5 +21,9 @@ public interface IAppNavigator
     void ToggleTimerVisibility();
     void ShowSettings(SettingsPage page = SettingsPage.Timer);
     void ShowStatistics();
+
+    /// <summary>Opens the assistant beside the timer.</summary>
+    void ShowAssistant();
+
     void Quit();
 }
