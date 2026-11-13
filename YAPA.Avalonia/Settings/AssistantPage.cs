@@ -42,13 +42,23 @@ public sealed class AssistantPageViewModel : SettingsPageViewModel
     private readonly AssistantSettings _settings;
     private readonly AssistantMemory _memory;
     private readonly Scheduler _scheduler;
+    private readonly ClaudeAccount _account;
 
-    public AssistantPageViewModel(AssistantSettings settings, AssistantMemory memory, Scheduler scheduler)
+    public AssistantPageViewModel(AssistantSettings settings, AssistantMemory memory, Scheduler scheduler, ClaudeAccount account)
     {
         _settings = settings;
         _memory = memory;
         _scheduler = scheduler;
+        _account = account;
         _scheduler.Changed += RefreshScheduled;
+        _account.Changed += RefreshSignIn;
+        SignInCommand = new AsyncRelayCommand(async () =>
+        {
+            if (_account.IsSigningIn) _account.CancelSignIn();
+            else if (await _account.SignInAsync() is SignInOutcome.Failed failed) _signInProblem = failed.Reason;
+            RefreshSignIn();
+        }, AsyncRelayCommandOptions.AllowConcurrentExecutions); // the same button cancels
+        SignOutCommand = new RelayCommand(_account.SignOut);
         RemoveNoteCommand = new RelayCommand<string>(id => { if (id != null && _memory.Forget(id)) RefreshNotes(); });
         CancelScheduledCommand = new RelayCommand<string>(id => { if (id != null) _scheduler.Remove(id); });
         ClearConversationsCommand = new RelayCommand(() => { _memory.ClearConversations(); Changed(nameof(ConversationsText)); Changed(nameof(HasConversations)); });
@@ -84,6 +94,30 @@ public sealed class AssistantPageViewModel : SettingsPageViewModel
     public string Status => IsInstalled
         ? "Runs on your own Claude sign-in through Claude Code, with no API key. It can see and change YAPA, and nothing else on your computer."
         : "Needs Claude Code: install it from claude.com/code and sign in. It then runs on your Claude plan, with no API key.";
+
+    private string? _signInProblem;
+
+    /// <summary>Which sign-in it runs on, and until when.</summary>
+    public string SignInDetail =>
+        _account.IsSigningIn ? "Finish signing in on claude.com in your browser."
+        : _signInProblem != null ? $"That sign-in didn't go through: {_signInProblem}."
+        : _account.Token is { } t ? $"Its own sign-in, good until {t.ExpiresUtc.ToLocalTime():d MMM yyyy}."
+        : "Uses Claude Code's sign-in, which ends whenever your account says so. Sign in here for one of its own that lasts a year.";
+
+    public string SignInLabel => _account.IsSigningIn ? "Cancel" : _account.Token != null ? "Renew" : "Sign in";
+
+    public bool CanSignOut => _account.Token != null && !_account.IsSigningIn;
+
+    public IAsyncRelayCommand SignInCommand { get; }
+    public IRelayCommand SignOutCommand { get; }
+
+    private void RefreshSignIn()
+    {
+        if (_account.IsSigningIn) _signInProblem = null;
+        Changed(nameof(SignInDetail));
+        Changed(nameof(SignInLabel));
+        Changed(nameof(CanSignOut));
+    }
 
     public ObservableCollection<MemoryRow> Notes { get; } = [];
     public bool HasNotes => Notes.Count > 0;
@@ -130,7 +164,11 @@ public sealed class AssistantPageViewModel : SettingsPageViewModel
         Changed(nameof(Status));
     }
 
-    public void Detach() => _scheduler.Changed -= RefreshScheduled;
+    public void Detach()
+    {
+        _scheduler.Changed -= RefreshScheduled;
+        _account.Changed -= RefreshSignIn;
+    }
 
     protected override void ResetToDefaults()
     {

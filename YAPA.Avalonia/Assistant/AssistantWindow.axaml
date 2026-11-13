@@ -231,6 +231,44 @@
             <Setter Property="BorderBrush" Value="#3DFFFFFF" />
         </Style>
 
+        <!-- Signing in to Claude: a line and one button, in the prompt's place. -->
+        <Style Selector="Border.signin">
+            <Setter Property="Background" Value="#0FFFFFFF" />
+            <Setter Property="BorderBrush" Value="#1FFFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Margin" Value="12,8,12,0" />
+        </Style>
+        <Style Selector="Border.signin.alone">
+            <Setter Property="Margin" Value="12,8,12,12" />
+        </Style>
+        <Style Selector="TextBlock.signin">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="LineHeight" Value="18" />
+            <Setter Property="Foreground" Value="#D0FFFFFF" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="Button.pill">
+            <Setter Property="CornerRadius" Value="15" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Background" Value="#F2FFFFFF" />
+            <Setter Property="Foreground" Value="#FF16161A" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.pill:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#FFFFFFFF" />
+            <Setter Property="Foreground" Value="#FF16161A" />
+        </Style>
+        <Style Selector="Button.pill:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#D9FFFFFF" />
+        </Style>
+
         <!-- "…" while an answer is on its way. -->
         <Style Selector="Ellipse.dot">
             <Setter Property="Width" Value="5" />
@@ -284,7 +322,7 @@
 
     <Panel>
         <Border x:Name="Card" Margin="20" HorizontalAlignment="Left" VerticalAlignment="Top">
-            <Grid RowDefinitions="Auto,Auto,Auto,Auto">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
 
                 <!-- Orb and what it's doing. -->
                 <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="12,12,10,4">
@@ -360,9 +398,22 @@
                     </ItemsControl>
                 </ScrollViewer>
 
+                <!-- Signed out of Claude, or about to be. -->
+                <Border Grid.Row="3" Classes="signin" Classes.alone="{Binding NeedsSignIn}" IsVisible="{Binding ShowSignIn}">
+                    <Grid ColumnDefinitions="*,Auto" Margin="14,9,7,9">
+                        <TextBlock Classes="signin" Text="{Binding SignInText}" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Classes="pill" Content="{Binding SignInButton}"
+                                Command="{Binding SignInCommand}" IsVisible="{Binding !IsSigningIn}"
+                                VerticalAlignment="Center" Margin="12,0,0,0" />
+                        <Button Grid.Column="1" Classes="link" Content="Cancel"
+                                Command="{Binding CancelSignInCommand}" IsVisible="{Binding IsSigningIn}"
+                                VerticalAlignment="Center" Margin="12,0,2,0" />
+                    </Grid>
+                </Border>
+
                 <!-- The prompt. -->
-                <Border Grid.Row="3" x:Name="Field" Classes="field" Margin="12,8,12,12"
-                        IsVisible="{Binding !IsUnavailable}">
+                <Border Grid.Row="4" x:Name="Field" Classes="field" Margin="12,8,12,12"
+                        IsVisible="{Binding ShowPrompt}">
                     <Grid ColumnDefinitions="*,Auto" Margin="10,0,5,0">
                         <TextBox x:Name="Prompt" Classes="prompt" Text="{Binding Input}"
                                  PlaceholderText="{Binding Placeholder}"

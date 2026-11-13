@@ -41,6 +41,29 @@ public static class ClaudeCli
     }
 
     /// <summary>
+    /// The environment of anything YAPA starts from Claude Code: never its terminal UI, and
+    /// never a borrowed sign-in. When YAPA was itself started from a Claude Code session (an
+    /// install script run there, a shell in the desktop app), it inherited that session's
+    /// variables, including a sign-in routed through the host that ends with the session.
+    /// </summary>
+    public static void Sanitize(IDictionary<string, string?> environment)
+    {
+        environment["CI"] = "1";
+        environment["NO_COLOR"] = "1";
+        var fromSession = environment.ContainsKey("CLAUDECODE") || environment.ContainsKey("CLAUDE_CODE_ENTRYPOINT")
+            || environment.ContainsKey("CLAUDE_CODE_SESSION_ID");
+        if (!fromSession) return;
+        foreach (var key in environment.Keys.ToList())
+        {
+            if (key is "CLAUDECODE" or "CLAUDE_PID" or "CLAUDE_EFFORT" or "ANTHROPIC_BASE_URL"
+                || key.StartsWith("CLAUDE_CODE_", StringComparison.Ordinal)
+                || key.StartsWith("CLAUDE_AGENT_SDK_", StringComparison.Ordinal)
+                || key.StartsWith("CLAUDE_DESKTOP_", StringComparison.Ordinal))
+                environment.Remove(key);
+        }
+    }
+
+    /// <summary>
     /// Arguments for one long-lived conversation: messages in and events out as JSON lines,
     /// with nothing of Claude Code's own (no built-in tools, none of the user's MCP servers,
     /// plugins, hooks, skills or CLAUDE.md files). It can only reach YAPA, through

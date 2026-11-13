@@ -31,8 +31,13 @@ public sealed partial class Exchange : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsWaiting))]
     private bool _isPending = true;
 
+    /// <summary>Held until the user signs in to Claude; it's sent then.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsWaiting))]
+    private bool _awaitsSignIn;
+
     /// <summary>Asked, and not a word back yet: the dots show.</summary>
-    public bool IsWaiting => IsPending && Answer.Length == 0;
+    public bool IsWaiting => IsPending && Answer.Length == 0 && !AwaitsSignIn;
     [ObservableProperty] private bool _isError;
     [ObservableProperty] private bool _canUndo;
     [ObservableProperty] private bool _wasUndone;
@@ -61,6 +66,7 @@ public sealed partial class AssistantViewModel : ObservableObject
     private readonly IPomodoroRepository _history;
     private readonly Specifics.GeneralSettings _general;
     private readonly AssistantMemory _memory;
+    private readonly ClaudeAccount _account;
     private string _greeting = "";
     private DateTime _startedUtc = DateTime.UtcNow;
     private Exchange? _current;
@@ -81,6 +87,9 @@ public sealed partial class AssistantViewModel : ObservableObject
         _engine = engine;
         _history = history;
         _general = general;
+        _account = service.Account;
+        _account.Changed += OnAccountChanged;
+        _account.SignedIn += OnSignedIn;
         PickVoice();
         _service.Event += OnEvent;
         _service.ToolActivity += OnToolActivity;
@@ -104,6 +113,25 @@ public sealed partial class AssistantViewModel : ObservableObject
     [ObservableProperty] private bool _hasConversation;
     [ObservableProperty] private bool _isUnavailable;
 
+    /// <summary>No sign-in works: the prompt makes way for a Sign in button.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowSignIn), nameof(ShowPrompt), nameof(SignInButton))]
+    private bool _needsSignIn;
+
+    /// <summary>YAPA's token runs out soon; the button offers a new one, and the prompt stays.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowSignIn))]
+    private bool _renewSoon;
+
+    [ObservableProperty] private bool _isSigningIn;
+    [ObservableProperty] private string _signInText = "";
+
+    public bool ShowSignIn => NeedsSignIn || RenewSoon;
+
+    public string SignInButton => NeedsSignIn ? "Sign in" : "Renew";
+
+    public bool ShowPrompt => !IsUnavailable && !NeedsSignIn;
+
     /// <summary>The orb should ripple: something was just done.</summary>
     public event Action? ActionCompleted;
 
@@ -120,7 +148,11 @@ public sealed partial class AssistantViewModel : ObservableObject
 
     partial void OnHasConversationChanged(bool value) => OnPropertyChanged(nameof(ShowSuggestions));
 
-    partial void OnIsUnavailableChanged(bool value) => OnPropertyChanged(nameof(ShowSuggestions));
+    partial void OnIsUnavailableChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowSuggestions));
+        OnPropertyChanged(nameof(ShowPrompt));
+    }
 
     /// <summary>The panel is opening: warm Claude Code up while the user types.</summary>
     /// <summary>A fresh greeting and placeholder for the moment.</summary>
@@ -148,8 +180,18 @@ public sealed partial class AssistantViewModel : ObservableObject
         IsUnavailable = false;
         if (Mood == OrbMood.Error && !IsBusy) Mood = OrbMood.Idle;
         // Back after a while: last time's "Undone." or error is stale.
-        if (!IsBusy) Caption = HasConversation ? "" : ReadyCaption;
+        if (!IsBusy && !NeedsSignIn && !IsSigningIn) Caption = HasConversation ? "" : ReadyCaption;
+        RenewSoon = !NeedsSignIn && _account.RenewalDue(DateTime.UtcNow);
+        if (RenewSoon && !IsSigningIn) SignInText = RenewText;
         _service.EnsureStarted();
+        // Found out now rather than after the user has typed a question.
+        if (_account.Token == null && !NeedsSignIn && !IsSigningIn) _ = CheckSignInAsync();
+    }
+
+    private async System.Threading.Tasks.Task CheckSignInAsync()
+    {
+        if (await ClaudeAccount.IsClaudeCodeSignedInAsync() != false || _account.Token != null || IsBusy || NeedsSignIn) return;
+        AskToSignIn("Sign in once and I'm good for a year.");
     }
 
     public void Hidden() => _service.PanelHidden();
@@ -183,7 +225,7 @@ public sealed partial class AssistantViewModel : ObservableObject
         if (_current != null) _current.IsLatest = false;
         // The conversation behind the panel ended (idle, or a crash) but the panel still shows
         // it: a new one starts with a recap, so "as I said" still means something.
-        if (!_service.IsRunning && Exchanges.Count > 0) _service.Note(Recap());
+        if (!_service.HasContext && Exchanges.Count > 0) _service.Note(Recap());
         if (Exchanges.Count == 0) _startedUtc = DateTime.UtcNow;
         _current = new Exchange(text);
         Exchanges.Add(_current);
@@ -239,7 +281,7 @@ public sealed partial class AssistantViewModel : ObservableObject
         Exchanges.Clear();
         _current = null;
         HasConversation = false;
-        Caption = ReadyCaption;
+        Caption = NeedsSignIn ? "My Claude sign-in ran out." : ReadyCaption;
         Mood = OrbMood.Idle;
         UpdateSuggestions();
         _service.EnsureStarted();
@@ -320,6 +362,9 @@ public sealed partial class AssistantViewModel : ObservableObject
                 break;
 
             case ClaudeTurnResult result:
+                if (_current is { IsPending: true } failed && !_interrupted && result.IsError && ClaudeAuth.IsFailure(result.Text)
+                    && Recover(failed))
+                    break;
                 if (_current is { IsPending: true } pending)
                 {
                     if (_interrupted) Finish(pending, error: null);
@@ -358,10 +403,120 @@ public sealed partial class AssistantViewModel : ObservableObject
     private void OnCrashed(string stderr)
     {
         _outstanding = 0;
+        if (_current is { IsPending: true } failed && ClaudeAuth.IsFailure(stderr) && Recover(failed)) return;
         if (_current is { IsPending: true } exchange)
             Finish(exchange, Explain(stderr));
         IsBusy = false;
         if (!_current?.IsError ?? true) Mood = OrbMood.Idle;
+    }
+
+    // ── Sign-in ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The request failed on its sign-in. It tries the other sign-in by itself; when none
+    /// works, the question waits for the user to sign in and is sent then, so a lapsed
+    /// sign-in costs a click, not the question. Never for a request that already changed
+    /// something: sending it again would do that twice.
+    /// </summary>
+    /// <returns>True when it's handled (retrying, or waiting for the sign-in).</returns>
+    private bool Recover(Exchange exchange)
+    {
+        if (exchange.HasActions) return false;
+        exchange.Answer = "";
+        _replaceOnNextText = false;
+        if (_service.RetryOnAnotherSignIn(exchange.Question, Recap()))
+        {
+            _outstanding++;
+            IsBusy = true;
+            Mood = OrbMood.Thinking;
+            return true;
+        }
+        exchange.AwaitsSignIn = true;
+        AskToSignIn("Sign in and I'll answer this, then stay signed in for a year.");
+        return true;
+    }
+
+    private void AskToSignIn(string text)
+    {
+        NeedsSignIn = true;
+        RenewSoon = false;
+        IsBusy = false;
+        Mood = OrbMood.Idle;
+        Caption = "My Claude sign-in ran out.";
+        SignInText = text;
+        ContentGrew?.Invoke();
+    }
+
+    private string RenewText => _account.Token is { } t
+        ? $"My sign-in runs out on {t.ExpiresUtc.ToLocalTime():d MMM}. Renew it now and forget about it for a year."
+        : "";
+
+    private bool _signInFromPanel;
+
+    [RelayCommand]
+    private async System.Threading.Tasks.Task SignIn()
+    {
+        if (_account.IsSigningIn) return;
+        _signInFromPanel = true;
+        var outcome = await _account.SignInAsync();
+        _signInFromPanel = false;
+        if (outcome is SignInOutcome.Cancelled or SignInOutcome.Failed)
+        {
+            Caption = NeedsSignIn ? "My Claude sign-in ran out." : HasConversation ? "" : ReadyCaption;
+            SignInText = outcome is SignInOutcome.Failed failed ? $"That sign-in didn't go through: {failed.Reason}. Try again?"
+                : NeedsSignIn ? "Not signed in yet. One click when you're ready."
+                : RenewText;
+        }
+    }
+
+    [RelayCommand]
+    private void CancelSignIn() => _account.CancelSignIn();
+
+    private void OnAccountChanged()
+    {
+        IsSigningIn = _account.IsSigningIn;
+        if (IsSigningIn)
+        {
+            Caption = "Over to your browser…";
+            SignInText = "Finish signing in on claude.com. I'll pick up from here.";
+            Mood = OrbMood.Thinking;
+        }
+        else if (Mood == OrbMood.Thinking && !IsBusy)
+        {
+            Mood = OrbMood.Idle;
+        }
+    }
+
+    /// <summary>Signed in, here or in Settings: whatever waited for it goes out now.</summary>
+    private void OnSignedIn(SignInOutcome outcome)
+    {
+        NeedsSignIn = false;
+        RenewSoon = false;
+        Caption = outcome is SignInOutcome.GotToken { Token: var t } ? $"Signed in until {t.ExpiresUtc.ToLocalTime():d MMM yyyy}." : "Signed in.";
+        Mood = OrbMood.Idle;
+        ActionCompleted?.Invoke();
+
+        if (_current is { IsPending: true, AwaitsSignIn: true } waiting)
+        {
+            waiting.AwaitsSignIn = false;
+            IsBusy = true;
+            Mood = OrbMood.Thinking;
+            _outstanding++;
+            if (!_service.ResendAfterSignIn(waiting.Question, Recap()))
+            {
+                _outstanding--;
+                Finish(waiting, "I can't find Claude Code any more. Install it from claude.com/code, then ask me again.");
+            }
+        }
+        else
+        {
+            _service.End(); // the conversation warming up was started on the old sign-in
+            _service.EnsureStarted();
+        }
+        // The browser has the focus, and the answer is on its way here.
+        if (_signInFromPanel && App.Bootstrapper?.Resolve<YAPA.Avalonia.Services.AppNavigator>() is { IsAssistantShowing: false } navigator)
+            navigator.ShowAssistant();
+        ContentGrew?.Invoke();
     }
 
     private void Finish(Exchange exchange, string? error)
@@ -401,9 +556,11 @@ public sealed partial class AssistantViewModel : ObservableObject
     private string Explain(string? text)
     {
         var t = text ?? "";
-        if (t.Contains("/login", StringComparison.OrdinalIgnoreCase) || t.Contains("not logged in", StringComparison.OrdinalIgnoreCase)
-            || t.Contains("authentication", StringComparison.OrdinalIgnoreCase))
-            return "Claude Code isn't signed in. Run claude in a terminal, sign in, and ask me again.";
+        if (ClaudeAuth.IsFailure(t))
+        {
+            AskToSignIn("Sign in, then ask me again. What I'd already done is above.");
+            return "I lost my Claude sign-in partway through.";
+        }
         if (t.Contains("ENOTFOUND", StringComparison.Ordinal) || t.Contains("ECONNREFUSED", StringComparison.Ordinal)
             || t.Contains("network", StringComparison.OrdinalIgnoreCase) || t.Contains("fetch failed", StringComparison.OrdinalIgnoreCase))
             return "I couldn't reach Claude. Check the connection and try again.";

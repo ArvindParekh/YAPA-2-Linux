@@ -394,6 +394,12 @@
                         <c:SettingRow Title="Model" Description="{Binding ModelDetail}" IsEnabled="{Binding IsInstalled}">
                             <ComboBox ItemsSource="{Binding Models}" SelectedIndex="{Binding ModelIndex}" Width="210" />
                         </c:SettingRow>
+                        <c:SettingRow Title="Claude sign-in" Description="{Binding SignInDetail}" IsEnabled="{Binding IsInstalled}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Button Classes="ghost" Content="Sign out" Command="{Binding SignOutCommand}" IsVisible="{Binding CanSignOut}" />
+                                <Button Content="{Binding SignInLabel}" Command="{Binding SignInCommand}" />
+                            </StackPanel>
+                        </c:SettingRow>
                     </StackPanel>
                 </Border>
 

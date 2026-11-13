@@ -86,8 +86,10 @@ same pomodoro starts over. Stopping during a break ends the break.
 **Ask YAPA.** The assistant opens beside the timer and closes when you click away
 or press <kbd>Esc</kbd>; reopening within a few minutes carries on the same
 conversation. Under each reply it lists what it changed, with **Undo**. It needs
-Claude Code installed and signed in; Settings → General picks the model (Sonnet by
-default). It starts Claude Code only while you use it, with none of your Claude Code
+Claude Code installed. The first time Claude Code's own sign-in lapses, the panel offers
+**Sign in**: that makes YAPA a sign-in of its own (`claude setup-token`, good for a year),
+and the question you asked is answered as soon as you're done. Settings → Assistant shows
+when it runs out and picks the model (Sonnet by default). It starts Claude Code only while you use it, with none of your Claude Code
 tools, plugins or MCP servers: only YAPA's own.
 
 ### Global shortcut

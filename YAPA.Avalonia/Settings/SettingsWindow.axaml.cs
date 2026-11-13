@@ -27,7 +27,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
                 bs.Resolve<YAPA.Avalonia.Assistant.TimerLooks>(), bs.Resolve<TimerTexts>()),
             bs.Resolve<SoundsPageFactory>().Create(),
             new AssistantPageViewModel(bs.Resolve<YAPA.Avalonia.Assistant.AssistantSettings>(), bs.Resolve<YAPA.Avalonia.Assistant.AssistantMemory>(),
-                bs.Resolve<YAPA.Avalonia.Assistant.Scheduler>()),
+                bs.Resolve<YAPA.Avalonia.Assistant.Scheduler>(), bs.Resolve<YAPA.Avalonia.Assistant.ClaudeAccount>()),
             new GeneralPageViewModel(bs.Resolve<GeneralSettings>(), bs.Resolve<AvaloniaYapaThemeSettings>()),
             new AboutPageViewModel(),
         };

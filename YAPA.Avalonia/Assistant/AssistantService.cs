@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using Avalonia.Threading;
 using YAPA.Avalonia.Platform;
 
@@ -22,15 +23,26 @@ public sealed class AssistantService : IDisposable
     private readonly AssistantSettings _settings;
     private readonly AppTools _app;
     private readonly AssistantToolbox _toolbox;
+    private readonly ClaudeAccount _account;
     private readonly DispatcherTimer _idle;
     private McpServer? _server;
     private ClaudeSession? _session;
     private string? _configPath;
 
-    public AssistantService(AssistantSettings settings, AppTools app, ChangeJournal journal)
+    /// <summary>Which sign-in a conversation runs on: YAPA's own token first, then Claude Code's.</summary>
+    private enum SignIn { Yapa, ClaudeCode }
+
+    private SignIn _signIn;
+    private bool _hasContext; // the running process has been sent a request
+    private bool _freshForRequest; // and the one under way is its first
+    private readonly System.Collections.Generic.HashSet<SignIn> _failedSignIns = [];
+    private string[] _lastNotes = [];
+
+    public AssistantService(AssistantSettings settings, AppTools app, ChangeJournal journal, ClaudeAccount account)
     {
         _settings = settings;
         _app = app;
+        _account = account;
         _toolbox = new AssistantToolbox(app.All(), journal, f => Dispatcher.UIThread.InvokeAsync(f).GetTask());
         _toolbox.Activity += a => Dispatcher.UIThread.Post(() => ToolActivity?.Invoke(a));
 
@@ -45,7 +57,14 @@ public sealed class AssistantService : IDisposable
         {
             if (e.PropertyName == nameof(AssistantSettings.Model) && !IsBusy) End();
         };
+        // A new token, or none: the next request starts on it.
+        _account.Changed += () =>
+        {
+            if (IsRunning && !IsBusy && _signIn != Preferred()) End();
+        };
     }
+
+    public ClaudeAccount Account => _account;
 
     public ChangeJournal Journal => _toolbox.Journal;
 
@@ -68,6 +87,9 @@ public sealed class AssistantService : IDisposable
 
     public bool IsRunning => _session is { HasExited: false };
 
+    /// <summary>The running conversation has heard from the user; a new one starts blank.</summary>
+    public bool HasContext => IsRunning && _hasContext;
+
     public static bool IsInstalled => ClaudeCli.Locate() != null;
 
     /// <summary>Starts Claude Code unless it is already running.</summary>
@@ -76,8 +98,20 @@ public sealed class AssistantService : IDisposable
     {
         _idle.Stop();
         if (IsRunning) return true;
-        End();
+        return Start(Preferred());
+    }
 
+    private SignIn Preferred() => _account.Token != null ? SignIn.Yapa : SignIn.ClaudeCode;
+
+    private SignIn? NextSignIn()
+    {
+        if (_account.Token != null && !_failedSignIns.Contains(SignIn.Yapa)) return SignIn.Yapa;
+        return _failedSignIns.Contains(SignIn.ClaudeCode) ? null : SignIn.ClaudeCode;
+    }
+
+    private bool Start(SignIn signIn)
+    {
+        StopSession();
         var executable = ClaudeCli.Locate();
         if (executable == null) return false;
 
@@ -100,9 +134,10 @@ public sealed class AssistantService : IDisposable
             writer.Write(_server.ClientConfig());
         }
 
+        var token = signIn == SignIn.Yapa ? _account.Token?.Value : null;
         var session = ClaudeSession.Start(executable,
             ClaudeCli.Arguments(_settings.Model, AssistantPrompt.System(ClockFormat.Is24Hour), _configPath),
-            directory);
+            directory, token);
         session.EventReceived += e => Dispatcher.UIThread.Post(() =>
         {
             if (!ReferenceEquals(session, _session)) return; // from a conversation already ended
@@ -117,7 +152,9 @@ public sealed class AssistantService : IDisposable
             Crashed?.Invoke(tail);
         });
         _session = session;
-        Trace.WriteLine($"[assistant] started claude ({_settings.Model}), tools on port {_server.Port}");
+        _signIn = token != null ? SignIn.Yapa : SignIn.ClaudeCode;
+        _hasContext = false;
+        Trace.WriteLine($"[assistant] started claude ({_settings.Model}) on {(token != null ? "YAPA's" : "Claude Code's")} sign-in, tools on port {_server.Port}");
         return true;
     }
 
@@ -130,11 +167,52 @@ public sealed class AssistantService : IDisposable
     /// <returns>False when Claude Code can't be started (no longer installed).</returns>
     public bool Ask(string text)
     {
+        _failedSignIns.Clear();
+        var fresh = !HasContext;
         if (!EnsureStarted()) return false;
+        _freshForRequest = fresh;
+        _lastNotes = _notes.ToArray();
+        _notes.Clear();
+        Send(text, _lastNotes);
+        return true;
+    }
+
+    private void Send(string text, string[] notes)
+    {
         Journal.BeginTurn();
         _outstanding++;
-        _session!.Send(AssistantPrompt.Message(text, _app.State(), _notes.ToArray()));
-        _notes.Clear();
+        _hasContext = true;
+        _session!.Send(AssistantPrompt.Message(text, _app.State(), notes));
+    }
+
+    /// <summary>
+    /// The request just failed on its sign-in: sends it again on the other one, or on the same
+    /// one in a new process when this process had been running a while (its sign-in in memory
+    /// can be stale while the one on disk is fine). Only for a request that changed nothing.
+    /// </summary>
+    /// <param name="recap">What was said before, for the new process.</param>
+    /// <returns>False when every sign-in has failed: the user has to sign in.</returns>
+    public bool RetryOnAnotherSignIn(string text, string? recap)
+    {
+        if (_freshForRequest) _failedSignIns.Add(_signIn);
+        if (NextSignIn() is not { } next) return false;
+        Trace.WriteLine($"[assistant] the sign-in failed; retrying on {next}");
+        return Resend(next, text, recap);
+    }
+
+    /// <summary>The user signed in: sends the request that was waiting for it.</summary>
+    public bool ResendAfterSignIn(string text, string? recap)
+    {
+        _failedSignIns.Clear();
+        return Resend(Preferred(), text, recap);
+    }
+
+    private bool Resend(SignIn signIn, string text, string? recap)
+    {
+        if (!Start(signIn)) return false;
+        _freshForRequest = true;
+        var notes = recap != null && !_lastNotes.Contains(recap) ? [recap, .. _lastNotes] : _lastNotes;
+        Send(text, notes);
         return true;
     }
 
@@ -153,6 +231,12 @@ public sealed class AssistantService : IDisposable
     /// <summary>Ends the conversation: the next request starts a new one.</summary>
     public void End()
     {
+        StopSession();
+        _notes.Clear();
+    }
+
+    private void StopSession()
+    {
         _idle.Stop();
         var session = _session;
         _session = null;
@@ -165,7 +249,7 @@ public sealed class AssistantService : IDisposable
             _configPath = null;
         }
         _outstanding = 0;
-        _notes.Clear();
+        _hasContext = false;
     }
 
     public void Dispose() => End();

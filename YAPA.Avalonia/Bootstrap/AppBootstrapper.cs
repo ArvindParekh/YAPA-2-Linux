@@ -82,6 +82,7 @@ public sealed class AppBootstrapper : IDisposable
         services.AddSingleton<YAPA.Avalonia.Assistant.TimerLooks>();
         services.AddSingleton<YAPA.Avalonia.Assistant.AppTools.Extras>();
         services.AddSingleton<YAPA.Avalonia.Assistant.AppTools>();
+        services.AddSingleton<YAPA.Avalonia.Assistant.ClaudeAccount>(_ => new YAPA.Avalonia.Assistant.ClaudeAccount());
         services.AddSingleton<YAPA.Avalonia.Assistant.AssistantService>();
         services.AddSingleton<YAPA.Avalonia.Assistant.AssistantViewModel>();
 

@@ -97,6 +97,12 @@ Per-machine settings (music paths, window position) live in `localSettings.json`
 - Settings window styles live in `Settings/SettingsStyles.axaml`: cards are `Border.card`, rows are
   `SettingRow`; hairlines between rows come from `:nth-child(n+2)` selectors, so keep rows direct
   children of the card's panel (or of an ItemsControl's panel).
+- Sign-in (`ClaudeAccount`): YAPA's own `claude setup-token` token (DataDirectory/assistant,
+  0600, passed as `CLAUDE_CODE_OAUTH_TOKEN`) comes first, Claude Code's own sign-in second. Claude Code's
+  refresh token has a hard expiry and lapsed once overnight. `setup-token` and `auth login` only run on a
+  TTY, so they go through `script(1)`. `ClaudeCli.Sanitize` drops variables inherited from a Claude Code
+  session (`install.sh` restarts YAPA from whatever shell ran it), including the host's `ANTHROPIC_BASE_URL`.
+  Never run either sign-in against the real `~/.claude` in tests: use a fake through `YAPA_CLAUDE`.
 - Tools must refuse rather than guess when work is at stake (see `GuardWork`); prompt rules
   alone weren't enough. A real run once dropped a 27-minute paused pomodoro.
 - `RequestAnimationFrame` runs the renderer every vsync even when nothing is drawn; the orb

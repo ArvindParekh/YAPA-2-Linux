@@ -140,7 +140,8 @@ public sealed class ClaudeSession : IDisposable
         }
     }
 
-    public static ClaudeSession Start(string executable, IEnumerable<string> arguments, string workingDirectory)
+    /// <param name="token">A long-lived sign-in to use instead of Claude Code's own, if any.</param>
+    public static ClaudeSession Start(string executable, IEnumerable<string> arguments, string workingDirectory, string? token = null)
     {
         var info = new ProcessStartInfo(executable)
         {
@@ -153,12 +154,8 @@ public sealed class ClaudeSession : IDisposable
             StandardErrorEncoding = Encoding.UTF8,
         };
         foreach (var argument in arguments) info.ArgumentList.Add(argument);
-        // Its terminal UI must never appear, and it shouldn't think a human is at a TTY.
-        info.Environment["CI"] = "1";
-        info.Environment["NO_COLOR"] = "1";
-        // Set when YAPA itself was started from a Claude Code shell; this is not a nested session.
-        info.Environment.Remove("CLAUDECODE");
-        info.Environment.Remove("CLAUDE_CODE_ENTRYPOINT");
+        ClaudeCli.Sanitize(info.Environment);
+        if (token != null) info.Environment[ClaudeAuth.TokenVariable] = token;
 
         var process = new Process { StartInfo = info, EnableRaisingEvents = true };
         var session = new ClaudeSession(process);

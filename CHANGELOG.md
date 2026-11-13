@@ -41,6 +41,12 @@ A ground-up revival of the Linux port.
 - Reminders and actions the assistant scheduled announce themselves in a bubble on the timer, with
   a chime (a new "Reminder or notice" cue, the original YAPA ding); the desktop's own notification
   while the timer is hidden, or always if chosen in Settings → General.
+- The assistant no longer stops at "OAuth session expired". Claude Code's sign-in lapses on the
+  account's schedule; a request that fails on it is retried on the other sign-in, and when none
+  works the question waits for a one-click **Sign in** in the panel, which gives YAPA a token of
+  its own for a year (renewal offered two weeks ahead). The panel also says so as it opens,
+  before you've typed anything. YAPA no longer borrows the sign-in of a Claude Code session
+  it was started from.
 - A timer event log (starts, pauses, stops, breaks) in `Yapa.db`, so breaks and abandoned pomodoros
   can be asked about, not only completed ones.
 - A redesigned Settings window: dark grouped cards, a sidebar with icons, steppers, a live preview of the
