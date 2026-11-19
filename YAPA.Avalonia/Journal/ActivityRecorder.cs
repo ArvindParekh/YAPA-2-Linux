@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading;
@@ -23,6 +24,10 @@ public sealed class ActivityRecorder : IDisposable
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan Away = TimeSpan.FromMinutes(2);
 
+    // The open span's end is kept in memory and written this often (and whenever the span
+    // ends), not on every sample: a crash loses at most this much of one span.
+    private static readonly TimeSpan FlushEvery = TimeSpan.FromMinutes(1);
+
     private readonly IPomodoroEngine _engine;
     private readonly JournalStore _store;
     private readonly JournalSettings _settings;
@@ -37,6 +42,9 @@ public sealed class ActivityRecorder : IDisposable
 
     private long _spanId;
     private string? _spanKey;
+    private DateTime _spanEnd;
+    private DateTime _flushed;
+    private readonly Dictionary<string, PausingApps.KnownProgram> _programs = [];
 
     public ActivityRecorder(IPomodoroEngine engine, JournalStore store, JournalSettings settings, IdleInhibition? inhibition = null)
     {
@@ -101,7 +109,7 @@ public sealed class ActivityRecorder : IDisposable
     private void SampleLocked()
     {
         var now = DateTime.UtcNow;
-        if (PausingApps.AnyRunning(_settings.PauseApps))
+        if (PausingApps.AnyRunning(_settings.PauseApps, known: _programs))
         {
             Record(now, JournalStore.Paused, "");
             return;
@@ -175,19 +183,35 @@ public sealed class ActivityRecorder : IDisposable
         var key = app + "\n" + title;
         if (key == _spanKey && _spanId != 0)
         {
-            _store.ExtendSpan(_spanId, now);
+            _spanEnd = now;
+            if (now - _flushed >= FlushEvery) Flush();
             return;
         }
         // The new window has been in front since about the last sample.
         var start = _spanId != 0 ? now - Interval / 2 : now;
-        if (_spanId != 0) _store.ExtendSpan(_spanId, start);
+        if (_spanId != 0)
+        {
+            _spanEnd = start;
+            Flush();
+        }
         _spanId = _store.BeginSpan(start, app, title);
         _spanKey = key;
+        _spanEnd = _flushed = start;
+    }
+
+    private void Flush()
+    {
+        _store.ExtendSpan(_spanId, _spanEnd);
+        _flushed = _spanEnd;
     }
 
     private void Close()
     {
-        if (_spanId != 0) _store.ExtendSpan(_spanId, DateTime.UtcNow);
+        if (_spanId != 0)
+        {
+            _spanEnd = DateTime.UtcNow;
+            Flush();
+        }
         _spanId = 0;
         _spanKey = null;
     }

@@ -18,18 +18,51 @@ public static class PausingApps
     /// spelled loosely: "Tor Browser" matches …/tor-browser/Browser/firefox.real,
     /// …/torbrowser/…, and torbrowser-launcher, but "tor" doesn't match "editor".
     /// </summary>
-    public static bool AnyRunning(IReadOnlyList<string> apps, string proc = "/proc")
+    /// <param name="known">
+    /// What processes were found running, kept between calls, so that most aren't read again:
+    /// reading all ~500 every few seconds was most of the recorder's cost. A process is read
+    /// again until it's <see cref="Settled"/> old, because a launcher keeps its id when it
+    /// becomes the program (start-tor-browser is a script that execs firefox.real). Ids that
+    /// are gone are dropped.
+    /// </param>
+    public static bool AnyRunning(IReadOnlyList<string> apps, string proc = "/proc", Dictionary<string, KnownProgram>? known = null,
+        DateTime? nowUtc = null)
     {
         var names = apps.Select(Squash).Where(n => n.Length > 1).ToList();
         if (names.Count == 0 || !Directory.Exists(proc)) return false;
+        var now = nowUtc ?? DateTime.UtcNow;
+        var seen = known != null ? new HashSet<string>() : null;
+        var found = false;
         foreach (var dir in Enumerate(proc))
         {
             var pid = Path.GetFileName(dir);
             if (pid.Length == 0 || !pid.All(char.IsAsciiDigit)) continue;
-            if (Program(dir) is { Length: > 0 } program && Names(program, names)) return true;
+            seen?.Add(pid);
+            string? program;
+            if (known != null && known.TryGetValue(pid, out var cached) && now - cached.FirstSeenUtc >= Settled)
+                program = cached.Program;
+            else
+            {
+                program = Program(dir);
+                // Unreadable (gone already): not remembered.
+                if (known != null && program != null)
+                    known[pid] = new KnownProgram(program, known.TryGetValue(pid, out var was) ? was.FirstSeenUtc : now);
+            }
+            if (program is { Length: > 0 } && Names(program, names))
+            {
+                found = true;
+                if (known == null) break;
+            }
         }
-        return false;
+        if (known != null)
+            foreach (var gone in known.Keys.Where(k => !seen!.Contains(k)).ToList()) known.Remove(gone);
+        return found;
     }
+
+    /// <summary>How long a process is read again before its program is taken as final.</summary>
+    public static readonly TimeSpan Settled = TimeSpan.FromSeconds(30);
+
+    public readonly record struct KnownProgram(string Program, DateTime FirstSeenUtc);
 
     /// <summary>A program path names an app when one of its parts starts with the app's name.</summary>
     public static bool Names(string programPath, IReadOnlyList<string> squashedNames)

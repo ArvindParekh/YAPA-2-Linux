@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -276,5 +277,29 @@ public class PausingAppsTests
         Process("4242", "/home/a/tor-browser/Browser/firefox.real");
         Assert.IsTrue(PausingApps.AnyRunning(["Tor Browser"], home.Path));
         Assert.IsFalse(PausingApps.AnyRunning([], home.Path), "an empty list pauses nothing");
+    }
+
+    [TestMethod]
+    public void Known_processes_are_read_again_until_they_settle_then_not_at_all()
+    {
+        using var home = new TempHome();
+        var cmdline = Path.Combine(home.Path, "77", "cmdline");
+        Directory.CreateDirectory(Path.GetDirectoryName(cmdline)!);
+        var known = new Dictionary<string, PausingApps.KnownProgram>();
+        var t0 = new DateTime(2026, 11, 18, 12, 0, 0, DateTimeKind.Utc);
+
+        // A launcher script that execs the browser a moment later, keeping its id.
+        File.WriteAllText(cmdline, "/bin/bash\0/home/a/start-tor-browser\0");
+        Assert.IsFalse(PausingApps.AnyRunning(["Tor Browser"], home.Path, known, t0));
+        File.WriteAllText(cmdline, "/home/a/tor-browser/Browser/firefox.real\0");
+        Assert.IsTrue(PausingApps.AnyRunning(["Tor Browser"], home.Path, known, t0.AddSeconds(5)), "still young: read again, and found");
+
+        // Settled: taken from memory, not read (the file changing proves it isn't).
+        File.WriteAllText(cmdline, "/usr/bin/zen\0");
+        Assert.IsTrue(PausingApps.AnyRunning(["Tor Browser"], home.Path, known, t0.AddMinutes(1)));
+
+        Directory.Delete(Path.GetDirectoryName(cmdline)!, recursive: true);
+        Assert.IsFalse(PausingApps.AnyRunning(["Tor Browser"], home.Path, known, t0.AddMinutes(2)));
+        Assert.AreEqual(0, known.Count, "a process that's gone is forgotten");
     }
 }
