@@ -34,7 +34,7 @@ public sealed class IdleInhibition : IDisposable
                     .ConfigureAwait(false))
                 return false;
         }
-        catch (DBusException)
+        catch (DBusErrorReplyException)
         {
             // No GNOME shield to ask: the inhibitor alone decides.
         }
@@ -43,7 +43,7 @@ public sealed class IdleInhibition : IDisposable
             return await CallBoolAsync(connection, "org.gnome.SessionManager", "/org/gnome/SessionManager", "org.gnome.SessionManager", "IsInhibited", IdleFlag)
                 .ConfigureAwait(false);
         }
-        catch (Exception e) when (e is DBusException or TimeoutException or DisconnectedException)
+        catch (Exception e) when (e is DBusErrorReplyException or TimeoutException or DBusConnectionClosedException)
         {
             return false;
         }

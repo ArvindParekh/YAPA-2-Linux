@@ -32,6 +32,8 @@ public sealed class ClaudeCodeHistory
     private readonly string _indexDirectory;
     private readonly string _home;
     private readonly ConcurrentDictionary<string, FileIndex> _indexes = new();
+    // One lock per transcript, not per index: an index is replaced when its file was rewritten.
+    private readonly ConcurrentDictionary<string, object> _gates = new();
 
     public ClaudeCodeHistory(string? root = null, string? indexDirectory = null, string? home = null)
     {
@@ -64,16 +66,20 @@ public sealed class ClaudeCodeHistory
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { continue; }
             if (info.LastWriteTimeUtc < fromUtc) continue; // nothing in it is that recent
 
-            var index = Update(path, info);
-            if (index == null) continue;
-            var prompts = index.Prompts.Where(p => p.At >= fromUtc && p.At <= toUtc).Select(p => new AgentPrompt(p.At, p.Text)).ToList();
-            var fromMinute = fromUtc.Ticks / TimeSpan.TicksPerMinute;
-            var toMinute = toUtc.Ticks / TimeSpan.TicksPerMinute;
-            var activity = index.Minutes.Where(m => m >= fromMinute && m <= toMinute).Select(m => new DateTime(m * TimeSpan.TicksPerMinute, DateTimeKind.Utc)).ToList();
-            if (prompts.Count == 0 && activity.Count == 0) continue;
-            // Engagement looks back at earlier prompts too: one typed before the range can explain activity in it.
-            var context = index.Prompts.Where(p => p.At < fromUtc && p.At >= fromUtc - JournalBuilder.Engagement).Select(p => new AgentPrompt(p.At, p.Text));
-            result.Add(new AgentSession(index.SessionId, ProjectName(index.Cwd), index.BestTitle, context.Concat(prompts).ToList(), activity, index.Cwd ?? ""));
+            // Cut from the index under its file's lock: another day's read may be appending to it.
+            lock (_gates.GetOrAdd(path, _ => new object()))
+            {
+                var index = Update(path, info);
+                if (index == null) continue;
+                var prompts = index.Prompts.Where(p => p.At >= fromUtc && p.At <= toUtc).Select(p => new AgentPrompt(p.At, p.Text)).ToList();
+                var fromMinute = fromUtc.Ticks / TimeSpan.TicksPerMinute;
+                var toMinute = toUtc.Ticks / TimeSpan.TicksPerMinute;
+                var activity = index.Minutes.Where(m => m >= fromMinute && m <= toMinute).Select(m => new DateTime(m * TimeSpan.TicksPerMinute, DateTimeKind.Utc)).ToList();
+                if (prompts.Count == 0 && activity.Count == 0) continue;
+                // Engagement looks back at earlier prompts too: one typed before the range can explain activity in it.
+                var context = index.Prompts.Where(p => p.At < fromUtc && p.At >= fromUtc - JournalBuilder.Engagement).Select(p => new AgentPrompt(p.At, p.Text));
+                result.Add(new AgentSession(index.SessionId, ProjectName(index.Cwd), index.BestTitle, context.Concat(prompts).ToList(), activity, index.Cwd ?? ""));
+            }
         }
         return result;
     }
@@ -121,9 +127,9 @@ public sealed class ClaudeCodeHistory
 
     private FileIndex? Update(string path, FileInfo info)
     {
-        var index = _indexes.GetOrAdd(path, p => LoadIndex(p) ?? new FileIndex { Path = p, SessionId = System.IO.Path.GetFileNameWithoutExtension(p) });
-        lock (index)
+        lock (_gates.GetOrAdd(path, _ => new object()))
         {
+            var index = _indexes.GetOrAdd(path, p => LoadIndex(p) ?? new FileIndex { Path = p, SessionId = System.IO.Path.GetFileNameWithoutExtension(p) });
             if (info.Length < index.Offset) // rewritten, not appended to: start over
             {
                 index = new FileIndex { Path = path, SessionId = System.IO.Path.GetFileNameWithoutExtension(path) };
