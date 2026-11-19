@@ -48,6 +48,44 @@ public sealed class ClaudeCodeHistory
     /// <summary>Drops what's indexed in memory; the next read starts from the transcripts again.</summary>
     public void Reset() => _indexes.Clear();
 
+    /// <summary>
+    /// Deletes what the index copied from [fromUtc, toUtc] (what was typed, and when anything
+    /// happened), in every index on disk and in memory. The transcripts are Claude Code's and
+    /// stay as they are; read again from scratch, that time is still kept out by the journal.
+    /// </summary>
+    public void Scrub(DateTime fromUtc, DateTime toUtc)
+    {
+        var fromMinute = fromUtc.Ticks / TimeSpan.TicksPerMinute;
+        var toMinute = toUtc.Ticks / TimeSpan.TicksPerMinute;
+        bool Clean(FileIndex index) =>
+            index.Prompts.RemoveAll(p => p.At >= fromUtc && p.At <= toUtc) > 0
+            | index.Minutes.RemoveWhere(m => m >= fromMinute && m <= toMinute) > 0;
+
+        var paths = new HashSet<string>(_indexes.Keys, StringComparer.Ordinal);
+        try
+        {
+            if (Directory.Exists(_indexDirectory))
+                foreach (var file in Directory.EnumerateFiles(_indexDirectory, "*.json"))
+                {
+                    try
+                    {
+                        if (JsonSerializer.Deserialize<FileIndex>(File.ReadAllText(file), IndexJson) is { Path.Length: > 0 } stored) paths.Add(stored.Path);
+                    }
+                    catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { }
+                }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+
+        foreach (var path in paths)
+        {
+            lock (_gates.GetOrAdd(path, _ => new object()))
+            {
+                var index = _indexes.TryGetValue(path, out var loaded) ? loaded : LoadIndex(path);
+                if (index != null && Clean(index)) SaveIndex(index);
+            }
+        }
+    }
+
     /// <summary>Conversations with anything in [fromUtc, toUtc], each cut to that range.</summary>
     public IReadOnlyList<AgentSession> Read(DateTime fromUtc, DateTime toUtc)
     {

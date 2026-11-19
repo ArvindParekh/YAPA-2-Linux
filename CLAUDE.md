@@ -118,6 +118,16 @@ Per-machine settings (music paths, window position) live in `localSettings.json`
   it writes a `JournalStore.Paused` span, and `JournalService.WithoutPaused` drops every source's evidence
   in it. Skipped (`Ignored`) matches leave nothing, not even time. Without recorded windows (older days,
   Wayland) off-timer stretches are moments, not lengths: the prompt says so and the UI shows no length.
+- Off the record and Forget (`OffTheRecord`, table OffRecord): ranges every source is filtered by in
+  `JournalService.WithoutPaused`, with the Tor and adult-window `Paused` spans; a pomodoro (nearly) all in them is
+  `JournalEntry.OffRecord`, kept and counted but never described or sent. `JournalService.Forget` adds the range
+  first, then deletes spans (`DeleteSpans` cuts what crosses it), every stored line whose fingerprint changed, the
+  day's and sessions' lines, titles of wholly covered pomodoros, the transcript index's copy (`Scrub`) and, if asked,
+  Ask YAPA's conversations since; `JournalStore.Forget` (everything) keeps the ranges, since browsers still hold
+  that time. Adult sites: `AdultSites` (embedded AdultSites.txt, curated from The Block List Project + Tranco; keep
+  mainstream sites out of it). Spans are capped at `LongestSpan` (12 h) so day lookups stay index range scans.
+  A flyout button that closes its flyout must close it after the click (posted): closing first detaches the
+  button, its inherited DataContext and so its Command, which then never runs.
 - Claude Code transcripts are 1.5 GB and append-only: they're indexed per file (CacheDirectory/journal,
   0700) and read on from the saved offset; only top-level fields are read, with `Utf8JsonReader`, since
   nested content contains strings like `"timestamp":`. Typed prompts are `turnOrigin` human (or absent)

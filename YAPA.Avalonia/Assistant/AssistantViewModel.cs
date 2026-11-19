@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using YAPA.Avalonia.Platform;
@@ -20,6 +21,9 @@ public sealed record Suggestion(string Label, string Prompt, bool Send);
 public sealed partial class Exchange : ObservableObject
 {
     public Exchange(string question) => Question = question;
+
+    /// <summary>Said around forgetting: stays on screen, but is never archived or sent to Claude again.</summary>
+    public bool NotArchived { get; set; }
 
     public string Question { get; }
 
@@ -73,6 +77,7 @@ public sealed partial class AssistantViewModel : ObservableObject
     private bool _replaceOnNextText; // the text so far led up to a tool call; the answer comes after it
     private bool _interrupted;
     private bool _toolsUnreachable;
+    private bool _forgetAfterTurn;
 
     // Requests sent whose result hasn't arrived. Claude Code queues a request sent while an
     // earlier one winds down, so anything streamed while more than one is outstanding still
@@ -80,8 +85,10 @@ public sealed partial class AssistantViewModel : ObservableObject
     private int _outstanding;
 
     public AssistantViewModel(AssistantService service, IPomodoroEngine engine, IPomodoroRepository history, Specifics.GeneralSettings general,
-        AssistantMemory memory)
+        AssistantMemory memory, YAPA.Avalonia.Journal.JournalService? journal = null)
     {
+        // Forgetting can happen on any thread (a tool, the Day window's worker).
+        if (journal != null) journal.Forgotten += o => Dispatcher.UIThread.Post(() => OnForgotten(o));
         _memory = memory;
         _service = service;
         _engine = engine;
@@ -287,10 +294,45 @@ public sealed partial class AssistantViewModel : ObservableObject
         _service.EnsureStarted();
     }
 
+    /// <summary>
+    /// Time was forgotten. The conversation on screen may have read about it, and Claude Code
+    /// keeps all of it in mind, so it's let go: the process ends, and nothing said so far is
+    /// archived. If forgetting was this request's own doing, that happens once its answer is
+    /// in, and the answer stays on screen (but is never archived or sent again).
+    /// </summary>
+    private void OnForgotten(YAPA.Avalonia.Journal.ForgetOutcome outcome)
+    {
+        if (!outcome.WithConversations) return;
+        if (IsBusy || _current is { IsPending: true })
+        {
+            _forgetAfterTurn = true;
+            return;
+        }
+        LetGo(keepLast: false);
+    }
+
+    private void LetGo(bool keepLast)
+    {
+        var last = keepLast ? Exchanges.LastOrDefault() : null;
+        _service.End();
+        _outstanding = 0;
+        Exchanges.Clear();
+        _current = null;
+        if (last != null)
+        {
+            last.NotArchived = true;
+            last.CanUndo = false;
+            Exchanges.Add(last);
+        }
+        _startedUtc = DateTime.UtcNow;
+        HasConversation = Exchanges.Count > 0;
+        UpdateSuggestions();
+    }
+
     /// <summary>Keeps the conversation on screen in the archive (on a new conversation, and when YAPA quits).</summary>
     public void Archive()
     {
-        var done = Exchanges.Where(x => !x.IsPending).ToList();
+        var done = Exchanges.Where(x => !x.IsPending && !x.NotArchived).ToList();
         if (done.Count == 0) return;
         _memory.Archive(new ArchivedConversation(_startedUtc,
             done.Select(x => new ArchivedExchange(DateTime.UtcNow, x.Question, x.Answer, x.Actions.ToList())).ToList()));
@@ -299,7 +341,7 @@ public sealed partial class AssistantViewModel : ObservableObject
     private string Recap()
     {
         static string Clip(string s, int n) => s.Length > n ? s[..n] + "…" : s;
-        var lines = Exchanges.Where(x => !x.IsPending).TakeLast(6).Select(x =>
+        var lines = Exchanges.Where(x => !x.IsPending && !x.NotArchived).TakeLast(6).Select(x =>
             $"- The user asked: \"{Clip(x.Question, 200)}\". You answered: \"{Clip(x.Answer, 300)}\"" +
             (x.Actions.Count > 0 ? $" and changed: {string.Join("; ", x.Actions)}" : "") + (x.WasUndone ? " (later undone)" : ""));
         return "Your conversation process restarted; this is what was said before it, still on the user's screen:\n" + string.Join("\n", lines);
@@ -374,6 +416,11 @@ public sealed partial class AssistantViewModel : ObservableObject
                 _interrupted = false;
                 IsBusy = false;
                 if (Mood is OrbMood.Thinking or OrbMood.Acting or OrbMood.Speaking) Mood = OrbMood.Idle;
+                if (_forgetAfterTurn)
+                {
+                    _forgetAfterTurn = false;
+                    LetGo(keepLast: true);
+                }
                 break;
         }
     }

@@ -30,6 +30,7 @@ public sealed class TimerEventLog : IDisposable
             "AtUtc" TEXT NOT NULL, "Kind" TEXT NOT NULL, "FromPhase" TEXT NOT NULL, "ToPhase" TEXT NOT NULL,
             "Pomodoro" INTEGER NOT NULL, "Cycle" INTEGER NOT NULL, "LongBreak" INTEGER NOT NULL, "Automatic" INTEGER NOT NULL,
             "LengthSeconds" INTEGER NOT NULL, "ElapsedSeconds" INTEGER NOT NULL);
+        CREATE INDEX IF NOT EXISTS "TimerEventsByTime" ON "TimerEvents" ("AtUtc");
         """;
 
     private readonly object _gate = new();
@@ -112,17 +113,28 @@ public sealed class TimerEventLog : IDisposable
         }
     }
 
-    public IReadOnlyList<TimerEventRecord> All()
+    public IReadOnlyList<TimerEventRecord> All() => Read(null, null);
+
+    /// <summary>The events in [fromUtc, toUtc], through the time index: a day's, without reading them all.</summary>
+    public IReadOnlyList<TimerEventRecord> Between(DateTime fromUtc, DateTime toUtc) => Read(fromUtc, toUtc);
+
+    private IReadOnlyList<TimerEventRecord> Read(DateTime? fromUtc, DateTime? toUtc)
     {
         var result = new List<TimerEventRecord>();
         if (_connection == null) return result;
         lock (_gate)
         {
             using var command = _connection.CreateCommand();
-            command.CommandText = """
+            var range = fromUtc != null ? """WHERE "AtUtc" >= $from AND "AtUtc" <= $to""" : "";
+            command.CommandText = $"""
                 SELECT "Id", "AtUtc", "Kind", "FromPhase", "ToPhase", "Pomodoro", "Cycle", "LongBreak", "Automatic", "LengthSeconds", "ElapsedSeconds"
-                FROM "TimerEvents" ORDER BY "Id";
+                FROM "TimerEvents" {range} ORDER BY "Id";
                 """;
+            if (fromUtc is { } f && toUtc is { } t)
+            {
+                command.Parameters.AddWithValue("$from", f.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
+                command.Parameters.AddWithValue("$to", t.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
+            }
             using var reader = command.ExecuteReader();
             while (reader.Read())
             {

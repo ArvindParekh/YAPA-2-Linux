@@ -23,6 +23,10 @@ A ground-up revival of the Linux port.
 - Settings *Cancel* didn't revert anything; settings now apply instantly, with per-page reset.
 - A crash while saving settings could reset all of them; writes are now atomic.
 - Digits jittered and clipped. They now use tabular figures, and the digit-spacing workaround is gone.
+- Your day slowed as history grew: today's windows were found by scanning every one ever recorded
+  (200 ms after a year, on every refresh). It's now a bounded index lookup (6 ms, flat). Browser
+  histories (tens of megabytes) are no longer copied again when they haven't changed, and the copies
+  are made in memory, never on disk.
 
 ### Added
 - **Ask YAPA**, an assistant that runs the whole app. Double-click the timer, press <kbd>/</kbd>, or use
@@ -64,6 +68,24 @@ A ground-up revival of the Linux port.
   desktop. While Tor Browser runs (any app in Settings → Journal → "Stops everything while open"),
   nothing is recorded and nothing any source found in that time is used. Skipped apps (Telegram, the
   password managers and private windows by default) leave nothing at all, not even their time.
+- **Forget** and **off the record**, so nothing on your own computer has to be done around YAPA.
+  Every entry in Your day has Forget, and Forget in its header takes any stretch of time ("the last
+  15 minutes", 21:40 to 22:15, a whole day). The windows recorded in it are deleted, and so is every
+  write-up that could mention it (the day's and sessions' lines are rewritten without it). The names
+  of pomodoros wholly in it go too, and so does what YAPA's transcript index copied from it.
+  Optionally, Ask YAPA's conversations since then are deleted, and the one on screen is let go. Your
+  browser's and Claude Code's own history aren't YAPA's to change: that time is simply never read from
+  them again. A forgotten pomodoro still counts and shows as "Off the record". Going off the record
+  (the timer's menu, the tray, Your day, Settings or Ask YAPA: for 30 minutes, an hour, three hours or
+  until you turn it back on) records nothing and keeps everything from that time out; a crossed-out
+  eye on the timer says so, and it survives a restart. Ask YAPA can do both ("forget what I did after
+  11 pm", "stop watching me for an hour").
+- Adult sites are left out by default: about 8,300 of them, drawn from The Block List Project's list
+  (Unlicense) and kept to well-known sites whose names say what they are, plus hand-checked brands that
+  don't. Mainstream sites that list also carries (news, shops, hosting, dating apps) are excluded on purpose. While an
+  adult page is in front the time is off the record, and adult pages never reach the history or Claude.
+- Your day has a calendar: click the date (or press <kbd>G</kbd>) to jump to any day; days with
+  pomodoros and days at the computer are marked.
 - A timer event log (starts, pauses, stops, breaks) in `Yapa.db`, so breaks and abandoned pomodoros
   can be asked about, not only completed ones.
 - A redesigned Settings window: dark grouped cards, a sidebar with icons, steppers, a live preview of the

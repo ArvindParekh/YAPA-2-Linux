@@ -26,6 +26,12 @@ public sealed class AssistantTool
     /// <summary>Changes something; the change is journaled so it can be undone.</summary>
     public bool Mutates { get; init; }
 
+    /// <summary>
+    /// Its change can't be taken back (forgetting deletes): it isn't offered for Undo, and a
+    /// request that did nothing else has no Undo button.
+    /// </summary>
+    public bool Irreversible { get; init; }
+
     /// <summary>Changes the timer's state; the journal snapshots the engine before the first such change.</summary>
     public bool TouchesEngine { get; init; }
 
@@ -103,7 +109,7 @@ public sealed class AssistantToolbox
                 result = tool.Run(args);
             }
             // Undo itself reports what it did but is not something to undo.
-            if (tool.Mutates && result.Done is { } done) Journal.Describe(done);
+            if (tool.Mutates && !tool.Irreversible && result.Done is { } done) Journal.Describe(done);
             Activity?.Invoke(new ToolActivity(ToolActivityKind.Finished, name, result.Done ?? "", result.Done != null));
             return new ToolOutcome(result.Data.ToJsonString(), false);
         }

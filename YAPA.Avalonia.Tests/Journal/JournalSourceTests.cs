@@ -99,6 +99,28 @@ public class ClaudeCodeHistoryTests
         Assert.AreEqual(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute, File.GetUnixFileMode(index),
             "what the user typed is indexed where only they can read it");
     }
+
+    [TestMethod]
+    public void Forgetting_scrubs_what_the_index_copied_and_leaves_the_transcript_alone()
+    {
+        using var home = new TempHome();
+        var projects = home.Sub(".claude", "projects");
+        var transcript = home.Sub(".claude", "projects", "-p", "s1.jsonl");
+        var lines = new[] { User(1, "\"before\""), User(10, "\"the private one\""), User(20, "\"after\"") };
+        File.WriteAllText(transcript, string.Join("\n", lines) + "\n");
+        var index = home.Sub("cache", "idx");
+        var history = new ClaudeCodeHistory(projects, index, home: "/home/x");
+        history.Read(T0, T0.AddHours(1));
+
+        history.Scrub(T0.AddMinutes(5), T0.AddMinutes(15));
+
+        CollectionAssert.AreEqual(new[] { "before", "after" }, history.Read(T0, T0.AddHours(1)).Single().Prompts.Select(p => p.Text).ToList());
+        var fresh = new ClaudeCodeHistory(projects, index, home: "/home/x");
+        CollectionAssert.AreEqual(new[] { "before", "after" }, fresh.Read(T0, T0.AddHours(1)).Single().Prompts.Select(p => p.Text).ToList(),
+            "gone from the index on disk too");
+        Assert.IsFalse(Directory.GetFiles(index).Any(f => File.ReadAllText(f).Contains("the private one")));
+        Assert.AreEqual(3, File.ReadAllLines(transcript).Length, "Claude Code's own transcript isn't YAPA's to change");
+    }
 }
 
 [TestClass]
@@ -195,6 +217,34 @@ public class BrowserHistoryTests
         Assert.AreEqual(("127.0.0.1:8765", at.UtcDateTime.AddMinutes(1)), (visits[1].Site, visits[1].AtUtc));
         Assert.IsTrue(!Directory.Exists(scratch) || Directory.GetDirectories(scratch).Length == 0, "the copies are gone");
     }
+
+    [TestMethod]
+    public void An_unchanged_history_is_answered_from_the_last_read_and_a_changed_one_is_read_again()
+    {
+        using var home = new TempHome();
+        var now = DateTime.UtcNow;
+        long Micros(DateTime t) => new DateTimeOffset(t).ToUnixTimeMilliseconds() * 1000;
+        var places = home.Sub(".mozilla", "firefox", "x.default", "places.sqlite");
+        Sql(places, $"""
+            CREATE TABLE moz_places (id INTEGER PRIMARY KEY, url TEXT, title TEXT);
+            CREATE TABLE moz_historyvisits (id INTEGER PRIMARY KEY, place_id INTEGER, visit_date INTEGER);
+            INSERT INTO moz_places VALUES (1, 'https://a.example/', 'A');
+            INSERT INTO moz_historyvisits VALUES (1, 1, {Micros(now.AddMinutes(-30))});
+            """);
+        var scratch = System.IO.Path.Combine(home.Path, "scratch");
+        // Left by a crash: a copy of someone's history doesn't stay.
+        Directory.CreateDirectory(System.IO.Path.Combine(scratch, "leftover"));
+        var browsers = new BrowserHistory(home.Path, scratch);
+
+        Assert.AreEqual(1, browsers.Read(now.AddHours(-1), now).Count);
+        Assert.IsFalse(Directory.Exists(System.IO.Path.Combine(scratch, "leftover")));
+        Assert.AreEqual(1, browsers.Read(now.AddMinutes(-45), now.AddMinutes(1)).Count, "a narrower range up to now comes from what was read");
+
+        Sql(places, $"INSERT INTO moz_places VALUES (2, 'https://b.example/', 'B'); INSERT INTO moz_historyvisits VALUES (2, 2, {Micros(now.AddMinutes(-1))});");
+        File.SetLastWriteTimeUtc(places, now.AddSeconds(5)); // as a browser's write would
+        CollectionAssert.AreEqual(new[] { "a.example", "b.example" }, browsers.Read(now.AddHours(-1), now).Select(v => v.Site).ToList(),
+            "the browser wrote: read again");
+    }
 }
 
 [TestClass]
@@ -225,6 +275,132 @@ public class JournalStoreTests
         store.Forget();
         Assert.IsNull(store.Day(new DateOnly(2026, 11, 18)));
         Assert.AreEqual(0, store.SpanCount());
+    }
+
+    [TestMethod]
+    public void A_days_windows_are_found_by_their_start_including_one_from_the_night_before()
+    {
+        using var db = new Persistence.TempDatabase();
+        var store = new JournalStore(db.FilePath);
+        var day = new DateTime(2026, 11, 18, 0, 0, 0, DateTimeKind.Utc);
+        store.ExtendSpan(store.BeginSpan(day.AddHours(-3), "mpv", "A long film"), day.AddHours(1));
+        store.ExtendSpan(store.BeginSpan(day.AddDays(-2), "Zen", "Long ago"), day.AddDays(-2).AddHours(1));
+        store.ExtendSpan(store.BeginSpan(day.AddHours(9), "Zen", "Docs"), day.AddHours(10));
+
+        CollectionAssert.AreEqual(new[] { "A long film", "Docs" }, store.Spans(day, day.AddDays(1)).Select(s => s.Title).ToList());
+    }
+
+    [TestMethod]
+    public void Deleting_a_range_cuts_what_crosses_it_and_drops_what_is_inside()
+    {
+        using var db = new Persistence.TempDatabase();
+        var store = new JournalStore(db.FilePath);
+        var t = new DateTime(2026, 11, 18, 14, 0, 0, DateTimeKind.Utc);
+        void Span(int from, int to, string title) => store.ExtendSpan(store.BeginSpan(t.AddMinutes(from), "Zen", title), t.AddMinutes(to));
+        Span(0, 15, "into it");
+        Span(20, 25, "inside");
+        Span(28, 40, "out of it");
+        Span(50, 60, "after");
+        Span(70, 100, "around it");
+
+        store.DeleteSpans(t.AddMinutes(10), t.AddMinutes(30));
+        store.DeleteSpans(t.AddMinutes(80), t.AddMinutes(90));
+
+        var left = store.Spans(t, t.AddHours(2)).Select(s => (s.Title, From: (int)(s.StartUtc - t).TotalMinutes, To: (int)(s.EndUtc - t).TotalMinutes)).ToList();
+        CollectionAssert.AreEqual(new[]
+        {
+            ("into it", 0, 10), ("out of it", 30, 40), ("after", 50, 60), ("around it", 70, 80), ("around it", 90, 100),
+        }, left);
+    }
+
+    [TestMethod]
+    public void Time_off_the_record_outlasts_forgetting_everything()
+    {
+        using var db = new Persistence.TempDatabase();
+        var store = new JournalStore(db.FilePath);
+        var t = new DateTime(2026, 11, 18, 14, 0, 0, DateTimeKind.Utc);
+        store.AddOffRecord(t, t.AddHours(1), OffRecordRange.Forgotten);
+
+        store.Forget();
+
+        Assert.AreEqual(1, store.OffRecord(t, t.AddDays(1)).Count, "the browsers still have that time: only the range keeps it out");
+        Assert.AreEqual(0, store.OffRecord(t.AddHours(2), t.AddDays(1)).Count);
+    }
+}
+
+[TestClass]
+public class OffTheRecordTests
+{
+    [TestMethod]
+    public void Goes_off_for_a_while_comes_back_and_remembers_across_a_restart()
+    {
+        using var db = new Persistence.TempDatabase();
+        var store = new JournalStore(db.FilePath);
+        var now = new DateTime(2026, 11, 18, 14, 0, 0, DateTimeKind.Utc);
+        using var off = new OffTheRecord(store, () => now);
+        var changes = 0;
+        off.Changed += () => changes++;
+
+        off.Start(TimeSpan.FromHours(1));
+        Assert.AreEqual(now.AddHours(1), off.Until);
+        using (var restarted = new OffTheRecord(store, () => now.AddMinutes(5)))
+            Assert.AreEqual(now.AddHours(1), restarted.Until, "YAPA restarted in the middle: still off");
+
+        off.Start(null);
+        Assert.AreEqual(OffTheRecord.Indefinitely, off.Until, "the end moves; no second range");
+        Assert.AreEqual(1, store.OffRecord(now, now.AddDays(1)).Count);
+
+        now = now.AddMinutes(20);
+        off.Stop();
+        Assert.IsFalse(off.IsActive);
+        Assert.AreEqual(now, store.OffRecord(now.AddHours(-1), now).Single().EndUtc, "what was off the record stays off it");
+        Assert.AreEqual(3, changes);
+
+        off.Restore(OffTheRecord.Indefinitely);
+        Assert.AreEqual(OffTheRecord.Indefinitely, off.Until, "undo puts it back");
+    }
+
+    [TestMethod]
+    public void Its_time_runs_out_on_its_own()
+    {
+        using var db = new Persistence.TempDatabase();
+        var store = new JournalStore(db.FilePath);
+        var now = new DateTime(2026, 11, 18, 14, 0, 0, DateTimeKind.Utc);
+        using var off = new OffTheRecord(store, () => now);
+        off.Start(TimeSpan.FromMinutes(30));
+        now = now.AddMinutes(31);
+        Assert.IsFalse(off.IsActive);
+    }
+}
+
+[TestClass]
+public class AdultSitesTests
+{
+    [TestMethod]
+    public void Adult_sites_are_known_by_the_list_their_names_and_their_titles()
+    {
+        Assert.IsTrue(AdultSites.Count > 5000);
+        foreach (var host in new[] { "pornhub.com", "www.xvideos.com", "de.xhamster.com", "onlyfans.com", "erome.com", "fetlife.com", "some-new-porn-site.example" })
+            Assert.IsTrue(AdultSites.IsAdultHost(host), host);
+        foreach (var title in new[] { "Hot stuff - Pornhub.com", "xHamster — Zen Browser", "r/nsfw", "pornpics.com - gallery", "Rule 34 :: tag" })
+            Assert.IsTrue(AdultSites.IsAdultText(title), title);
+    }
+
+    [TestMethod]
+    public void Mainstream_sites_and_ordinary_words_are_not()
+    {
+        foreach (var host in new[] { "github.com", "youtube.com", "character.ai", "cosmopolitan.com", "yes24.com", "tumblr.com", "reddit.com", "xxxlutz.de",
+                     "essexpc.net", "guitarfetish.com", "sussex.ac.uk", "webcamgalore.com", "tinder.com" })
+            Assert.IsFalse(AdultSites.IsAdultHost(host), host);
+        foreach (var title in new[] { "Middlesex University", "JavaScript - MDN", "Sextant navigation", "ActivityRecorder.cs — YAPA-2", "Essex weather" })
+            Assert.IsFalse(AdultSites.IsAdultText(title), title);
+    }
+
+    [TestMethod]
+    public void Every_listed_host_is_a_plain_lowercase_name()
+    {
+        foreach (var host in AdultSites.Listed)
+            Assert.IsTrue(System.Text.RegularExpressions.Regex.IsMatch(host, @"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9-]+)+$"), host);
     }
 }
 

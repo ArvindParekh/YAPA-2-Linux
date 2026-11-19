@@ -89,11 +89,17 @@ public sealed class AppBootstrapper : IDisposable
         // ── Day journal ──────────────────────────────────────────────────────
         services.AddSingleton<YAPA.Avalonia.Journal.JournalSettings>();
         services.AddSingleton<YAPA.Avalonia.Journal.JournalStore>(_ => new YAPA.Avalonia.Journal.JournalStore());
-        services.AddSingleton<YAPA.Avalonia.Journal.ActivityRecorder>();
+        services.AddSingleton<YAPA.Avalonia.Journal.OffTheRecord>(sp => new YAPA.Avalonia.Journal.OffTheRecord(
+            sp.GetRequiredService<YAPA.Avalonia.Journal.JournalStore>()));
+        services.AddSingleton<YAPA.Avalonia.Journal.ActivityRecorder>(sp => new YAPA.Avalonia.Journal.ActivityRecorder(
+            sp.GetRequiredService<IPomodoroEngine>(), sp.GetRequiredService<YAPA.Avalonia.Journal.JournalStore>(),
+            sp.GetRequiredService<YAPA.Avalonia.Journal.JournalSettings>(), sp.GetRequiredService<YAPA.Avalonia.Journal.OffTheRecord>()));
         services.AddSingleton<YAPA.Avalonia.Journal.JournalService>(sp => new YAPA.Avalonia.Journal.JournalService(
             sp.GetRequiredService<IPomodoroRepository>(), sp.GetRequiredService<TimerEventLog>(), sp.GetRequiredService<IPomodoroEngine>(),
             sp.GetRequiredService<YAPA.Avalonia.Journal.JournalStore>(), sp.GetRequiredService<YAPA.Avalonia.Journal.JournalSettings>(),
-            sp.GetRequiredService<YAPA.Avalonia.Assistant.ClaudeAccount>()));
+            sp.GetRequiredService<YAPA.Avalonia.Assistant.ClaudeAccount>(),
+            offRecord: sp.GetRequiredService<YAPA.Avalonia.Journal.OffTheRecord>(),
+            memory: sp.GetRequiredService<YAPA.Avalonia.Assistant.AssistantMemory>()));
 
         _provider = services.BuildServiceProvider();
     }

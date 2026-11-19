@@ -48,6 +48,8 @@
          LogicalName must match SoundLibrary.EmbeddedResourceName. -->
     <EmbeddedResource Include="Assets\tick.wav" LogicalName="YAPA.Avalonia.Assets.tick.wav" />
     <EmbeddedResource Include="Assets\ding.wav" LogicalName="YAPA.Avalonia.Assets.ding.wav" />
+    <!-- Read by AdultSites; the logical name must match the one it asks for. -->
+    <EmbeddedResource Include="Journal\AdultSites.txt" LogicalName="YAPA.Avalonia.Journal.AdultSites.txt" />
     <!-- Tray icon embedded as Avalonia resource -->
     <AvaloniaResource Include="Assets\pomoTray.ico" />
     <AvaloniaResource Include="Assets\yapa2_128.png" />

@@ -76,6 +76,8 @@ public sealed record BlockEvidence(
     IReadOnlyList<SiteUse> Sites,
     IReadOnlyList<AppUse> Apps)
 {
+    public static readonly BlockEvidence None = new([], [], [], []);
+
     public bool IsEmpty => Sessions.Count == 0 && Commits.Count == 0 && Sites.Count == 0 && Apps.Count == 0;
 
     /// <summary>Project names, most used first: conversations' folders, then repositories.</summary>

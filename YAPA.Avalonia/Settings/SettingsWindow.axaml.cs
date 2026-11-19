@@ -94,6 +94,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
         foreach (var sounds in Pages.OfType<SoundsPageViewModel>()) { sounds.EndPreviews(); sounds.Detach(); }
         foreach (var assistant in Pages.OfType<AssistantPageViewModel>()) assistant.Detach();
         foreach (var appearance in Pages.OfType<AppearancePageViewModel>()) appearance.Detach();
+        foreach (var journal in Pages.OfType<JournalPageViewModel>()) journal.Detach();
         base.OnClosed(e);
     }
 

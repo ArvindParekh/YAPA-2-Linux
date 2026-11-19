@@ -33,6 +33,7 @@ public sealed partial class TimerViewModel : ObservableObject
     private readonly IClock _clock;
     private readonly ITimer _forecastTimer;
     private readonly TimerTexts _texts;
+    private readonly YAPA.Avalonia.Journal.OffTheRecord? _offRecord;
 
     /// <summary>Settings that are never saved: the fallback wording store for tests.</summary>
     private sealed class NullEnvironment : IEnvironment
@@ -52,7 +53,8 @@ public sealed partial class TimerViewModel : ObservableObject
     /// </param>
     public TimerViewModel(IPomodoroEngine engine, PomodoroEngineSettings engineSettings, AvaloniaYapaThemeSettings theme,
         IAppNavigator navigator, YAPA.Avalonia.Audio.Ambience.AmbienceSettings ambience, GeneralSettings general,
-        IPomodoroRepository repository, IClock clock, ITimer forecastTimer, TimerTexts? texts = null)
+        IPomodoroRepository repository, IClock clock, ITimer forecastTimer, TimerTexts? texts = null,
+        YAPA.Avalonia.Journal.OffTheRecord? offRecord = null)
     {
         // Optional so the many places that build a view-model for tests needn't care.
         _texts = texts ?? new TimerTexts(new YAPA.Shared.Common.JsonYapaSettings(new NullEnvironment(), new YAPA.Shared.Common.NewtonsoftJson()));
@@ -82,6 +84,13 @@ public sealed partial class TimerViewModel : ObservableObject
         _theme.PropertyChanged += OnThemeChanged;
         // Today's count can change with no transition at all (the assistant edits history).
         _repository.Changed += _ => Refresh();
+        _offRecord = offRecord;
+        if (_offRecord != null)
+        {
+            // Raised from a timer thread when the time runs out.
+            _offRecord.Changed += () => global::Avalonia.Threading.Dispatcher.UIThread.Post(RefreshOffRecord);
+            RefreshOffRecord();
+        }
         Refresh();
     }
 
@@ -214,6 +223,37 @@ public sealed partial class TimerViewModel : ObservableObject
             var s => YAPA.Avalonia.Audio.Ambience.AmbienceGenerators.DisplayName(s) + (_ambience.Ticking ? " + ticking" : ""),
         };
         AmbienceMenuText = AmbienceConfigured ? what : "Ambience (choose a sound…)";
+    }
+
+    // ── Off the record ───────────────────────────────────────────────────────
+
+    /// <summary>The journal can go off the record (it's there to ask).</summary>
+    public bool CanGoOffRecord => _offRecord != null;
+
+    /// <summary>Nothing is being recorded or kept: the timer shows a mark while it lasts.</summary>
+    [ObservableProperty] private bool _isOffRecord;
+
+    /// <summary>Going off the record is on offer (the journal is there, and it's on the record now).</summary>
+    [ObservableProperty] private bool _canStartOffRecord;
+
+    [ObservableProperty] private string _backOnRecordText = "Back on the record";
+
+    /// <param name="minutes">How long, in minutes; empty for "until I turn it back on".</param>
+    [RelayCommand]
+    private void GoOffRecord(string? minutes)
+        => _offRecord?.Start(int.TryParse(minutes, out var m) && m > 0 ? TimeSpan.FromMinutes(m) : null);
+
+    [RelayCommand]
+    private void BackOnRecord() => _offRecord?.Stop();
+
+    private void RefreshOffRecord()
+    {
+        var until = _offRecord?.Until;
+        IsOffRecord = until != null;
+        CanStartOffRecord = _offRecord != null && until == null;
+        BackOnRecordText = until is { } u && u < YAPA.Avalonia.Journal.OffTheRecord.Indefinitely
+            ? $"Back on the record (off until {Platform.ClockFormat.ShortTime(u.ToLocalTime())})"
+            : "Back on the record";
     }
 
     [RelayCommand]

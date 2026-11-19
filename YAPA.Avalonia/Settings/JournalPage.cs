@@ -19,6 +19,7 @@ public sealed class JournalPageViewModel : SettingsPageViewModel
     {
         _settings = settings;
         _journal = journal;
+        _journal.OffRecord.Changed += OnOffRecordChanged;
         OpenDayCommand = new RelayCommand(() => App.Bootstrapper?.Resolve<AppNavigator>().ShowDay());
         ForgetCommand = new RelayCommand(() =>
         {
@@ -51,6 +52,28 @@ public sealed class JournalPageViewModel : SettingsPageViewModel
 
     public string Ignored { get => _settings.Ignored; set { _settings.Ignored = value; Changed(); } }
 
+    public bool SkipAdult { get => _settings.SkipAdult; set { _settings.SkipAdult = value; Changed(); } }
+
+    public string AdultDetail =>
+        $"About {AdultSites.Count / 100 * 100:N0} adult sites, and pages and windows whose titles name one, are never recorded or sent; the time one is in front is off the record. " +
+        "No list is complete: forget what it misses in Your day.";
+
+    /// <summary>On: off the record until turned back on. Off: back on it.</summary>
+    public bool OffRecord
+    {
+        get => _journal.OffRecord.IsActive;
+        set
+        {
+            if (value == _journal.OffRecord.IsActive) return;
+            if (value) _journal.OffRecord.Start(null);
+            else _journal.OffRecord.Stop();
+        }
+    }
+
+    public string OffRecordDetail => _journal.OffRecord.Until is { } until && until < OffTheRecord.Indefinitely
+        ? $"Until {Platform.ClockFormat.ShortTime(until.ToLocalTime())}: nothing is recorded, and nothing from this time is used or sent. Pomodoros still count."
+        : "Nothing is recorded, and nothing from this time is used or sent, until you switch it off. Pomodoros still count. Also in the timer's menu, for a set time.";
+
     public string WindowsDetail => !X11Session.IsX11Desktop
         ? "Needs an X11 session; on Wayland the desktop keeps this to itself."
         : WholeDay
@@ -65,4 +88,14 @@ public sealed class JournalPageViewModel : SettingsPageViewModel
     public IRelayCommand ForgetCommand { get; }
 
     protected override void ResetToDefaults() => _settings.ResetToDefaults();
+
+    // From a timer thread when the time runs out, or from the menu, the tray, the assistant.
+    private void OnOffRecordChanged() => global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+    {
+        Changed(nameof(OffRecord));
+        Changed(nameof(OffRecordDetail));
+    });
+
+    /// <summary>The window closed: stop listening to the journal, which outlives it.</summary>
+    public void Detach() => _journal.OffRecord.Changed -= OnOffRecordChanged;
 }

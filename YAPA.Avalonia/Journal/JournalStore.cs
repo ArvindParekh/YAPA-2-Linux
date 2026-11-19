@@ -17,9 +17,20 @@ namespace YAPA.Avalonia.Journal;
 public sealed record StoredDay(DaySummary Summary, IReadOnlyDictionary<int, string> Fingerprints, DateTime WrittenUtc);
 
 /// <summary>
-/// The journal's own tables in <c>Yapa.db</c>: the windows in front during pomodoros, the
-/// titles the user gave pomodoros, and the summaries Claude wrote (so a day opens at once
-/// and is only rewritten when its evidence changes). Older builds ignore these tables.
+/// Time that is off the record: forgotten afterwards, or gone off the record while it happened.
+/// Nothing from any source is used for it.
+/// </summary>
+/// <param name="EndUtc">For time off the record until turned back on, far in the future.</param>
+public sealed record OffRecordRange(long Id, DateTime StartUtc, DateTime EndUtc, string Kind)
+{
+    public const string Forgotten = "forgotten";
+    public const string Live = "off the record";
+}
+
+/// <summary>
+/// The journal's own tables in <c>Yapa.db</c>: the windows in front, the titles the user gave
+/// pomodoros, the summaries Claude wrote (so a day opens at once and is only rewritten when its
+/// evidence changes), and the time that is off the record. Older builds ignore these tables.
 /// </summary>
 public sealed class JournalStore : IDisposable
 {
@@ -32,6 +43,10 @@ public sealed class JournalStore : IDisposable
             "PomodoroId" INTEGER NOT NULL PRIMARY KEY, "Title" TEXT NOT NULL, "EditedUtc" TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS "JournalDays" (
             "Day" TEXT NOT NULL PRIMARY KEY, "Summary" TEXT NOT NULL, "Fingerprints" TEXT NOT NULL, "WrittenUtc" TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS "OffRecord" (
+            "Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            "StartUtc" TEXT NOT NULL, "EndUtc" TEXT NOT NULL, "Kind" TEXT NOT NULL, "CreatedUtc" TEXT NOT NULL);
+        CREATE INDEX IF NOT EXISTS "OffRecordByEnd" ON "OffRecord" ("EndUtc");
         """;
 
     private const string TimeFormat = "yyyy-MM-dd HH:mm:ss";
@@ -72,6 +87,12 @@ public sealed class JournalStore : IDisposable
     /// </summary>
     public const string Paused = "(paused)";
 
+    /// <summary>
+    /// No span is longer than this (the recorder starts a new one), so a day's spans are found
+    /// by their start alone, through the index, however long the history grows.
+    /// </summary>
+    public static readonly TimeSpan LongestSpan = TimeSpan.FromHours(12);
+
     /// <returns>The span's id, to extend it; 0 when nothing could be written.</returns>
     public long BeginSpan(DateTime startUtc, string app, string title)
     {
@@ -91,13 +112,51 @@ public sealed class JournalStore : IDisposable
     public IReadOnlyList<WindowSpan> Spans(DateTime fromUtc, DateTime toUtc)
     {
         var result = new List<WindowSpan>();
+        // Bounded on both sides of the start: "EndUtc >= $from" alone can't use the index,
+        // and today's lookup would read every span ever recorded.
         Query("""
             SELECT "StartUtc", "EndUtc", "App", "Title" FROM "ActivitySpans"
-            WHERE "EndUtc" >= $from AND "StartUtc" <= $to ORDER BY "StartUtc";
+            WHERE "StartUtc" >= $earliest AND "StartUtc" <= $to AND "EndUtc" >= $from ORDER BY "StartUtc";
             """, r =>
         {
             if (Parse(r.GetString(0)) is { } s && Parse(r.GetString(1)) is { } e) result.Add(new WindowSpan(s, e, r.GetString(2), r.GetString(3)));
-        }, ("$from", Format(fromUtc)), ("$to", Format(toUtc)));
+        }, ("$earliest", Format(fromUtc - LongestSpan)), ("$from", Format(fromUtc)), ("$to", Format(toUtc)));
+        return result;
+    }
+
+    /// <summary>
+    /// Deletes what was recorded in [fromUtc, toUtc]: spans inside it go, spans across its
+    /// edges are cut back to them (and one that covers it all is split in two).
+    /// </summary>
+    public void DeleteSpans(DateTime fromUtc, DateTime toUtc)
+    {
+        var from = Format(fromUtc);
+        var to = Format(toUtc);
+        var earliest = Format(fromUtc - LongestSpan);
+        ExecuteAtomically("""
+            INSERT INTO "ActivitySpans" ("StartUtc", "EndUtc", "App", "Title")
+                SELECT $to, "EndUtc", "App", "Title" FROM "ActivitySpans"
+                WHERE "StartUtc" >= $earliest AND "StartUtc" < $from AND "EndUtc" > $to;
+            UPDATE "ActivitySpans" SET "EndUtc" = $from
+                WHERE "StartUtc" >= $earliest AND "StartUtc" < $from AND "EndUtc" > $from;
+            DELETE FROM "ActivitySpans" WHERE "StartUtc" >= $from AND "StartUtc" <= $to AND "EndUtc" <= $to;
+            UPDATE "ActivitySpans" SET "StartUtc" = $to WHERE "StartUtc" >= $from AND "StartUtc" < $to;
+            """, ("$earliest", earliest), ("$from", from), ("$to", to));
+    }
+
+    /// <summary>The hours (UTC, on the hour) in [fromUtc, toUtc) in which a window was recorded: for marking days at the computer.</summary>
+    public IReadOnlyList<DateTime> RecordedHours(DateTime fromUtc, DateTime toUtc)
+    {
+        var result = new List<DateTime>();
+        Query("""
+            SELECT DISTINCT substr("StartUtc", 1, 13) FROM "ActivitySpans"
+            WHERE "StartUtc" >= $from AND "StartUtc" < $to AND "App" <> $paused;
+            """, r =>
+        {
+            if (DateTime.TryParseExact(r.GetString(0), "yyyy-MM-dd HH", CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var hour))
+                result.Add(DateTime.SpecifyKind(hour, DateTimeKind.Utc));
+        }, ("$from", Format(fromUtc)), ("$to", Format(toUtc)), ("$paused", Paused));
         return result;
     }
 
@@ -105,6 +164,34 @@ public sealed class JournalStore : IDisposable
     {
         var n = Scalar("""SELECT COUNT(*) FROM "ActivitySpans";""");
         return n is long l ? (int)l : 0;
+    }
+
+    // ── Off the record ───────────────────────────────────────────────────────
+
+    public long AddOffRecord(DateTime startUtc, DateTime endUtc, string kind)
+    {
+        var id = Scalar("""
+            INSERT INTO "OffRecord" ("StartUtc", "EndUtc", "Kind", "CreatedUtc") VALUES ($start, $end, $kind, $at);
+            SELECT last_insert_rowid();
+            """, ("$start", Format(startUtc)), ("$end", Format(endUtc)), ("$kind", kind), ("$at", Format(DateTime.UtcNow)));
+        return id is long l ? l : 0;
+    }
+
+    public void SetOffRecordEnd(long id, DateTime endUtc)
+        => Execute("""UPDATE "OffRecord" SET "EndUtc" = $end WHERE "Id" = $id;""", ("$end", Format(endUtc)), ("$id", id));
+
+    /// <summary>Time off the record that overlaps [fromUtc, toUtc].</summary>
+    public IReadOnlyList<OffRecordRange> OffRecord(DateTime fromUtc, DateTime toUtc)
+    {
+        var result = new List<OffRecordRange>();
+        // Few rows, and indexed by end: those ending before the range are skipped.
+        Query("""
+            SELECT "Id", "StartUtc", "EndUtc", "Kind" FROM "OffRecord" WHERE "EndUtc" >= $from AND "StartUtc" <= $to ORDER BY "StartUtc";
+            """, r =>
+        {
+            if (Parse(r.GetString(1)) is { } s && Parse(r.GetString(2)) is { } e) result.Add(new OffRecordRange(r.GetInt64(0), s, e, r.GetString(3)));
+        }, ("$from", Format(fromUtc)), ("$to", Format(toUtc)));
+        return result;
     }
 
     // ── Titles the user gave ─────────────────────────────────────────────────
@@ -132,6 +219,12 @@ public sealed class JournalStore : IDisposable
     }
 
     // ── Summaries ────────────────────────────────────────────────────────────
+
+    public void RemoveTitles(IEnumerable<int> pomodoroIds)
+    {
+        var ids = pomodoroIds.Distinct().ToList();
+        if (ids.Count > 0) Execute($"""DELETE FROM "JournalTitles" WHERE "PomodoroId" IN ({string.Join(",", ids)});""");
+    }
 
     public StoredDay? Day(DateOnly day)
     {
@@ -161,7 +254,11 @@ public sealed class JournalStore : IDisposable
             ("$at", Format(DateTime.UtcNow)));
     }
 
-    /// <summary>Everything the journal recorded or wrote. The pomodoros themselves stay.</summary>
+    /// <summary>
+    /// Everything the journal recorded or wrote. The pomodoros themselves stay, and so does the
+    /// time off the record: the browsers and Claude Code still have what happened in it, and
+    /// only those ranges keep it out.
+    /// </summary>
     public void Forget()
     {
         Execute("""DELETE FROM "ActivitySpans"; DELETE FROM "JournalDays"; DELETE FROM "JournalTitles";""");
@@ -202,6 +299,16 @@ public sealed class JournalStore : IDisposable
             : null;
 
     private void Execute(string sql, params (string Name, object Value)[] parameters) => Run(sql, c => c.ExecuteNonQuery(), parameters);
+
+    // All of it or none: a half-done delete could leave a span cut but its other half missing.
+    private void ExecuteAtomically(string sql, params (string Name, object Value)[] parameters) => Run(sql, c =>
+    {
+        using var transaction = c.Connection!.BeginTransaction();
+        c.Transaction = transaction;
+        var rows = c.ExecuteNonQuery();
+        transaction.Commit();
+        return rows;
+    }, parameters);
 
     private object? Scalar(string sql, params (string Name, object Value)[] parameters) => Run(sql, c => c.ExecuteScalar(), parameters);
 

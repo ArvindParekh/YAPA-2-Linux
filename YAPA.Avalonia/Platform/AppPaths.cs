@@ -18,6 +18,12 @@ public static class AppPaths
     public static string DataDirectory { get; }
     public static string CacheDirectory { get; }
 
+    /// <summary>
+    /// For short-lived copies that must never reach the disk: the user's runtime directory
+    /// (a RAM-backed tmpfs on systemd systems, readable by them only), else the cache.
+    /// </summary>
+    public static string RuntimeDirectory { get; }
+
     /// <summary>Stable per-profile key for the single-instance mutex and IPC socket.</summary>
     public static string InstanceKey { get; }
 
@@ -49,6 +55,12 @@ public static class AppPaths
             DataDirectory = Path.Combine(Xdg("XDG_DATA_HOME", Path.Combine(home, ".local", "share")), "YAPA2");
             CacheDirectory = Path.Combine(Xdg("XDG_CACHE_HOME", Path.Combine(home, ".cache")), "YAPA2");
         }
+
+        var runtime = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
+        RuntimeDirectory = !string.IsNullOrWhiteSpace(runtime) && Path.IsPathRooted(runtime) && Directory.Exists(runtime)
+            // One folder per profile, so an isolated instance never shares the real one's.
+            ? Path.Combine(runtime, IsIsolated ? "YAPA2-" + ShortHash(ConfigDirectory) : "YAPA2")
+            : CacheDirectory;
 
         InstanceKey = IsIsolated
             ? $"{Environment.UserName}-{ShortHash(ConfigDirectory)}"

@@ -89,6 +89,16 @@ public sealed class JournalSettings : IPluginSettings, INotifyPropertyChanged
         set => Set(value ?? "");
     }
 
+    /// <summary>
+    /// Adult sites and titles (<see cref="AdultSites"/>) are never recorded or sent: the time an
+    /// adult window is in front is off the record, and adult pages are left out of the history.
+    /// </summary>
+    public bool SkipAdult
+    {
+        get => _s.Get(nameof(SkipAdult), true);
+        set => Set(value);
+    }
+
     public const string DefaultIgnored = "Telegram\nKeePassXC\nBitwarden\n1Password\nPrivate Browsing\nIncognito";
 
     public IReadOnlyList<string> IgnoredTerms => Lines(Ignored);
@@ -112,6 +122,7 @@ public sealed class JournalSettings : IPluginSettings, INotifyPropertyChanged
         Browsers = true;
         Summaries = true;
         Ignored = DefaultIgnored;
+        SkipAdult = true;
     }
 
     public void DeferChanges() => _s.DeferChanges();

@@ -27,6 +27,8 @@ public sealed class SystemTrayService : IDisposable
     private readonly NativeMenuItem _markDone = new("Mark a pomodoro done");
     private readonly NativeMenuItem _reset = new("Reset cycle");
     private readonly NativeMenuItem _ambience = new("Ambience") { ToggleType = MenuItemToggleType.CheckBox };
+    private readonly NativeMenuItem _offRecord = new("Off the record");
+    private readonly NativeMenuItem _backOnRecord = new("Back on the record");
     private bool _disposed;
     private bool _frozen;
 
@@ -87,6 +89,17 @@ public sealed class SystemTrayService : IDisposable
         var quit = new NativeMenuItem("Quit YAPA");
         quit.Click += (_, _) => _navigator.Quit();
 
+        // Same choices as the timer's menu.
+        var lengths = new NativeMenu();
+        foreach (var (label, minutes) in new[] { ("For 30 minutes", "30"), ("For an hour", "60"), ("For 3 hours", "180"), ("Until I turn it back on", "") })
+        {
+            var item = new NativeMenuItem(label);
+            item.Click += (_, _) => _vm.GoOffRecordCommand.Execute(minutes);
+            lengths.Add(item);
+        }
+        _offRecord.Menu = lengths;
+        _backOnRecord.Click += (_, _) => _vm.BackOnRecordCommand.Execute(null);
+
         var menu = new NativeMenu();
         menu.Add(_showHide);
         menu.Add(new NativeMenuItemSeparator());
@@ -102,6 +115,8 @@ public sealed class SystemTrayService : IDisposable
         menu.Add(new NativeMenuItemSeparator());
         menu.Add(ask);
         menu.Add(day);
+        menu.Add(_offRecord);
+        menu.Add(_backOnRecord);
         menu.Add(stats);
         menu.Add(settings);
         menu.Add(new NativeMenuItemSeparator());
@@ -119,7 +134,8 @@ public sealed class SystemTrayService : IDisposable
                  or nameof(TimerViewModel.CanMarkDone)
                  or nameof(TimerViewModel.CanLongBreak) or nameof(TimerViewModel.LongBreakMenuText)
                  or nameof(TimerViewModel.AmbienceOn) or nameof(TimerViewModel.AmbienceMenuText)
-                 or nameof(TimerViewModel.StartMenuText) or nameof(TimerViewModel.StopMenuText))
+                 or nameof(TimerViewModel.StartMenuText) or nameof(TimerViewModel.StopMenuText)
+                 or nameof(TimerViewModel.CanStartOffRecord) or nameof(TimerViewModel.IsOffRecord) or nameof(TimerViewModel.BackOnRecordText))
             Refresh();
     }
 
@@ -139,6 +155,9 @@ public sealed class SystemTrayService : IDisposable
         _reset.IsEnabled = _vm.CanReset;
         _ambience.Header = _vm.AmbienceMenuText;
         _ambience.IsChecked = _vm.AmbienceOn;
+        _offRecord.IsVisible = _vm.CanStartOffRecord;
+        _backOnRecord.IsVisible = _vm.IsOffRecord;
+        _backOnRecord.Header = _vm.BackOnRecordText;
     }
 
     public void Dispose()

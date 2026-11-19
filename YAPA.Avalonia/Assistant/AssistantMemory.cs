@@ -112,6 +112,56 @@ public sealed class AssistantMemory
         }
     }
 
+    /// <summary>
+    /// Conversations still going on at or after <paramref name="sinceUtc"/>: any of them could
+    /// have read about that time.
+    /// </summary>
+    public int CountSince(DateTime sinceUtc) => ReadAll().Count(c => LastAt(c) >= sinceUtc);
+
+    /// <summary>Deletes the conversations <see cref="CountSince"/> counts.</summary>
+    /// <returns>How many were deleted.</returns>
+    public int ForgetSince(DateTime sinceUtc)
+    {
+        var all = ReadAll();
+        var keep = all.Where(c => LastAt(c) < sinceUtc).ToList();
+        if (keep.Count == all.Count) return 0;
+        try
+        {
+            if (keep.Count == 0) File.Delete(_archivePath);
+            else AtomicFile.WriteAllText(_archivePath, string.Join("\n", keep.Select(c => JsonSerializer.Serialize(c))) + "\n");
+            return all.Count - keep.Count;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Trace.WriteLine($"[assistant] can't delete past conversations: {e.Message}");
+            return 0;
+        }
+    }
+
+    private static DateTime LastAt(ArchivedConversation c) => c.Exchanges.Count > 0 ? c.Exchanges.Max(x => x.AtUtc) : c.StartedUtc;
+
+    private List<ArchivedConversation> ReadAll()
+    {
+        try
+        {
+            if (!File.Exists(_archivePath)) return [];
+            return File.ReadLines(_archivePath)
+                .Where(line => line.Length > 0)
+                .Select(line =>
+                {
+                    try { return JsonSerializer.Deserialize<ArchivedConversation>(line); }
+                    catch (JsonException) { return null; }
+                })
+                .Where(c => c != null)
+                .ToList()!;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Trace.WriteLine($"[assistant] can't read past conversations: {e.Message}");
+            return [];
+        }
+    }
+
     public void ClearConversations()
     {
         try { File.Delete(_archivePath); }

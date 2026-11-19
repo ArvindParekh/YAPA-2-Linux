@@ -82,7 +82,7 @@ public sealed partial class EntryViewModel : ObservableObject
         Range = $"{Start} – {Time(entry.Block.EndUtc)}";
         Length = entry.OffTimer ? (entry.Block.Minutes < 3 ? "a moment" : $"~{entry.Block.Minutes} min")
             : entry.InProgress ? $"{entry.Block.Minutes} min in" : $"{entry.Block.Minutes} min";
-        var color = colors(entry.Projects.FirstOrDefault());
+        var color = entry.OffRecord ? ProjectColors.None : colors(entry.Projects.FirstOrDefault());
         // Off the timer, the rail is a quieter version of the project's colour: it wasn't focus.
         Color = new SolidColorBrush(entry.OffTimer ? global::Avalonia.Media.Color.FromArgb(0x55, color.R, color.G, color.B) : color);
         Projects = entry.Projects.DistinctBy(ProjectColors.Key).Select(p => new ProjectChip(p, new SolidColorBrush(colors(p)), "")).ToList();
@@ -107,6 +107,37 @@ public sealed partial class EntryViewModel : ObservableObject
     public bool HasEvidence => Evidence.Count > 0;
     public bool InProgress => Entry.InProgress;
     public bool IsOffTimer => Entry.OffTimer;
+
+    /// <summary>A pomodoro whose time is off the record: it's there, and nothing about it is.</summary>
+    public bool IsOffRecord => Entry.OffRecord;
+
+    /// <summary>Anything to forget: off the record already has nothing.</summary>
+    public bool CanForget => !IsOffRecord;
+
+    public bool CanRename => !InProgress && !IsOffRecord;
+
+    public string ForgetNote => IsOffTimer
+        ? "Its windows and write-up are deleted, and nothing from that time is read again. Your browser's and Claude Code's own history aren't touched."
+        : "What was recorded in it and its write-up are deleted, and nothing from that time is read again. The pomodoro stays, and still counts. " +
+          "Your browser's and Claude Code's own history aren't touched.";
+
+    /// <summary>"Forget 21:40 – 22:15?", up to now for the one going on.</summary>
+    public string ForgetQuestion => InProgress ? $"Forget {Start} until now?" : $"Forget {Range.Replace(" – ", "–")}?";
+
+    /// <summary>Ask YAPA conversations that would go with it; read when the confirmation opens.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasConversations), nameof(ConversationsText))]
+    private int _conversations;
+
+    [ObservableProperty] private bool _forgetConversations = true;
+
+    public bool HasConversations => Conversations > 0;
+    public string ConversationsText => DayViewModel.ConversationsLabel(Conversations);
+
+    public void PrepareForget() => Conversations = _day.ConversationsSince(Entry.Block.StartUtc);
+
+    [RelayCommand]
+    private void Forget() => _day.Forget(Entry.Block.StartUtc, InProgress ? null : Entry.Block.EndUtc, ForgetConversations && HasConversations);
     public string NowLabel => IsOffTimer ? "NOW" : "UNDER WAY";
     public bool IsNamedByUser => Entry.UserTitle != null;
 
@@ -117,7 +148,7 @@ public sealed partial class EntryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsBlank), nameof(ShownTitle))]
     private string _title;
 
-    public string ShownTitle => Title.Length > 0 ? Title : InProgress ? "Under way" : "Nothing on record";
+    public string ShownTitle => IsOffRecord ? "Off the record" : Title.Length > 0 ? Title : InProgress ? "Under way" : "Nothing on record";
 
     [ObservableProperty] private bool _isExpanded;
 
@@ -133,7 +164,7 @@ public sealed partial class EntryViewModel : ObservableObject
     [RelayCommand]
     private void Edit()
     {
-        if (InProgress) return;
+        if (InProgress || IsOffRecord) return;
         EditText = Title;
         IsEditing = true;
     }
@@ -230,6 +261,45 @@ public sealed class SessionViewModel
     public IReadOnlyList<EntryViewModel> Entries { get; }
 }
 
+/// <summary>A day in the calendar: its number, and a dot when anything happened on it.</summary>
+public sealed partial class CalendarDay : ObservableObject
+{
+    public CalendarDay(DateOnly date, bool inMonth, bool isToday, bool isSelected, bool isFuture)
+    {
+        Date = date;
+        InMonth = inMonth;
+        IsToday = isToday;
+        IsSelected = isSelected;
+        IsFuture = isFuture;
+    }
+
+    public DateOnly Date { get; }
+    public string Label => Date.Day.ToString(CultureInfo.CurrentCulture);
+    public bool InMonth { get; }
+    public bool IsToday { get; }
+    public bool IsSelected { get; }
+    public bool IsFuture { get; }
+    public bool CanPick => !IsFuture;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPomodoros), nameof(OnlyPresence), nameof(DotOpacity), nameof(Tip))]
+    private int _pomodoros;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OnlyPresence), nameof(Tip))]
+    private bool _atComputer;
+
+    public bool HasPomodoros => Pomodoros > 0;
+
+    /// <summary>At the computer, without a pomodoro: a quieter mark.</summary>
+    public bool OnlyPresence => AtComputer && Pomodoros == 0;
+
+    /// <summary>Fuller for a fuller day, so a month reads at a glance.</summary>
+    public double DotOpacity => Pomodoros == 0 ? 0 : 0.4 + 0.6 * Math.Min(1.0, Pomodoros / 10.0);
+
+    public string Tip => Pomodoros > 0 ? $"{Pomodoros} pomodoro{(Pomodoros == 1 ? "" : "s")}" : AtComputer ? "At the computer, no pomodoros" : "";
+}
+
 /// <summary>A block on the day's ribbon.</summary>
 public sealed record RibbonBlock(double Start, double Length, Color Color, string Tip, int PomodoroId, bool InProgress, bool OffTimer = false);
 
@@ -248,13 +318,26 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
     private JournalDay? _current;
     private int _generation;
     private Func<string?, Color> _colors = ProjectColors.ForDay([]);
+    private readonly DispatcherTimer _noticeTimer;
 
     public DayViewModel(JournalService journal, JournalSettings settings)
     {
         _journal = journal;
         _settings = settings;
         _date = journal.Today;
+        _calendarMonth = new DateOnly(_date.Year, _date.Month, 1);
         _journal.DayChanged += OnDayChanged;
+        _journal.OffRecord.Changed += OnOffRecordChanged;
+        RefreshOffRecord();
+        var names = CultureInfo.CurrentCulture.DateTimeFormat.ShortestDayNames;
+        var firstDay = (int)CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek;
+        WeekdayInitials = Enumerable.Range(0, 7).Select(i => names[(firstDay + i) % 7]).ToList();
+        _noticeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+        _noticeTimer.Tick += (_, _) =>
+        {
+            _noticeTimer.Stop();
+            Notice = "";
+        };
         // The pomodoro under way grows; today's view keeps up once a minute.
         _live = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _live.Tick += (_, _) => { if (IsToday && !IsWriting) _ = LoadAsync(write: false); };
@@ -296,9 +379,231 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
         get
         {
             var text = new StringBuilder(_settings.WholeDay ? "Read on this computer, all day" : "Read on this computer, from inside pomodoros only");
-            if (_settings.PauseApps.Count > 0) text.Append(". Nothing at all while ").Append(string.Join(" or ", _settings.PauseApps)).Append(" is open");
-            text.Append(", and nothing from the apps you skip. The write-up goes to Claude through your own sign-in, with anything that looks like a key or a password blanked. Settings → Journal says what's read.");
+            text.Append(". Nothing while you're off the record");
+            if (_settings.PauseApps.Count > 0) text.Append(" or ").Append(string.Join(" or ", _settings.PauseApps)).Append(" is open");
+            if (_settings.SkipAdult) text.Append(", nothing from adult sites");
+            text.Append(", nothing from the apps you skip, and nothing from time you forget. The write-up goes to Claude through your own sign-in, " +
+                        "with anything that looks like a key or a password blanked. Settings → Journal says what's read.");
             return text.ToString();
+        }
+    }
+
+    // ── Off the record ───────────────────────────────────────────────────────
+
+    [ObservableProperty] private bool _isOffRecord;
+    [ObservableProperty] private string _offRecordText = "";
+
+    private void OnOffRecordChanged() => Dispatcher.UIThread.Post(() =>
+    {
+        RefreshOffRecord();
+        if (IsToday && !IsWriting) _ = LoadAsync(write: false);
+    });
+
+    private void RefreshOffRecord()
+    {
+        var until = _journal.OffRecord.Until;
+        IsOffRecord = until != null;
+        OffRecordText = until is { } u && u < OffTheRecord.Indefinitely
+            ? $"Off the record until {Time(u)}. Nothing is being recorded, and nothing from this time will be used."
+            : "Off the record until you turn it back on. Nothing is being recorded, and nothing from this time will be used.";
+    }
+
+    /// <param name="minutes">How long; empty for until turned back on.</param>
+    [RelayCommand]
+    private void GoOffRecord(string? minutes)
+        => _journal.OffRecord.Start(int.TryParse(minutes, out var m) && m > 0 ? TimeSpan.FromMinutes(m) : null);
+
+    [RelayCommand]
+    private void BackOnRecord() => _journal.OffRecord.Stop();
+
+    // ── Forgetting ───────────────────────────────────────────────────────────
+
+    /// <summary>A line under the day for a few seconds: what was just forgotten.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNotice))]
+    private string _notice = "";
+
+    public bool HasNotice => Notice.Length > 0;
+
+    [ObservableProperty] private bool _isForgetting;
+
+    /// <summary>The stretch to forget, as typed: "21:40", and "now" (today) or "24:00" for the end of the day.</summary>
+    [ObservableProperty] private string _forgetFrom = "";
+    [ObservableProperty] private string _forgetTo = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasForgetProblem))]
+    private string _forgetProblem = "";
+
+    public bool HasForgetProblem => ForgetProblem.Length > 0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasForgetConversations), nameof(ForgetConversationsText))]
+    private int _forgetConversationCount;
+
+    [ObservableProperty] private bool _forgetConversations = true;
+
+    public bool HasForgetConversations => ForgetConversationCount > 0;
+    public string ForgetConversationsText => ConversationsLabel(ForgetConversationCount);
+
+    public static string ConversationsLabel(int count)
+        => count == 1 ? "Also delete the Ask YAPA conversation since then" : $"Also delete the {count} Ask YAPA conversations since then";
+
+    internal int ConversationsSince(DateTime utc) => _journal.ConversationsSince(utc);
+
+    /// <summary>The Forget panel opened: start from the last quarter of an hour today, or the whole of a past day.</summary>
+    public void PrepareForgetRange()
+    {
+        if (IsToday) Preset("15");
+        else Preset("day");
+        ForgetProblem = "";
+    }
+
+    [RelayCommand]
+    private void ForgetPreset(string which)
+    {
+        Preset(which);
+        ForgetProblem = "";
+    }
+
+    private void Preset(string which)
+    {
+        var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _zone);
+        switch (which)
+        {
+            case "15" or "60" when IsToday:
+                var start = now.AddMinutes(-int.Parse(which, CultureInfo.InvariantCulture));
+                ForgetFrom = (start.Date < now.Date ? now.Date : start).ToString("HH:mm", CultureInfo.InvariantCulture);
+                ForgetTo = "now";
+                break;
+            default:
+                ForgetFrom = "00:00";
+                ForgetTo = IsToday ? "now" : "24:00";
+                break;
+        }
+    }
+
+    partial void OnForgetFromChanged(string value)
+    {
+        ForgetConversationCount = ParseForget(value, isEnd: false) is { } from ? _journal.ConversationsSince(from) : 0;
+    }
+
+    /// <returns>True when it went ahead; otherwise <see cref="ForgetProblem"/> says why.</returns>
+    public bool ForgetTypedRange()
+    {
+        var from = ParseForget(ForgetFrom, isEnd: false);
+        var to = ParseForget(ForgetTo, isEnd: true);
+        var now = DateTime.UtcNow;
+        ForgetProblem = from == null || to == null
+            ? IsToday ? "Times are like 21:40; the end can also be \"now\"." : "Times are like 21:40; the end can also be 24:00."
+            : from >= now ? "That hasn't happened yet. To keep what's coming off the record, go off the record below."
+            : to <= from ? "The end comes before the start."
+            : "";
+        if (HasForgetProblem) return false;
+        Forget(from!.Value, to!.Value < now ? to : null, ForgetConversations && HasForgetConversations);
+        return true;
+    }
+
+    private DateTime? ParseForget(string text, bool isEnd)
+    {
+        var t = text.Trim().ToLowerInvariant();
+        if (isEnd && t == "now" && IsToday) return DateTime.UtcNow;
+        if (isEnd && t is "24:00" or "24") return _journal.Bounds(Date).To;
+        if (!TimeOnly.TryParseExact(t, ["HH:mm", "H:mm", "HH.mm", "H.mm", "HHmm", "%H"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)) return null;
+        return TimeZoneInfo.ConvertTimeToUtc(Date.ToDateTime(time), _zone);
+    }
+
+    /// <param name="toUtc">Null: up to now.</param>
+    internal async void Forget(DateTime fromUtc, DateTime? toUtc, bool conversations)
+    {
+        IsForgetting = true;
+        try
+        {
+            var outcome = await Task.Run(() => _journal.Forget(fromUtc, toUtc ?? DateTime.UtcNow, conversations));
+            var deleted = outcome.Conversations > 0 ? $", with {outcome.Conversations} Ask YAPA conversation{(outcome.Conversations == 1 ? "" : "s")}" : "";
+            Notice = $"Forgot {Time(outcome.FromUtc)}–{Time(outcome.ToUtc)}{deleted}. Your browser's and Claude Code's own history weren't touched; YAPA won't read that time again.";
+            _noticeTimer.Stop();
+            _noticeTimer.Start();
+        }
+        catch (Exception e) when (e is ArgumentException or System.IO.IOException)
+        {
+            Notice = $"Couldn't forget it: {e.Message}";
+        }
+        finally
+        {
+            IsForgetting = false;
+        }
+        await LoadAsync(write: true);
+    }
+
+    private string Time(DateTime utc)
+        => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), _zone).ToString(ClockFormat.Is24Hour ? "HH:mm" : "h:mm tt", CultureInfo.CurrentCulture);
+
+    // ── Calendar ─────────────────────────────────────────────────────────────
+
+    public ObservableCollection<CalendarDay> CalendarDays { get; } = [];
+    public IReadOnlyList<string> WeekdayInitials { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CalendarTitle), nameof(CanCalendarNext))]
+    private DateOnly _calendarMonth;
+
+    public string CalendarTitle => CalendarMonth.ToString("MMMM yyyy", CultureInfo.CurrentCulture);
+    public bool CanCalendarNext => CalendarMonth < new DateOnly(_journal.Today.Year, _journal.Today.Month, 1);
+
+    /// <summary>Asks the window to close the calendar: a day was picked.</summary>
+    public event Action? CalendarDone;
+
+    /// <summary>The calendar opened: the month of the day shown.</summary>
+    public void PrepareCalendar() => ShowMonth(new DateOnly(Date.Year, Date.Month, 1));
+
+    [RelayCommand]
+    private void CalendarPrevious() => ShowMonth(CalendarMonth.AddMonths(-1));
+
+    [RelayCommand]
+    private void CalendarNext()
+    {
+        if (CanCalendarNext) ShowMonth(CalendarMonth.AddMonths(1));
+    }
+
+    [RelayCommand]
+    private void PickDay(CalendarDay day)
+    {
+        if (day.IsFuture) return;
+        CalendarDone?.Invoke();
+        Go(day.Date);
+    }
+
+    private int _monthGeneration;
+
+    /// <summary>Six weeks around the month, so the calendar keeps its height; the marks fill in once read.</summary>
+    private async void ShowMonth(DateOnly first)
+    {
+        CalendarMonth = first;
+        var generation = ++_monthGeneration;
+        var today = _journal.Today;
+        var lead = ((int)first.DayOfWeek - (int)CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek + 7) % 7;
+        var start = first.AddDays(-lead);
+        CalendarDays.Clear();
+        for (var i = 0; i < 42; i++)
+        {
+            var d = start.AddDays(i);
+            CalendarDays.Add(new CalendarDay(d, d.Month == first.Month, d == today, d == Date, d > today));
+        }
+        try
+        {
+            var marks = await Task.Run(() => _journal.Marks(start, start.AddDays(41)));
+            if (generation != _monthGeneration) return;
+            foreach (var day in CalendarDays)
+                if (marks.TryGetValue(day.Date, out var mark))
+                {
+                    day.Pomodoros = mark.Pomodoros;
+                    day.AtComputer = mark.AtComputer;
+                }
+        }
+        catch (Exception e) when (e is InvalidOperationException or System.IO.IOException)
+        {
+            // Without marks the calendar still works.
         }
     }
 
@@ -335,7 +640,7 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
 
     private void Go(DateOnly date)
     {
-        if (date == Date) return;
+        if (date == Date || date > _journal.Today) return;
         Date = date;
         Sessions.Clear();
         ProjectTotals.Clear();
@@ -450,7 +755,9 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
     private static string FallbackHeadline(JournalDay day)
     {
         var projects = Totals(day).Take(3).Select(p => p.Name).ToList();
-        return projects.Count > 0 ? string.Join(", ", projects) : day.Count > 0 ? $"{day.Count} pomodoros" : "No pomodoros, but you were at the computer";
+        return projects.Count > 0 ? string.Join(", ", projects)
+            : day.Count > 0 ? $"{day.Count} pomodoro{(day.Count == 1 ? "" : "s")}"
+            : "No pomodoros, but you were at the computer";
     }
 
     /// <summary>
@@ -497,8 +804,9 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
         {
             var s = TimeZoneInfo.ConvertTimeFromUtc(e.Block.StartUtc, _zone);
             var f = TimeZoneInfo.ConvertTimeFromUtc(e.Block.EndUtc, _zone);
-            return new RibbonBlock((s - RibbonStartLocal).TotalMinutes, (f - s).TotalMinutes, _colors(e.Projects.FirstOrDefault()),
-                e.Title.Length > 0 ? e.Title : "Nothing on record", e.Block.PomodoroId, e.InProgress, e.OffTimer);
+            return new RibbonBlock((s - RibbonStartLocal).TotalMinutes, (f - s).TotalMinutes,
+                e.OffRecord ? ProjectColors.None : _colors(e.Projects.FirstOrDefault()),
+                e.OffRecord ? "Off the record" : e.Title.Length > 0 ? e.Title : "Nothing on record", e.Block.PomodoroId, e.InProgress, e.OffTimer);
         }).ToList();
     }
 
@@ -580,7 +888,9 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _live.Stop();
+        _noticeTimer.Stop();
         _loading?.Cancel();
         _journal.DayChanged -= OnDayChanged;
+        _journal.OffRecord.Changed -= OnOffRecordChanged;
     }
 }

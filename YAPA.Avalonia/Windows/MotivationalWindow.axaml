@@ -32,12 +32,18 @@
 
         <Grid Margin="16,10,16,10" RowDefinitions="Auto,*,Auto,Auto,Auto">
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
-                <TextBlock x:Name="StatusLabel"
-                           Foreground="{Binding #Root.TextBrush}"
-                           FontSize="11" FontWeight="Medium" Opacity="0.8" VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis">
-                    <Run Text="{Binding StatusText}" /><Run Text="{Binding CycleSuffix}" FontWeight="Normal" /><Run Text="{Binding NoteSuffix}" FontWeight="Normal" />
-                </TextBlock>
+                <DockPanel VerticalAlignment="Center">
+                    <Path DockPanel.Dock="Left" IsVisible="{Binding IsOffRecord}" Width="11" Height="11" Stretch="Uniform"
+                          Stroke="{Binding #Root.TextBrush}" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round" Opacity="0.75"
+                          Margin="0,0,6,0" VerticalAlignment="Center"
+                          Data="M 17.94 17.94 A 10.07 10.07 0 0 1 12 20 C 5 20 1 12 1 12 A 18.45 18.45 0 0 1 6.06 6.06 M 9.9 4.24 A 9.12 9.12 0 0 1 12 4 C 19 4 23 12 23 12 A 18.5 18.5 0 0 1 20.84 15.19 M 14.12 14.12 A 3 3 0 1 1 9.88 9.88 M 1 1 L 23 23" />
+                    <TextBlock x:Name="StatusLabel"
+                               Foreground="{Binding #Root.TextBrush}"
+                               FontSize="11" FontWeight="Medium" Opacity="0.8" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis">
+                        <Run Text="{Binding StatusText}" /><Run Text="{Binding CycleSuffix}" FontWeight="Normal" /><Run Text="{Binding NoteSuffix}" FontWeight="Normal" />
+                    </TextBlock>
+                </DockPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal"
                             Classes="controls" Classes.concealed="{Binding !#Root.ControlsVisible}">
                     <Button x:Name="MenuButton" Classes="chrome window" Content="⋯" Click="OnMenuClick" />

@@ -224,6 +224,106 @@ public class JournalServiceTests
     }
 
     [TestMethod]
+    public async Task Forgetting_a_stretch_deletes_its_windows_and_every_line_that_could_mention_it()
+    {
+        var p = Pomodoro(Local(10, 0));
+        Window(9, 15, 9, 40, "Zen", "Canvas — Zen Browser");
+        Window(13, 0, 13, 30, "Zen", "Something private — Zen Browser");
+        Window(13, 30, 13, 45, "Terminal", "~/work");
+        await _journal.WriteAsync(Day);
+        Assert.AreEqual("A day", _journal.Load(Day).Summary!.Headline);
+
+        var outcome = _journal.Forget(Local(12, 55), Local(13, 31), conversations: true);
+
+        Assert.AreEqual(1, outcome.Entries, "the stretch off the timer it reached into");
+        Assert.IsFalse(_store.Spans(Local(0, 0), Local(23, 0)).Any(w => w.Title.Contains("private")), "the window is deleted, not hidden");
+        Assert.AreEqual(Local(13, 31), _store.Spans(Local(13, 0), Local(14, 0)).Single().StartUtc, "the one across its end is cut back to it");
+        var day = _journal.Load(Day);
+        Assert.AreEqual($"Wrote {p.Id}", day.Entries[0].Title, "a write-up whose evidence didn't change keeps its line");
+        Assert.AreEqual("Terminal: ~/work", day.Entries.Single(e => e.OffTimer).Title, "what's left of the stretch waits to be written again");
+        Assert.AreEqual("", day.Summary!.Headline, "the day's own lines could have mentioned it: gone");
+        Assert.IsTrue(day.Stale);
+        Assert.IsFalse(_store.Day(Day)!.Summary.Pomodoros.Any(x => x.PomodoroId < 0 && x.PomodoroId != day.Entries.Single(e => e.OffTimer).Block.PomodoroId),
+            "nothing is kept for a stretch that's gone");
+
+        await _journal.WriteAsync(Day);
+        var rewrite = File.ReadAllText(_calls).Split("=====")[1];
+        Assert.IsFalse(rewrite.Contains("private"), "and it's never sent again");
+    }
+
+    [TestMethod]
+    public async Task A_forgotten_pomodoro_still_counts_but_nothing_about_it_is_kept_or_sent()
+    {
+        Event(Local(9, 0), "WorkStarted", 1);
+        var p = Pomodoro(Local(9, 50));
+        Window(9, 5, 9, 45, "Zen", "Canvas — Zen Browser");
+        _journal.SetTitle(Day, p.Id, "The thing I did");
+        await _journal.WriteAsync(Day);
+        var calls = Calls;
+
+        _journal.Forget(Local(9, 0), Local(9, 50), conversations: false);
+
+        var day = _journal.Load(Day);
+        var entry = day.Entries.Single();
+        Assert.AreEqual(1, day.Count, "the pomodoro is the timer's, and counts");
+        Assert.IsTrue(entry.OffRecord);
+        Assert.AreEqual("", entry.Title);
+        Assert.IsTrue(entry.Evidence.IsEmpty);
+        Assert.IsNull(_journal.UserTitle(p.Id), "the name it was given goes too");
+        Assert.IsFalse(day.Stale, "nothing to write");
+        await _journal.WriteAsync(Day);
+        Assert.AreEqual(calls, Calls, "and nothing is sent about it");
+    }
+
+    [TestMethod]
+    public void Time_off_the_record_is_kept_out_like_forgotten_time()
+    {
+        Pomodoro(Local(10, 0));
+        Window(9, 15, 9, 45, "Zen", "Canvas — Zen Browser");
+        _store.AddOffRecord(Local(9, 30), Local(9, 40), OffRecordRange.Live);
+
+        var app = _journal.Load(Day).Entries.Single().Evidence.Apps.Single();
+
+        Assert.AreEqual(20, app.Minutes, "the ten minutes off the record are cut out of the window across them");
+    }
+
+    [TestMethod]
+    public void Adult_sites_are_left_out_and_the_time_one_was_in_front_is_off_the_record()
+    {
+        Pomodoro(Local(10, 0));
+        Window(9, 15, 9, 30, "Zen", "Something — Pornhub.com — Zen Browser");
+        Window(9, 30, 9, 40, "Zen", "Canvas — Zen Browser");
+        Window(16, 0, 16, 20, "Zen", "xHamster — Zen Browser");
+
+        var day = _journal.Load(Day);
+
+        Assert.AreEqual("Canvas", day.Entries[0].Evidence.Apps.Single().Titles.Single());
+        Assert.IsFalse(day.Entries.Any(e => e.OffTimer), "no stretch of its own either");
+    }
+
+    [TestMethod]
+    public void Forgetting_deletes_Ask_YAPAs_conversations_since_then_when_asked()
+    {
+        using var home = new TempHome();
+        var memory = new AssistantMemory(home.Path);
+        memory.Archive(new ArchivedConversation(Local(8, 0), [new ArchivedExchange(Local(8, 30), "Morning?", "Fine.", [])]));
+        memory.Archive(new ArchivedConversation(Local(14, 0), [new ArchivedExchange(Local(14, 5), "What did I watch?", "That.", [])]));
+        var events = new TimerEventLog(Substitute.For<IPomodoroEngine>(), Substitute.For<IClock>(), _db.FilePath);
+        var settings = new JournalSettings(new JsonYapaSettings(new MemoryEnvironment(), new NewtonsoftJson())) { ClaudeCode = false, Git = false, Browsers = false };
+        using var journal = new JournalService(_history, events, null, _store, settings, new ClaudeAccount(_db.Folder), zone: Zone,
+            utcNow: () => Local(20, 0), memory: memory);
+        ForgetOutcome? heard = null;
+        journal.Forgotten += o => heard = o;
+
+        Assert.AreEqual(1, journal.ConversationsSince(Local(12, 0)));
+        var outcome = journal.Forget(Local(12, 0), Local(13, 0), conversations: true);
+
+        Assert.AreEqual(1, outcome.Conversations);
+        Assert.AreEqual("Morning?", memory.Conversations(DateTime.MinValue).Single().Exchanges.Single().Question, "earlier ones stay");
+        Assert.IsTrue(heard!.WithConversations, "the one on screen is told to go too");
+    }
+
+    [TestMethod]
     public void A_skipped_app_leaves_nothing()
     {
         Pomodoro(Local(10, 0));

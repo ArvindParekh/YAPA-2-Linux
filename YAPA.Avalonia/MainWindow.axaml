@@ -40,14 +40,19 @@
     <Viewbox Stretch="Uniform">
         <Grid Width="260" Height="120" ColumnDefinitions="*,Auto" RowDefinitions="Auto,*,Auto">
 
-            <TextBlock Grid.Row="0" Grid.Column="0"
-                       x:Name="StatusLabel"
-                       Foreground="{Binding #Root.TextBrush}"
-                       FontSize="13" FontWeight="Medium" Opacity="0.85"
-                       TextTrimming="CharacterEllipsis"
-                       Margin="6,2,0,0" VerticalAlignment="Center">
-                <Run Text="{Binding StatusText}" /><Run Text="{Binding CycleSuffix}" FontWeight="Normal" /><Run Text="{Binding NoteSuffix}" FontWeight="Normal" />
-            </TextBlock>
+            <DockPanel Grid.Row="0" Grid.Column="0" Margin="6,2,0,0" VerticalAlignment="Center">
+                <!-- Off the record: nothing is recorded. A mark, not words: it shouldn't shout. -->
+                <Path DockPanel.Dock="Left" IsVisible="{Binding IsOffRecord}" Width="12" Height="12" Stretch="Uniform"
+                      Stroke="{Binding #Root.TextBrush}" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round" Opacity="0.75"
+                      Margin="0,1,6,0" VerticalAlignment="Center"
+                      Data="M 17.94 17.94 A 10.07 10.07 0 0 1 12 20 C 5 20 1 12 1 12 A 18.45 18.45 0 0 1 6.06 6.06 M 9.9 4.24 A 9.12 9.12 0 0 1 12 4 C 19 4 23 12 23 12 A 18.5 18.5 0 0 1 20.84 15.19 M 14.12 14.12 A 3 3 0 1 1 9.88 9.88 M 1 1 L 23 23" />
+                <TextBlock x:Name="StatusLabel"
+                           Foreground="{Binding #Root.TextBrush}"
+                           FontSize="13" FontWeight="Medium" Opacity="0.85"
+                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center">
+                    <Run Text="{Binding StatusText}" /><Run Text="{Binding CycleSuffix}" FontWeight="Normal" /><Run Text="{Binding NoteSuffix}" FontWeight="Normal" />
+                </TextBlock>
+            </DockPanel>
 
             <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal"
                         HorizontalAlignment="Right" Margin="0,2,2,0"

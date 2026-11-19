@@ -3,8 +3,10 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
@@ -28,6 +30,7 @@ public partial class DayWindow : Window
             YAPA.Avalonia.Platform.Linux.X11.X11Window.PreferDarkFrame(handle.Handle);
         Ribbon.BlockClicked += id => _model.RevealPomodoro(id);
         _model.Reveal += ScrollTo;
+        _model.CalendarDone += () => DateButton.Flyout?.Hide();
         _copied = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.6) };
         _copied.Tick += (_, _) =>
         {
@@ -48,8 +51,35 @@ public partial class DayWindow : Window
             case Key.Left: _model.PreviousCommand.Execute(null); e.Handled = true; break;
             case Key.Right: _model.NextCommand.Execute(null); e.Handled = true; break;
             case Key.T: _model.TodayCommand.Execute(null); e.Handled = true; break;
+            case Key.G: DateButton.Flyout?.ShowAt(DateButton); e.Handled = true; break;
             case Key.Escape: Close(); e.Handled = true; break;
         }
+    }
+
+    private void OnCalendarOpening(object? sender, EventArgs e) => _model.PrepareCalendar();
+
+    private void OnForgetOpening(object? sender, EventArgs e) => _model.PrepareForgetRange();
+
+    private void OnEntryForgetOpening(object? sender, EventArgs e)
+    {
+        if (sender is FlyoutBase { Target.DataContext: EntryViewModel entry }) entry.PrepareForget();
+    }
+
+    private void OnForgetRangeClick(object? sender, RoutedEventArgs e)
+    {
+        if (_model.ForgetTypedRange()) CloseFlyout(sender);
+    }
+
+    /// <summary>A choice in a flyout was made (or Cancel): the flyout goes.</summary>
+    private void OnFlyoutDone(object? sender, RoutedEventArgs e) => CloseFlyout(sender);
+
+    private static void CloseFlyout(object? sender)
+    {
+        // A flyout's content sits in a Popup, which is its logical parent. Closed after the click
+        // is done with: a button runs its Command after its Click handlers, and closing first takes
+        // it out of the tree, its inherited DataContext and so its Command with it.
+        if (sender is Control control && control.FindLogicalAncestorOfType<Popup>() is { } popup)
+            Dispatcher.UIThread.Post(() => popup.Close(), DispatcherPriority.Input);
     }
 
     private async void OnCopyClick(object? sender, RoutedEventArgs e)

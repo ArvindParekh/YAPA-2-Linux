@@ -158,6 +158,13 @@
             <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
             <Setter Property="FontWeight" Value="Normal" />
         </Style>
+        <!-- A pomodoro off the record: there, and nothing more. -->
+        <Style Selector="Border.entry.offRecord TextBlock.title">
+            <Setter Property="Foreground" Value="{DynamicResource InkFaint}" />
+            <Setter Property="FontStyle" Value="Italic" />
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Cursor" Value="Arrow" />
+        </Style>
         <Style Selector="TextBlock.detail">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="LineHeight" Value="19" />
@@ -209,6 +216,138 @@
             <Setter Property="Opacity" Value="0.35" />
         </Style>
 
+        <!-- Flyouts: the calendar, and forgetting. Raised a step above the window, like a card. -->
+        <Style Selector="FlyoutPresenter.day">
+            <Setter Property="Background" Value="#FF1F1F25" />
+            <Setter Property="BorderBrush" Value="#1FFFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="18,16,18,16" />
+            <Setter Property="MaxWidth" Value="420" />
+        </Style>
+        <Style Selector="TextBlock.flyTitle">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="TextBlock.flyNote">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="LineHeight" Value="18" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="TextBlock.flySub">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="LetterSpacing" Value="1" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+        </Style>
+        <Style Selector="TextBlock.problem">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="#FFFF8F7F" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="TextBox.time">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontFeatures" Value="+tnum" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.chipButton">
+            <Setter Property="Background" Value="#12FFFFFF" />
+            <Setter Property="Foreground" Value="#FFC8C8D0" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="11,4,11,5" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+        </Style>
+        <!-- The one button that deletes: the accent, so it reads as the consequence it is. -->
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="#FF16161A" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="16,6,16,7" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#FFFF7D6B" />
+            <Setter Property="Foreground" Value="#FF16161A" />
+        </Style>
+        <Style Selector="Button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#FFE04E3B" />
+            <Setter Property="Foreground" Value="#FF16161A" />
+        </Style>
+
+        <!-- The date, which opens the calendar. -->
+        <Style Selector="Button.dateButton">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="10,6,14,8" />
+            <Setter Property="CornerRadius" Value="12" />
+        </Style>
+        <Style Selector="Button.dateButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#0AFFFFFF" />
+        </Style>
+        <Style Selector="Button.dateButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#12FFFFFF" />
+        </Style>
+        <Style Selector="TextBlock.calTitle">
+            <Setter Property="FontSize" Value="14.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+        </Style>
+        <Style Selector="TextBlock.calHead">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource InkFaint}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.calDay">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="19" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Foreground" Value="#FFD6D6DC" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontFeatures" Value="+tnum" />
+        </Style>
+        <Style Selector="Button.calDay:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF" />
+        </Style>
+        <Style Selector="Button.calDay.out">
+            <Setter Property="Foreground" Value="{DynamicResource InkFaint}" />
+        </Style>
+        <Style Selector="Button.calDay:disabled">
+            <Setter Property="Opacity" Value="0.3" />
+        </Style>
+        <Style Selector="Button.calDay:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.calDay.today /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BorderBrush" Value="#59FF6B57" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="Button.calDay.selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#26FF6B57" />
+        </Style>
+        <Style Selector="Button.calDay.selected">
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <!-- Off the record, said at the top while it lasts. -->
+        <Style Selector="Border.banner">
+            <Setter Property="Background" Value="#0FFFFFFF" />
+            <Setter Property="BorderBrush" Value="#14FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="14,10,10,10" />
+            <Setter Property="Margin" Value="0,0,0,14" />
+        </Style>
+
         <Style Selector="Ellipse.pulse">
             <Setter Property="Width" Value="7" />
             <Setter Property="Height" Value="7" />
@@ -226,10 +365,74 @@
     <Grid RowDefinitions="Auto,*">
         <!-- The date, and stepping through days. -->
         <Grid ColumnDefinitions="*,Auto" Margin="36,26,28,16">
-            <StackPanel>
-                <TextBlock Classes="weekday" Text="{Binding Weekday}" />
-                <TextBlock Classes="date" Text="{Binding DateCaption}" />
-            </StackPanel>
+            <Button x:Name="DateButton" Classes="dateButton" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-10,-6,0,-8"
+                    ToolTip.Tip="Go to any day (G)" AutomationProperties.Name="Choose a day">
+                <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="day" Opening="OnCalendarOpening">
+                        <StackPanel Width="290" Spacing="8">
+                            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,4">
+                                <TextBlock Classes="calTitle" Text="{Binding CalendarTitle}" VerticalAlignment="Center" Margin="4,0,0,0" />
+                                <Button Grid.Column="1" Classes="ghost icon" Command="{Binding CalendarPreviousCommand}"
+                                        ToolTip.Tip="The month before" AutomationProperties.Name="Previous month">
+                                    <Path Classes="icon" Width="13" Height="13" Data="M 15 5 L 8 12 L 15 19" />
+                                </Button>
+                                <Button Grid.Column="2" Classes="ghost icon" Command="{Binding CalendarNextCommand}" IsEnabled="{Binding CanCalendarNext}"
+                                        ToolTip.Tip="The month after" AutomationProperties.Name="Next month">
+                                    <Path Classes="icon" Width="13" Height="13" Data="M 9 5 L 16 12 L 9 19" />
+                                </Button>
+                            </Grid>
+                            <ItemsControl ItemsSource="{Binding WeekdayInitials}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><UniformGrid Columns="7" /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <TextBlock Classes="calHead" Text="{Binding}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <ItemsControl ItemsSource="{Binding CalendarDays}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><UniformGrid Columns="7" Rows="6" /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="j:CalendarDay">
+                                        <Button Classes="calDay" Classes.out="{Binding !InMonth}" Classes.today="{Binding IsToday}"
+                                                Classes.selected="{Binding IsSelected}" IsEnabled="{Binding CanPick}"
+                                                Command="{Binding $parent[ItemsControl].((j:DayViewModel)DataContext).PickDayCommand}" CommandParameter="{Binding}"
+                                                ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Label}">
+                                            <Panel>
+                                                <TextBlock Text="{Binding Label}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,3" />
+                                                <Ellipse Width="4" Height="4" Fill="{DynamicResource AccentBrush}" Opacity="{Binding DotOpacity}"
+                                                         IsVisible="{Binding HasPomodoros}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,5" />
+                                                <Ellipse Width="4" Height="4" Fill="{DynamicResource InkFaint}"
+                                                         IsVisible="{Binding OnlyPresence}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,5" />
+                                            </Panel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <StackPanel Orientation="Horizontal" Spacing="14" Margin="4,6,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Width="5" Height="5" Fill="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Classes="calHead" Text="pomodoros" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Width="5" Height="5" Fill="{DynamicResource InkFaint}" VerticalAlignment="Center" />
+                                    <TextBlock Classes="calHead" Text="at the computer" />
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="9">
+                        <TextBlock Classes="weekday" Text="{Binding Weekday}" />
+                        <Path Classes="icon" Width="12" Height="12" Data="M 6 9 L 12 15 L 18 9" VerticalAlignment="Center" Margin="0,5,0,0" />
+                    </StackPanel>
+                    <TextBlock Classes="date" Text="{Binding DateCaption}" />
+                </StackPanel>
+            </Button>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                 <Button Classes="ghost icon" Command="{Binding PreviousCommand}" IsEnabled="{Binding HasPrevious}"
                         ToolTip.Tip="The day before" AutomationProperties.Name="Previous day">
@@ -240,7 +443,51 @@
                         ToolTip.Tip="The day after" AutomationProperties.Name="Next day">
                     <Path Classes="icon" Data="M 9 5 L 16 12 L 9 19" />
                 </Button>
-                <Button x:Name="CopyButton" Classes="ghost" Click="OnCopyClick" Margin="8,0,0,0" IsEnabled="{Binding !IsEmpty}"
+                <Button x:Name="ForgetButton" Classes="ghost" Margin="8,0,0,0" ToolTip.Tip="Forget a stretch of time, or keep what's next off the record">
+                    <Button.Flyout>
+                        <Flyout Placement="BottomEdgeAlignedRight" FlyoutPresenterClasses="day" Opening="OnForgetOpening">
+                            <StackPanel Width="350" Spacing="12">
+                                <TextBlock Classes="flyTitle" Text="Forget a stretch of time" />
+                                <TextBlock Classes="flyNote"
+                                           Text="The windows recorded in it and every write-up of it are deleted, and nothing your browser or Claude Code kept from that time is read again. Pomodoros stay, and still count." />
+                                <Grid ColumnDefinitions="Auto,72,Auto,72" VerticalAlignment="Center">
+                                    <TextBlock Classes="flyNote" Text="From" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                    <TextBox Grid.Column="1" Classes="time" Text="{Binding ForgetFrom}" PlaceholderText="21:40" />
+                                    <TextBlock Grid.Column="2" Classes="flyNote" Text="to" VerticalAlignment="Center" Margin="10,0" />
+                                    <TextBox Grid.Column="3" Classes="time" Text="{Binding ForgetTo}" PlaceholderText="now" />
+                                </Grid>
+                                <WrapPanel Margin="0,0,0,-6">
+                                    <Button Classes="chipButton" Content="Last 15 minutes" Command="{Binding ForgetPresetCommand}" CommandParameter="15" IsVisible="{Binding IsToday}" />
+                                    <Button Classes="chipButton" Content="Last hour" Command="{Binding ForgetPresetCommand}" CommandParameter="60" IsVisible="{Binding IsToday}" />
+                                    <Button Classes="chipButton" Content="Today so far" Command="{Binding ForgetPresetCommand}" CommandParameter="day" IsVisible="{Binding IsToday}" />
+                                    <Button Classes="chipButton" Content="The whole day" Command="{Binding ForgetPresetCommand}" CommandParameter="day" IsVisible="{Binding !IsToday}" />
+                                </WrapPanel>
+                                <CheckBox IsChecked="{Binding ForgetConversations}" IsVisible="{Binding HasForgetConversations}">
+                                    <TextBlock Classes="flyNote" Text="{Binding ForgetConversationsText}" />
+                                </CheckBox>
+                                <TextBlock Classes="problem" Text="{Binding ForgetProblem}" IsVisible="{Binding HasForgetProblem}" />
+                                <Button Classes="danger" Content="Forget" HorizontalAlignment="Right" Click="OnForgetRangeClick" />
+
+                                <Border Height="1" Background="{DynamicResource Hairline}" Margin="0,2" />
+                                <TextBlock Classes="flySub" Text="KEEP WHAT'S NEXT OFF THE RECORD" />
+                                <WrapPanel Margin="0,0,0,-6" IsVisible="{Binding !IsOffRecord}">
+                                    <Button Classes="chipButton" Content="30 minutes" Command="{Binding GoOffRecordCommand}" CommandParameter="30" Click="OnFlyoutDone" />
+                                    <Button Classes="chipButton" Content="An hour" Command="{Binding GoOffRecordCommand}" CommandParameter="60" Click="OnFlyoutDone" />
+                                    <Button Classes="chipButton" Content="Until I turn it back on" Command="{Binding GoOffRecordCommand}" CommandParameter="" Click="OnFlyoutDone" />
+                                </WrapPanel>
+                                <StackPanel Spacing="8" IsVisible="{Binding IsOffRecord}">
+                                    <TextBlock Classes="flyNote" Text="{Binding OffRecordText}" />
+                                    <Button Classes="chipButton" Content="Back on the record" Command="{Binding BackOnRecordCommand}" Click="OnFlyoutDone" HorizontalAlignment="Left" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Path Classes="icon" Width="14" Height="14" Data="M 4.5 7 L 19.5 7 M 9.5 7 L 9.5 4.5 L 14.5 4.5 L 14.5 7 M 6.5 7 L 7.4 19.5 L 16.6 19.5 L 17.5 7 M 10.2 10.5 L 10.4 16 M 13.8 10.5 L 13.6 16" />
+                        <TextBlock Text="Forget" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="CopyButton" Classes="ghost" Click="OnCopyClick" Margin="2,0,0,0" IsEnabled="{Binding !IsEmpty}"
                         ToolTip.Tip="Copy the day as text, for a standup or a note">
                     <StackPanel Orientation="Horizontal" Spacing="7">
                         <Path Classes="icon" Width="14" Height="14" Data="M 8 8 L 8 4.5 A 1.5 1.5 0 0 1 9.5 3 L 19.5 3 A 1.5 1.5 0 0 1 21 4.5 L 21 14.5 A 1.5 1.5 0 0 1 19.5 16 L 16 16 M 4.5 8 L 14.5 8 A 1.5 1.5 0 0 1 16 9.5 L 16 19.5 A 1.5 1.5 0 0 1 14.5 21 L 4.5 21 A 1.5 1.5 0 0 1 3 19.5 L 3 9.5 A 1.5 1.5 0 0 1 4.5 8 Z" />
@@ -252,6 +499,24 @@
 
         <ScrollViewer Grid.Row="1" x:Name="Scroller" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="36,2,36,44" MaxWidth="800">
+
+                <Border Classes="banner" IsVisible="{Binding IsOffRecord}">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <Path Classes="icon" Width="15" Height="15" Data="M 17.94 17.94 A 10.07 10.07 0 0 1 12 20 C 5 20 1 12 1 12 A 18.45 18.45 0 0 1 6.06 6.06 M 9.9 4.24 A 9.12 9.12 0 0 1 12 4 C 19 4 23 12 23 12 A 18.5 18.5 0 0 1 20.84 15.19 M 14.12 14.12 A 3 3 0 1 1 9.88 9.88 M 1 1 L 23 23" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <TextBlock Grid.Column="1" Classes="stats" Text="{Binding OffRecordText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                        <Button Grid.Column="2" Content="Back on the record" Command="{Binding BackOnRecordCommand}" Margin="12,0,0,0" VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+                <Border Classes="banner" IsVisible="{Binding HasNotice}">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Path Classes="icon" Width="15" Height="15" Data="M 4.5 7 L 19.5 7 M 9.5 7 L 9.5 4.5 L 14.5 4.5 L 14.5 7 M 6.5 7 L 7.4 19.5 L 16.6 19.5 L 17.5 7 M 10.2 10.5 L 10.4 16 M 13.8 10.5 L 13.6 16" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <TextBlock Grid.Column="1" Classes="stats" Text="{Binding Notice}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+                <StackPanel Orientation="Horizontal" Spacing="10" Margin="2,0,0,14" IsVisible="{Binding IsForgetting}">
+                    <Ellipse Classes="pulse" VerticalAlignment="Center" />
+                    <TextBlock Classes="stats" Text="Forgetting…" VerticalAlignment="Center" />
+                </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Spacing="10" Margin="2,10,0,0" IsVisible="{Binding IsLoading}">
                     <Ellipse Classes="pulse" VerticalAlignment="Center" />
@@ -326,7 +591,7 @@
                                     <ItemsControl Classes="entries" ItemsSource="{Binding Entries}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="j:EntryViewModel">
-                                                <Border Classes="entry" Classes.off="{Binding IsOffTimer}">
+                                                <Border Classes="entry" Classes.off="{Binding IsOffTimer}" Classes.offRecord="{Binding IsOffRecord}">
                                                     <Grid ColumnDefinitions="62,18,*,Auto">
                                                         <StackPanel Margin="0,1,0,0">
                                                             <TextBlock Classes="time" Text="{Binding Start}" />
@@ -396,7 +661,26 @@
                                                         </StackPanel>
 
                                                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Top" Margin="8,-4,0,0">
-                                                            <Button Classes="ghost icon reveal" Command="{Binding EditCommand}" IsVisible="{Binding !InProgress}"
+                                                            <Button Classes="ghost icon reveal" IsVisible="{Binding CanForget}"
+                                                                    ToolTip.Tip="Forget this" AutomationProperties.Name="Forget">
+                                                                <Button.Flyout>
+                                                                    <Flyout Placement="BottomEdgeAlignedRight" FlyoutPresenterClasses="day" Opening="OnEntryForgetOpening">
+                                                                        <StackPanel Width="310" Spacing="10">
+                                                                            <TextBlock Classes="flyTitle" Text="{Binding ForgetQuestion}" />
+                                                                            <TextBlock Classes="flyNote" Text="{Binding ForgetNote}" />
+                                                                            <CheckBox IsChecked="{Binding ForgetConversations}" IsVisible="{Binding HasConversations}">
+                                                                                <TextBlock Classes="flyNote" Text="{Binding ConversationsText}" />
+                                                                            </CheckBox>
+                                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,4,0,0">
+                                                                                <Button Classes="ghost" Content="Cancel" Click="OnFlyoutDone" />
+                                                                                <Button Classes="danger" Content="Forget" Command="{Binding ForgetCommand}" Click="OnFlyoutDone" />
+                                                                            </StackPanel>
+                                                                        </StackPanel>
+                                                                    </Flyout>
+                                                                </Button.Flyout>
+                                                                <Path Classes="icon" Width="13" Height="13" Data="M 4.5 7 L 19.5 7 M 9.5 7 L 9.5 4.5 L 14.5 4.5 L 14.5 7 M 6.5 7 L 7.4 19.5 L 16.6 19.5 L 17.5 7 M 10.2 10.5 L 10.4 16 M 13.8 10.5 L 13.6 16" />
+                                                            </Button>
+                                                            <Button Classes="ghost icon reveal" Command="{Binding EditCommand}" IsVisible="{Binding CanRename}"
                                                                     ToolTip.Tip="Name it yourself" AutomationProperties.Name="Rename">
                                                                 <Path Classes="icon" Width="13" Height="13" Data="M 4 20 L 4.8 16.2 L 15.8 5.2 A 2 2 0 0 1 18.8 8.2 L 7.8 19.2 Z M 13.8 7.2 L 16.8 10.2" />
                                                             </Button>

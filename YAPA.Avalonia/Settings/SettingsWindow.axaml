@@ -496,6 +496,18 @@
                     </StackPanel>
                 </Border>
 
+                <TextBlock Classes="group" Text="Off the record" />
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Off the record now" Description="{Binding OffRecordDetail}">
+                            <ToggleSwitch IsChecked="{Binding OffRecord}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Leave out adult sites" Description="{Binding AdultDetail}">
+                            <ToggleSwitch IsChecked="{Binding SkipAdult}" />
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
+
                 <TextBlock Classes="group" Text="Stops everything while open" />
                 <Border Classes="card">
                     <StackPanel Margin="16,13,16,15" Spacing="9">
@@ -516,7 +528,7 @@
                     <Grid ColumnDefinitions="*,Auto" Margin="16,13,14,13">
                         <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,0,16,0">
                             <TextBlock Text="Forget what it recorded" FontSize="14" Foreground="{DynamicResource Ink}" />
-                            <TextBlock Classes="note" Text="The windows recorded, the write-ups and the names you gave pomodoros. Your pomodoros and your own files stay." />
+                            <TextBlock Classes="note" Text="The windows recorded, the write-ups and the names you gave pomodoros. Your pomodoros and your own files stay, and time you forgot stays forgotten. For a stretch of time, use Forget in Your day." />
                         </StackPanel>
                         <Button Grid.Column="1" Content="{Binding ForgetLabel}" Command="{Binding ForgetCommand}" VerticalAlignment="Center" />
                     </Grid>

@@ -11,7 +11,9 @@ namespace YAPA.Avalonia.Assistant;
 /// <summary>The day journal, for questions about what was done ("what did I do this morning?").</summary>
 public sealed partial class AppTools
 {
-    private IEnumerable<AssistantTool> JournalTools() => _extras.Journal is not { } journal ? [] :
+    private IEnumerable<AssistantTool> JournalTools() => _extras.Journal is not { } journal ? [] : ReadingTools(journal).Concat(PrivacyTools(journal));
+
+    private IEnumerable<AssistantTool> ReadingTools(JournalService journal) =>
     [
         new AssistantTool
         {
@@ -21,7 +23,8 @@ public sealed partial class AppTools
                           "put together from their Claude Code conversations (titles and what they typed), git commits, browser history and the windows in front. " +
                           "Each pomodoro has a written title and detail when the day has been written up, otherwise a title from the evidence; the evidence is always there. " +
                           "Use it for anything about what was done: a session, the morning, a break, yesterday, a standup, whether a day went anywhere, what a video or page was, when something was last worked on. " +
-                          "Nothing is on record while Tor Browser (or another app the user listed) was open, nor from apps they skip. Read-only.",
+                          "Nothing is on record while Tor Browser (or another app the user listed) was open, while an adult site was in front, for time the user " +
+                          "went off the record or forgot, nor from apps they skip; a pomodoro in such time shows as off the record. Read-only.",
             Schema = Object(("date", Str("'today', 'yesterday' or YYYY-MM-DD; today when left out."), false)),
             Activity = _ => "Reading your day",
             OffUiThread = true,
@@ -52,6 +55,107 @@ public sealed partial class AppTools
             },
         },
     ];
+
+    private IEnumerable<AssistantTool> PrivacyTools(JournalService journal)
+    {
+        var offRecord = journal.OffRecord;
+        string Hm(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZoneInfo.Local).ToString("HH:mm", CultureInfo.InvariantCulture);
+        string State(DateTime? until) => until is not { } u ? "on the record"
+            : u >= OffTheRecord.Indefinitely ? "off the record until turned back on" : $"off the record until {Hm(u)}";
+
+        yield return new AssistantTool
+        {
+            Name = "go_off_the_record",
+            Description = "Takes the user off the record for a while: the day journal records nothing (no windows), and nothing any source finds in that time " +
+                          "(browser history, Claude Code, git) is ever used or sent. Pomodoros still run and count. For 'go off the record', 'stop watching me for an hour', " +
+                          "'don't log the next 30 minutes'. Leave minutes out for 'until I turn it back on'. Called while already off the record, it moves the end. " +
+                          "The timer shows a crossed-out eye while it lasts.",
+            Schema = Object(("minutes", Int("How long, in minutes; leave out for until the user turns it back on.", 1, 24 * 60), false)),
+            Mutates = true,
+            Activity = _ => "Going off the record",
+            Run = a =>
+            {
+                var before = offRecord.Until;
+                var minutes = a.Number("minutes") is { } m ? (int)m : (int?)null;
+                offRecord.Start(minutes is { } n ? TimeSpan.FromMinutes(n) : null);
+                _journal.Record(() => offRecord.Restore(before));
+                var done = minutes is { } x ? $"Off the record until {Hm(offRecord.Until!.Value)}" : "Off the record until you turn it back on";
+                return new ToolResult(new JsonObject { ["done"] = done, ["now"] = State(offRecord.Until) }, done);
+            },
+        };
+
+        yield return new AssistantTool
+        {
+            Name = "back_on_the_record",
+            Description = "Ends time off the record now, so the day journal records again. The time already off the record stays off it.",
+            Mutates = true,
+            Activity = _ => "Going back on the record",
+            Run = _ =>
+            {
+                var before = offRecord.Until;
+                if (before == null) return new ToolResult(new JsonObject { ["done"] = "Already on the record" });
+                offRecord.Stop();
+                _journal.Record(() => offRecord.Restore(before));
+                return new ToolResult(new JsonObject { ["done"] = "Back on the record" }, "Back on the record");
+            },
+        };
+
+        yield return new AssistantTool
+        {
+            Name = "forget_time",
+            Description = "Forgets a stretch of time for good, for 'forget what I did after 11 pm', 'delete that video from my day'. Deletes the windows recorded in it, " +
+                          "every write-up of it and the names of pomodoros wholly in it, and keeps whatever any source has from it (browser history, Claude Code, " +
+                          "commits) out of the journal from now on; the browser's and Claude Code's own records are left as they are. Pomodoros in it stay and still " +
+                          "count, shown as off the record. Ask YAPA's saved conversations since its start are deleted too, and this conversation ends once you've answered " +
+                          "(it has seen that time), unless keep_conversations. Cannot be undone. Times are the user's local time; look them up with get_journal when " +
+                          "they name a thing rather than a time, and forget exactly that entry's from–to. Your answer says only which times were forgotten, never what was in them.",
+            Schema = Object(
+                ("from", Str("Start: 'HH:MM' on date, or 'YYYY-MM-DD HH:MM'."), true),
+                ("to", Str("End: 'HH:MM' on date, 'YYYY-MM-DD HH:MM', or 'now'."), true),
+                ("date", Str("'today', 'yesterday' or YYYY-MM-DD, for times given as HH:MM; today when left out."), false),
+                ("keep_conversations", Bool("Keep Ask YAPA's conversations (only when the user says so)."), false)),
+            Mutates = true,
+            Irreversible = true,
+            OffUiThread = true,
+            Activity = _ => "Forgetting that time",
+            Run = a =>
+            {
+                var date = Day(journal, a.String("date"));
+                var from = LocalTime(a.String("from"), date, "from");
+                var toText = a.String("to")?.Trim().ToLowerInvariant();
+                var now = _clock.UtcNow;
+                var to = toText == "now" ? now : LocalTime(toText, date, "to");
+                if (to <= from) throw new ToolException("\"to\" must be after \"from\". For a stretch past midnight, give both as 'YYYY-MM-DD HH:MM'.");
+                if (from >= now) throw new ToolException("That time hasn't happened yet; to keep the future off the record, use go_off_the_record.");
+                if (to - from > TimeSpan.FromDays(31)) throw new ToolException("At most a month at a time.");
+                var outcome = journal.Forget(from, to, conversations: a.Bool("keep_conversations") != true);
+                var start = TimeZoneInfo.ConvertTimeFromUtc(outcome.FromUtc, TimeZoneInfo.Local);
+                var end = TimeZoneInfo.ConvertTimeFromUtc(outcome.ToUtc, TimeZoneInfo.Local);
+                var done = start.Date == end.Date
+                    ? $"Forgot {start:HH:mm}–{end:HH:mm}"
+                    : $"Forgot {start.ToString("ddd HH:mm", CultureInfo.InvariantCulture)} – {end.ToString("ddd HH:mm", CultureInfo.InvariantCulture)}";
+                return new ToolResult(new JsonObject
+                {
+                    ["done"] = done,
+                    ["entries_reached"] = outcome.Entries,
+                    ["conversations_deleted"] = outcome.Conversations,
+                    ["note"] = "Say which times are gone; nothing about what was in them.",
+                }, done);
+            },
+        };
+    }
+
+    /// <summary>"HH:MM" on <paramref name="date"/>, or "YYYY-MM-DD HH:MM", in local time, as UTC.</summary>
+    private static DateTime LocalTime(string? text, DateOnly date, string name)
+    {
+        var t = text?.Trim() ?? "";
+        DateTime local;
+        if (TimeOnly.TryParseExact(t, ["HH:mm", "H:mm"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var time))
+            local = date.ToDateTime(time);
+        else if (!DateTime.TryParseExact(t, ["yyyy-MM-dd HH:mm", "yyyy-MM-dd H:mm"], CultureInfo.InvariantCulture, DateTimeStyles.None, out local))
+            throw new ToolException($"\"{name}\" is 'HH:MM' or 'YYYY-MM-DD HH:MM'.");
+        return TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(local, DateTimeKind.Unspecified), TimeZoneInfo.Local);
+    }
 
     private static DateOnly Day(JournalService journal, string? text) => text?.Trim().ToLowerInvariant() switch
     {
@@ -114,7 +218,7 @@ public sealed partial class AppTools
             ["from"] = time(e.Block.StartUtc),
             ["to"] = time(e.Block.EndUtc),
             ["minutes"] = e.Block.Minutes,
-            ["title"] = e.Title.Length > 0 ? e.Title : "(nothing on record)",
+            ["title"] = e.OffRecord ? "(off the record)" : e.Title.Length > 0 ? e.Title : "(nothing on record)",
         };
         if (e.InProgress) o["in_progress"] = true;
         if (e.UserTitle != null) o["named_by_user"] = true;

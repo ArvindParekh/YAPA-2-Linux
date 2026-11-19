@@ -34,6 +34,11 @@ public sealed partial class AppTools
         if (_extras.Memory.Notes.Count > 0)
             state["remembered"] = new JsonArray(_extras.Memory.Notes
                 .Select(n => (JsonNode)new JsonObject { ["id"] = n.Id, ["note"] = n.Text }).ToArray());
+        // So "am I off the record?" has an answer, and nothing is said as if it were being kept.
+        if (_extras.Journal?.OffRecord.Until is { } until)
+            state["off_the_record"] = until >= YAPA.Avalonia.Journal.OffTheRecord.Indefinitely
+                ? "until the user turns it back on"
+                : "until " + TimeZoneInfo.ConvertTimeFromUtc(until, TimeZoneInfo.Local).ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private IEnumerable<AssistantTool> More() =>

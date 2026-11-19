@@ -45,8 +45,11 @@ internal sealed class AssistantRig : IDisposable
     public readonly AvaloniaMusicPlayerSettings Music;
     public readonly TimerTexts Texts;
     public readonly TimerLooks Looks;
+    public readonly YAPA.Avalonia.Journal.JournalStore? DayStore;
+    public readonly YAPA.Avalonia.Journal.JournalService? Day;
 
-    public AssistantRig()
+    /// <param name="withJournal">The day journal too, over the rig's history, reading nothing of the machine's.</param>
+    public AssistantRig(bool withJournal = false)
     {
         // 14:00 local today, whatever zone the tests run in.
         Clock.UtcNow = TimeZoneInfo.ConvertTimeToUtc(DateTime.Today.AddHours(14), TimeZoneInfo.Local);
@@ -73,8 +76,15 @@ internal sealed class AssistantRig : IDisposable
         Scheduler = new Scheduler(Engine, Notifier, Clock, SchedulerTimer, System.IO.Path.Combine(Db.Folder, "scheduled.json"));
         Memory = new AssistantMemory(Db.Folder);
         Events = new TimerEventLog(Engine, Clock, Db.FilePath);
+        if (withJournal)
+        {
+            DayStore = new YAPA.Avalonia.Journal.JournalStore(Db.FilePath);
+            var journalSettings = new YAPA.Avalonia.Journal.JournalSettings(Settings) { ClaudeCode = false, Git = false, Browsers = false, Summaries = false };
+            Day = new YAPA.Avalonia.Journal.JournalService(History, Events, Engine, DayStore, journalSettings, new ClaudeAccount(Db.Folder),
+                utcNow: () => Clock.UtcNow, memory: Memory);
+        }
         Tools = new AppTools(Engine, EngineSettings, General, History, new AppNavigator(themes),
-            Catalog, Journal, Ambience, effects, Clock, new AppTools.Extras(Scheduler, Memory, Events, Look, themes, sounds, Music, Looks, Texts));
+            Catalog, Journal, Ambience, effects, Clock, new AppTools.Extras(Scheduler, Memory, Events, Look, themes, sounds, Music, Looks, Texts, Day));
         Toolbox = new AssistantToolbox(Tools.All(), Journal, f => Task.FromResult(f()));
     }
 
@@ -97,6 +107,8 @@ internal sealed class AssistantRig : IDisposable
 
     public void Dispose()
     {
+        Day?.Dispose();
+        DayStore?.Dispose();
         Scheduler.Dispose();
         Events.Dispose();
         History.Dispose();
@@ -468,6 +480,47 @@ public class AssistantToolTests
 [TestClass]
 public class AssistantExtraToolTests
 {
+    [TestMethod]
+    public void Going_off_the_record_lasts_as_long_as_asked_shows_in_the_state_and_undoes()
+    {
+        using var rig = new AssistantRig(withJournal: true);
+        var off = rig.Day!.OffRecord;
+
+        rig.Journal.BeginTurn();
+        rig.Ok("go_off_the_record", """{"minutes": 60}""");
+        rig.Journal.EndTurn();
+        Assert.AreEqual(rig.Clock.UtcNow.AddHours(1), off.Until);
+        StringAssert.Contains(rig.Ok("get_state")["off_the_record"]!.GetValue<string>(), "until");
+
+        rig.Journal.Undo();
+        Assert.IsFalse(off.IsActive, "undo puts it back on the record");
+
+        rig.Ok("go_off_the_record");
+        Assert.AreEqual(YAPA.Avalonia.Journal.OffTheRecord.Indefinitely, off.Until, "no minutes: until turned back on");
+        rig.Ok("back_on_the_record");
+        Assert.IsFalse(off.IsActive);
+    }
+
+    [TestMethod]
+    public void Forgetting_takes_exact_times_refuses_nonsense_and_cant_be_undone()
+    {
+        using var rig = new AssistantRig(withJournal: true);
+        var today = DateOnly.FromDateTime(rig.LocalNow);
+        DateTime Local(int h, int m) => TimeZoneInfo.ConvertTimeToUtc(today.ToDateTime(new TimeOnly(h, m)), TimeZoneInfo.Local);
+        rig.DayStore!.ExtendSpan(rig.DayStore.BeginSpan(Local(10, 10), "Zen", "Something private"), Local(10, 40));
+
+        Assert.IsTrue(rig.Call("forget_time", """{"from": "11:00", "to": "10:00"}""").IsError, "the end before the start");
+        Assert.IsTrue(rig.Call("forget_time", """{"from": "23:00", "to": "23:30"}""").IsError, "that hasn't happened");
+        Assert.IsTrue(rig.Call("forget_time", """{"from": "ten", "to": "now"}""").IsError);
+
+        rig.Journal.BeginTurn();
+        var done = rig.Ok("forget_time", """{"from": "10:00", "to": "11:00"}""");
+        Assert.AreEqual("Forgot 10:00–11:00", done["done"]!.GetValue<string>());
+        Assert.IsFalse(rig.Journal.EndTurn(), "nothing to undo: it's gone");
+        Assert.AreEqual(0, rig.DayStore.Spans(Local(0, 0), Local(23, 59)).Count);
+        Assert.AreEqual(1, rig.DayStore.OffRecord(Local(0, 0), Local(23, 59)).Count);
+    }
+
     [TestMethod]
     public void A_scheduled_stop_runs_at_its_time_and_says_so()
     {

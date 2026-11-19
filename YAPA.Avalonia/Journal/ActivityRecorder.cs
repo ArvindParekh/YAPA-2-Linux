@@ -13,9 +13,11 @@ namespace YAPA.Avalonia.Journal;
 /// Notes which window is in front, every few seconds, as spans of time per window: all day
 /// while the user is at the computer (or only during pomodoros, with <see cref="JournalSettings.WholeDay"/>
 /// off). Away is two minutes without input, unless something holds the screen awake (a video
-/// playing), and never on a locked screen. YAPA's own windows and skipped apps aren't recorded.
-/// While an app that pauses the journal runs (Tor Browser), nothing is recorded but a blank
-/// "paused" span, which tells the journal to drop whatever other sources found in that time.
+/// playing), and never on a locked screen. YAPA's own windows and skipped apps aren't recorded,
+/// and nothing is while the user is off the record.
+/// While an app that pauses the journal runs (Tor Browser), or an adult site is in front,
+/// nothing is recorded but a blank "paused" span, which tells the journal to drop whatever
+/// other sources found in that time.
 /// Sampling runs off the UI thread: a few property reads on the X server, and a look at the
 /// process list for the pausing apps.
 /// </summary>
@@ -32,6 +34,7 @@ public sealed class ActivityRecorder : IDisposable
     private readonly JournalStore _store;
     private readonly JournalSettings _settings;
     private readonly IdleInhibition _inhibition;
+    private readonly OffTheRecord _offRecord;
     private readonly Timer _timer;
     private readonly object _gate = new();
     private X11ActiveWindow? _x11;
@@ -42,16 +45,20 @@ public sealed class ActivityRecorder : IDisposable
 
     private long _spanId;
     private string? _spanKey;
+    private DateTime _spanStart;
     private DateTime _spanEnd;
     private DateTime _flushed;
     private readonly Dictionary<string, PausingApps.KnownProgram> _programs = [];
 
-    public ActivityRecorder(IPomodoroEngine engine, JournalStore store, JournalSettings settings, IdleInhibition? inhibition = null)
+    public ActivityRecorder(IPomodoroEngine engine, JournalStore store, JournalSettings settings, OffTheRecord offRecord, IdleInhibition? inhibition = null)
     {
         _engine = engine;
         _store = store;
         _settings = settings;
+        _offRecord = offRecord;
         _inhibition = inhibition ?? new IdleInhibition();
+        _offRecord.Changed += OnOffRecordChanged;
+        _offRecord.Forgotten += OnForgotten;
         _timer = new Timer(_ => Sample(), null, Timeout.Infinite, Timeout.Infinite);
         _engine.PropertyChanged += OnEngineChanged;
         _settings.PropertyChanged += (_, e) =>
@@ -59,6 +66,27 @@ public sealed class ActivityRecorder : IDisposable
             if (e.PropertyName is nameof(JournalSettings.RecordWindows) or nameof(JournalSettings.WholeDay) or nameof(JournalSettings.PauseFor)) Update();
         };
         Update();
+    }
+
+    /// <summary>Gone off the record: the window in front stops here, not at the next sample.</summary>
+    private void OnOffRecordChanged()
+    {
+        if (!_offRecord.IsActive) return;
+        lock (_gate) Close();
+    }
+
+    /// <summary>
+    /// Time was forgotten, before what was recorded in it is deleted: the span being recorded
+    /// is let go without being written again, so it can't grow back over the forgotten time.
+    /// </summary>
+    private void OnForgotten(DateTime fromUtc, DateTime toUtc)
+    {
+        lock (_gate)
+        {
+            if (_spanId == 0 || _spanEnd < fromUtc) return;
+            _spanId = 0;
+            _spanKey = null;
+        }
     }
 
     private void OnEngineChanged(object? sender, PropertyChangedEventArgs e)
@@ -109,6 +137,11 @@ public sealed class ActivityRecorder : IDisposable
     private void SampleLocked()
     {
         var now = DateTime.UtcNow;
+        if (_offRecord.IsActive)
+        {
+            Close();
+            return;
+        }
         if (PausingApps.AnyRunning(_settings.PauseApps, known: _programs))
         {
             Record(now, JournalStore.Paused, "");
@@ -161,6 +194,12 @@ public sealed class ActivityRecorder : IDisposable
             Close();
             return;
         }
+        // Not even which app: the time is off the record, so nothing else from it is used either.
+        if (_settings.SkipAdult && AdultSites.IsAdultText(window.Title))
+        {
+            Record(now, JournalStore.Paused, "");
+            return;
+        }
         Record(now, app, window.Title);
     }
 
@@ -181,6 +220,15 @@ public sealed class ActivityRecorder : IDisposable
     private void Record(DateTime now, string app, string title)
     {
         var key = app + "\n" + title;
+        // A span that's run for hours (a video left on) starts afresh: none is longer than the store looks back for.
+        if (key == _spanKey && _spanId != 0 && now - _spanStart >= JournalStore.LongestSpan)
+        {
+            _spanEnd = now;
+            Flush();
+            _spanId = _store.BeginSpan(now, app, title);
+            _spanStart = _spanEnd = _flushed = now;
+            return;
+        }
         if (key == _spanKey && _spanId != 0)
         {
             _spanEnd = now;
@@ -196,7 +244,7 @@ public sealed class ActivityRecorder : IDisposable
         }
         _spanId = _store.BeginSpan(start, app, title);
         _spanKey = key;
-        _spanEnd = _flushed = start;
+        _spanStart = _spanEnd = _flushed = start;
     }
 
     private void Flush()
@@ -269,6 +317,8 @@ public sealed class ActivityRecorder : IDisposable
     public void Dispose()
     {
         _engine.PropertyChanged -= OnEngineChanged;
+        _offRecord.Changed -= OnOffRecordChanged;
+        _offRecord.Forgotten -= OnForgotten;
         lock (_gate)
         {
             _disposed = true;
