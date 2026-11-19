@@ -110,6 +110,14 @@ Per-machine settings (music paths, window position) live in `localSettings.json`
   `--json-schema` answer from `ClaudeOneShot`; `JournalStore` keeps write-ups keyed by each pomodoro's
   evidence fingerprint, so only changed pomodoros are rewritten (a background write follows each new one).
   Changing `JournalPrompt.Describe` changes every fingerprint: all days get rewritten when next opened.
+- The journal covers the whole day: `JournalBuilder.OffTimer` turns evidence outside pomodoros into
+  stretches (split after 20 quiet minutes), with negative ids from their start minute
+  (`WorkBlock.OffTimerId`), written up alongside the pomodoros. `ActivityRecorder` samples on a thread-pool
+  timer all day; away is 2 min idle unless `IdleInhibition` (GNOME SessionManager `IsInhibited(8)`, not
+  locked) says a video is playing. While a `PauseFor` app runs (`PausingApps`, argv[0] of every process),
+  it writes a `JournalStore.Paused` span, and `JournalService.WithoutPaused` drops every source's evidence
+  in it. Skipped (`Ignored`) matches leave nothing, not even time. Without recorded windows (older days,
+  Wayland) off-timer stretches are moments, not lengths: the prompt says so and the UI shows no length.
 - Claude Code transcripts are 1.5 GB and append-only: they're indexed per file (CacheDirectory/journal,
   0700) and read on from the saved offset; only top-level fields are read, with `Utf8JsonReader`, since
   nested content contains strings like `"timestamp":`. Typed prompts are `turnOrigin` human (or absent)

@@ -238,5 +238,43 @@ public class ActivityRecorderTests
         Assert.AreEqual("Browser (driven by an agent)",
             ActivityRecorder.AppName(new ActiveWindow("Google-chrome", "google-chrome (/home/a/.cache/ms-playwright-mcp/mcp-chrome-1)", "x", 1)));
         Assert.AreEqual("TextEditor", ActivityRecorder.AppName(new ActiveWindow("org.gnome.TextEditor", "gnome-text-editor", "x", 1)));
+        Assert.AreEqual("Telegram", ActivityRecorder.AppName(new ActiveWindow("TelegramDesktop", "telegram-desktop", "x", 1)));
+        Assert.IsTrue(ActivityRecorder.IsDesktop(new ActiveWindow("Gjs", "gjs", "Desktop Icons 1", 1)), "the bare desktop isn't an app");
+        Assert.IsFalse(ActivityRecorder.IsDesktop(new ActiveWindow("Gjs", "gjs", "Extension preferences", 1)));
+    }
+}
+
+[TestClass]
+public class PausingAppsTests
+{
+    private static readonly string[] Tor = [PausingApps.Squash("Tor Browser")];
+
+    [TestMethod]
+    public void Tor_Browser_is_found_however_it_was_installed_and_nothing_else_is()
+    {
+        Assert.IsTrue(PausingApps.Names("/home/a/.local/share/torbrowser/tbb/x86_64/tor-browser/Browser/firefox.real", Tor), "torbrowser-launcher's copy");
+        Assert.IsTrue(PausingApps.Names("/home/a/Downloads/tor-browser/Browser/TorBrowser/Tor/tor", Tor), "the tarball, and its tor");
+        Assert.IsTrue(PausingApps.Names("/usr/bin/torbrowser-launcher", Tor));
+        Assert.IsTrue(PausingApps.Names("/opt/Tor Browser/Browser/firefox", Tor));
+        Assert.IsFalse(PausingApps.Names("/usr/bin/firefox", Tor));
+        Assert.IsFalse(PausingApps.Names("/usr/bin/editor", [PausingApps.Squash("tor")]), "a name matches the start of a part, not anywhere");
+    }
+
+    [TestMethod]
+    public void Running_programs_are_read_from_proc()
+    {
+        using var home = new TempHome();
+        void Process(string pid, string argv0)
+        {
+            Directory.CreateDirectory(Path.Combine(home.Path, pid));
+            File.WriteAllText(Path.Combine(home.Path, pid, "cmdline"), argv0 + "\0--some-arg\0");
+        }
+        Process("100", "/usr/bin/zen");
+        Process("self", "/home/a/tor-browser/Browser/firefox.real"); // not a process
+        Assert.IsFalse(PausingApps.AnyRunning(["Tor Browser"], home.Path));
+
+        Process("4242", "/home/a/tor-browser/Browser/firefox.real");
+        Assert.IsTrue(PausingApps.AnyRunning(["Tor Browser"], home.Path));
+        Assert.IsFalse(PausingApps.AnyRunning([], home.Path), "an empty list pauses nothing");
     }
 }

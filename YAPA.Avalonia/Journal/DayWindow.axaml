@@ -91,6 +91,9 @@
             <Setter Property="LetterSpacing" Value="1.2" />
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
         </Style>
+        <Style Selector="TextBlock.sessionLabel.off">
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+        </Style>
         <Style Selector="TextBlock.sessionRange">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
@@ -144,6 +147,15 @@
         <Style Selector="TextBlock.title.blank">
             <Setter Property="Foreground" Value="{DynamicResource InkFaint}" />
             <Setter Property="FontStyle" Value="Italic" />
+            <Setter Property="FontWeight" Value="Normal" />
+        </Style>
+        <!-- Time off the timer: there, quieter than the pomodoros. -->
+        <Style Selector="Border.entry.off TextBlock.title">
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Foreground" Value="#FFB6B6BF" />
+        </Style>
+        <Style Selector="Border.entry.off TextBlock.time">
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
             <Setter Property="FontWeight" Value="Normal" />
         </Style>
         <Style Selector="TextBlock.detail">
@@ -246,11 +258,11 @@
                     <TextBlock Classes="stats" Text="Reading your day…" VerticalAlignment="Center" />
                 </StackPanel>
 
-                <!-- A day without pomodoros. -->
+                <!-- A day with nothing on record. -->
                 <Border Classes="hero" IsVisible="{Binding IsEmpty}" Padding="26,30">
                     <StackPanel Spacing="6">
-                        <TextBlock Classes="headline" Text="No pomodoros on this day." />
-                        <TextBlock Classes="summary" Text="The journal is built around pomodoros: what you did in each one, put together after the fact. Start one and this page fills itself in." />
+                        <TextBlock Classes="headline" Text="Nothing on record for this day." />
+                        <TextBlock Classes="summary" Text="No pomodoros, and nothing from your conversations, commits, browsing or windows. Once there is, this page puts it together on its own." />
                     </StackPanel>
                 </Border>
 
@@ -305,7 +317,7 @@
                         <DataTemplate x:DataType="j:SessionViewModel">
                             <StackPanel Margin="2,34,2,0">
                                 <Grid ColumnDefinitions="Auto,*">
-                                    <TextBlock Classes="sessionLabel" Text="{Binding Label}" VerticalAlignment="Center" />
+                                    <TextBlock Classes="sessionLabel" Classes.off="{Binding IsOffTimer}" Text="{Binding Label}" VerticalAlignment="Center" />
                                     <TextBlock Grid.Column="1" Classes="sessionRange" Text="{Binding Range}" Margin="12,0,0,0" VerticalAlignment="Center" />
                                 </Grid>
                                 <TextBlock Classes="sessionTitle" Text="{Binding Title}" IsVisible="{Binding HasTitle}" />
@@ -314,7 +326,7 @@
                                     <ItemsControl Classes="entries" ItemsSource="{Binding Entries}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="j:EntryViewModel">
-                                                <Border Classes="entry">
+                                                <Border Classes="entry" Classes.off="{Binding IsOffTimer}">
                                                     <Grid ColumnDefinitions="62,18,*,Auto">
                                                         <StackPanel Margin="0,1,0,0">
                                                             <TextBlock Classes="time" Text="{Binding Start}" />
@@ -332,7 +344,7 @@
                                                                      FontSize="14" Margin="-10,-6,0,-2" />
                                                             <TextBlock Classes="detail" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" />
                                                             <Border Classes="now" IsVisible="{Binding InProgress}">
-                                                                <TextBlock Text="UNDER WAY" FontSize="10.5" FontWeight="SemiBold" LetterSpacing="0.8" Foreground="{DynamicResource AccentBrush}" />
+                                                                <TextBlock Text="{Binding NowLabel}" FontSize="10.5" FontWeight="SemiBold" LetterSpacing="0.8" Foreground="{DynamicResource AccentBrush}" />
                                                             </Border>
                                                             <WrapPanel IsVisible="{Binding HasChips}" Margin="0,4,0,-6">
                                                                 <ItemsControl ItemsSource="{Binding Projects}">
@@ -410,7 +422,7 @@
                 <StackPanel Margin="4,26,4,0" Spacing="4" IsVisible="{Binding !IsEmpty}">
                     <TextBlock Classes="note" Text="{Binding Sources}" />
                     <TextBlock Classes="note" Foreground="{DynamicResource InkFaint}"
-                               Text="Read on this computer, from inside pomodoros only. The write-up goes to Claude through your own sign-in, with anything that looks like a key or a password blanked. Settings → Journal says what's read." />
+                               Text="{Binding PrivacyNote}" />
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>

@@ -11,7 +11,8 @@ namespace YAPA.Avalonia.Journal;
 
 /// <summary>
 /// The day at a glance: each pomodoro as a block on an hour scale, coloured by its project,
-/// with the breaks as the gaps between. Hovering names a block; clicking one goes to it.
+/// and the time at the computer off the timer as a thin grey line. Hovering names a block;
+/// clicking one goes to it.
 /// </summary>
 public sealed class DayRibbon : Control
 {
@@ -71,7 +72,8 @@ public sealed class DayRibbon : Control
         var scale = Bounds.Width / TotalMinutes;
         var x = b.Start * scale;
         var w = Math.Max(3, b.Length * scale - Gap);
-        return new Rect(x, 0, w, BarHeight);
+        // Time off the timer is a thin line through the middle: there, but not focus.
+        return b.OffTimer ? new Rect(x, BarHeight / 2 - 2.5, w, 5) : new Rect(x, 0, w, BarHeight);
     }
 
     public override void Render(DrawingContext context)
@@ -85,10 +87,12 @@ public sealed class DayRibbon : Control
         {
             var b = blocks[i];
             var rect = BlockRect(b);
-            var color = b.Color;
-            var alpha = b.InProgress ? (byte)0x8C : i == _hovered ? (byte)0xFF : (byte)0xE0;
+            var color = b.OffTimer ? Color.FromRgb(0xFF, 0xFF, 0xFF) : b.Color;
+            var alpha = b.OffTimer ? (i == _hovered ? (byte)0x70 : (byte)0x30)
+                : b.InProgress ? (byte)0x8C : i == _hovered ? (byte)0xFF : (byte)0xE0;
             var brush = new SolidColorBrush(Color.FromArgb(alpha, color.R, color.G, color.B));
-            context.DrawRectangle(brush, null, new RoundedRect(rect, 5));
+            context.DrawRectangle(brush, null, new RoundedRect(rect, b.OffTimer ? 2.5 : 5));
+            if (b.OffTimer) continue;
             if (i == _hovered)
                 context.DrawRectangle(null, new Pen(new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)), 1.2), new RoundedRect(rect.Deflate(0.6), 5));
         }
@@ -113,7 +117,12 @@ public sealed class DayRibbon : Control
         if (p.Y > BarHeight + 2) return -1;
         var blocks = Blocks;
         for (var i = 0; i < blocks.Count; i++)
-            if (BlockRect(blocks[i]).Inflate(new Thickness(1, 3)).Contains(p)) return i;
+        {
+            var rect = BlockRect(blocks[i]);
+            // A thin line is hard to hit: it answers across the bar's height.
+            if (blocks[i].OffTimer) rect = new Rect(rect.X, 0, rect.Width, BarHeight);
+            if (rect.Inflate(new Thickness(1, 3)).Contains(p)) return i;
+        }
         return -1;
     }
 

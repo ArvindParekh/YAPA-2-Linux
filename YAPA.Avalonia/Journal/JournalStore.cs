@@ -66,6 +66,12 @@ public sealed class JournalStore : IDisposable
 
     // ── Windows ──────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// The app of a span in which the journal was paused (Tor Browser was open): it says when,
+    /// never what, and everything else found in that time is dropped.
+    /// </summary>
+    public const string Paused = "(paused)";
+
     /// <returns>The span's id, to extend it; 0 when nothing could be written.</returns>
     public long BeginSpan(DateTime startUtc, string app, string title)
     {

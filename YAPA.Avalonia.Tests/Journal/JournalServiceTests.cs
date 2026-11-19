@@ -42,7 +42,7 @@ public class JournalServiceTests
             ClaudeCode = false, Git = false, Browsers = false,
         };
         _store = new JournalStore(_db.FilePath);
-        _journal = new JournalService(_history, events, null, _store, settings, new ClaudeAccount(_db.Folder), zone: Zone);
+        _journal = new JournalService(_history, events, null, _store, settings, new ClaudeAccount(_db.Folder), zone: Zone, utcNow: () => Local(20, 0));
         _savedOverride = Environment.GetEnvironmentVariable(ClaudeCli.OverrideVariable);
         _calls = Path.Combine(_db.Folder, "calls.log");
         FakeClaude(signedOut: false);
@@ -63,7 +63,7 @@ public class JournalServiceTests
         var answer = signedOut
             ? """print(json.dumps({"type": "result", "is_error": True, "result": "Failed to authenticate: OAuth session expired and could not be refreshed"}))"""
             : """
-              ids = [int(m) for m in re.findall(r"^## Pomodoro (\d+) .*?(?<!\(kept\))$", prompt, re.M)]
+              ids = [int(m) for m in re.findall(r"^## (?:Pomodoro|Off the timer) (-?\d+) .*?(?<!\(kept\))$", prompt, re.M)]
               print(json.dumps({"type": "result", "is_error": False, "structured_output": {
                   "pomodoros": [{"id": i, "title": f"Wrote {i}", "detail": "", "projects": ["YAPA"]} for i in ids],
                   "sessions": [{"number": 1, "title": "Morning", "summary": "Things got done."}],
@@ -87,6 +87,9 @@ public class JournalServiceTests
             INSERT INTO "TimerEvents" ("AtUtc", "Kind", "FromPhase", "ToPhase", "Pomodoro", "Cycle", "LongBreak", "Automatic", "LengthSeconds", "ElapsedSeconds")
             VALUES ($at, $kind, 'x', 'y', 1, $cycle, 0, 0, 3000, 0);
             """, ("$at", at.ToString("yyyy-MM-dd HH:mm:ss")), ("$kind", kind), ("$cycle", cycle));
+
+    private void Window(int fromHour, int fromMinute, int toHour, int toMinute, string app, string title)
+        => _store.ExtendSpan(_store.BeginSpan(Local(fromHour, fromMinute), app, title), Local(toHour, toMinute));
 
     private PomodoroEntity Pomodoro(DateTime end)
     {
@@ -169,5 +172,67 @@ public class JournalServiceTests
         Assert.IsTrue(problem!.SignedOut);
         Assert.AreEqual(1, day.Count, "the day is still there, just not written up");
         Assert.IsTrue(day.Stale);
+    }
+
+    [TestMethod]
+    public async Task The_whole_day_is_there_breaks_in_their_session_and_the_time_between_on_its_own()
+    {
+        Event(Local(9, 0), "WorkStarted", 1);
+        Event(Local(10, 0), "WorkCompleted", 1);
+        Pomodoro(Local(10, 0));
+        Event(Local(10, 10), "WorkStarted", 1);
+        Event(Local(11, 0), "WorkCompleted", 1);
+        Pomodoro(Local(11, 0));
+        Window(10, 2, 10, 6, "Zen", "Mafia, part 2 - YouTube — Zen Browser");
+        Window(13, 0, 13, 30, "Zen", "Hacker News — Zen Browser");
+        Window(19, 50, 19, 58, "Terminal", "~/YAPA-2");
+
+        var day = _journal.Load(Day);
+
+        var off = day.Entries.Where(e => e.OffTimer).ToList();
+        Assert.AreEqual(2, day.Count, "pomodoros are counted as before");
+        CollectionAssert.AreEqual(new[] { 1, 0, 0 }, off.Select(e => e.Session).ToList(), "the break is in its session; the rest stands on its own");
+        Assert.AreEqual("Zen: Mafia, part 2 - YouTube", off[0].Title);
+        Assert.IsTrue(off[2].InProgress, "still going: written once it's over");
+        Assert.AreEqual(Local(10, 2), day.Entries[1].Block.StartUtc, "in order with the pomodoros");
+
+        await _journal.WriteAsync(Day);
+        var request = File.ReadAllText(_calls);
+        StringAssert.Contains(request, "a break in session 1");
+        StringAssert.Contains(request, "outside the sessions");
+        Assert.IsFalse(request.Contains("~/YAPA-2"), "what's still going isn't sent yet");
+        Assert.AreEqual($"Wrote {off[0].Block.PomodoroId}", _journal.Load(Day).Entries.First(e => e.OffTimer).Title);
+    }
+
+    [TestMethod]
+    public void While_the_journal_is_paused_nothing_from_that_time_is_used_and_nothing_bridges_it()
+    {
+        Pomodoro(Local(10, 0));
+        Window(9, 15, 9, 50, "Zen", "Canvas — Zen Browser");
+        _store.ExtendSpan(_store.BeginSpan(Local(9, 30), JournalStore.Paused, ""), Local(9, 40));
+        Window(14, 0, 14, 10, "Zen", "Before");
+        _store.ExtendSpan(_store.BeginSpan(Local(14, 10), JournalStore.Paused, ""), Local(14, 20));
+        Window(14, 20, 14, 30, "Zen", "After");
+
+        var day = _journal.Load(Day);
+
+        Assert.AreEqual(25, day.Entries[0].Evidence.Apps.Single().Minutes, "the ten paused minutes are cut out of the window across them");
+        var off = day.Entries.Where(e => e.OffTimer).ToList();
+        Assert.AreEqual(2, off.Count, "the paused time splits what's around it");
+        Assert.IsTrue(off.All(e => e.Block.EndUtc <= Local(14, 10) || e.Block.StartUtc >= Local(14, 20)));
+        Assert.IsFalse(day.Entries.Any(e => e.Evidence.Apps.Any(a => a.App == JournalStore.Paused)), "the pause itself is never shown");
+    }
+
+    [TestMethod]
+    public void A_skipped_app_leaves_nothing()
+    {
+        Pomodoro(Local(10, 0));
+        Window(9, 20, 9, 40, "Telegram", "Saved Messages");
+        Window(15, 0, 15, 30, "TelegramDesktop", "Family");
+
+        var day = _journal.Load(Day);
+
+        Assert.IsTrue(day.Entries.Single().Evidence.IsEmpty, "Telegram is skipped by default");
+        Assert.IsFalse(day.Entries.Any(e => e.OffTimer), "and starts no stretch of its own");
     }
 }

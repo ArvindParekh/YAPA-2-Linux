@@ -57,6 +57,13 @@ A ground-up revival of the Linux port.
   From the timer's menu, <kbd>Ctrl</kbd>+<kbd>D</kbd>, the tray or `--day`, and Ask YAPA answers
   "what did I do in my second session?" from it. Settings → Journal switches each source off, keeps
   an ignore list, and forgets what was recorded.
+- Your day covers the whole day, not just pomodoros: breaks show inside their session and the time
+  between sessions as "Off the timer", each written up like a pomodoro, with a thin grey line on the
+  ribbon. The window in front is recorded whenever you're at the computer, including while a video
+  plays without input (anything holding GNOME's idle inhibitor), never on a locked screen or the bare
+  desktop. While Tor Browser runs (any app in Settings → Journal → "Stops everything while open"),
+  nothing is recorded and nothing any source found in that time is used. Skipped apps (Telegram, the
+  password managers and private windows by default) leave nothing at all, not even their time.
 - A timer event log (starts, pauses, stops, breaks) in `Yapa.db`, so breaks and abandoned pomodoros
   can be asked about, not only completed ones.
 - A redesigned Settings window: dark grouped cards, a sidebar with icons, steppers, a live preview of the

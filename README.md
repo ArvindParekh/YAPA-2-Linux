@@ -96,11 +96,13 @@ tools, plugins or MCP servers: only YAPA's own.
 shows what you did, pomodoro by pomodoro, without your having typed anything. Each pomodoro is
 put together from what happened during it: the Claude Code conversations you typed into, your
 commits in the repositories under your home folder, the pages you visited (Firefox, Zen, Chrome
-and relatives) and, while a pomodoro runs on X11, the window in front. Claude writes each one
-up in a line, each session (the pomodoros between long breaks) in a sentence or two, and the day
-in a few. Breaks are never recorded, nothing is read from outside pomodoros, and the write-up goes
-through your own Claude sign-in with anything resembling a key or password blanked. Settings →
-Journal turns each source off and lists what is never recorded.
+and relatives) and, on X11, the window in front. Breaks and the time between sessions are there
+too, as "Off the timer". Claude writes each one up in a line, each session (the pomodoros between
+long breaks) in a sentence or two, and the day in a few. Everything is read on your computer; the
+write-up goes through your own Claude sign-in with anything resembling a key or password blanked.
+While Tor Browser is open nothing at all is recorded or used, and skipped apps (Telegram, password
+managers, private windows) leave no trace. Settings → Journal turns each source off and edits both
+lists.
 
 ### Global shortcut
 

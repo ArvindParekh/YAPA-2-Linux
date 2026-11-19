@@ -25,8 +25,8 @@ public sealed record PromptBlock(WorkBlock Block, int Session, BlockEvidence Evi
 
 /// <summary>
 /// Turns a day's evidence into the request for its journal, and reads the answer. The
-/// request carries only what happened inside pomodoros, with anything that looks like a
-/// secret blanked out.
+/// request carries what was on record in each pomodoro and each stretch off the timer, with
+/// anything that looks like a secret blanked out.
 /// </summary>
 public static class JournalPrompt
 {
@@ -34,6 +34,8 @@ public static class JournalPrompt
 
     public const string System = """
         You write a work journal from evidence. The user works in pomodoros (focused work intervals) and later wants to remember what they did in each one, and whether the day went anywhere.
+
+        You also get the stretches "off the timer": time at the computer outside pomodoros (breaks inside a session, and the time before, between and after sessions). They have negative ids.
 
         For each pomodoro you get what was on record during it: Claude Code conversations the user typed into (the conversation's title, its project folder, and the user's own prompts), git commits, web pages visited, and the windows in front. From that, say what the user actually worked on.
 
@@ -46,10 +48,12 @@ public static class JournalPrompt
         - Pomodoro title: sentence case, at most 8 words, no final period. Start with a past-tense verb or a noun phrase.
         - Pomodoro detail: one sentence of at most 25 words with the concrete specifics (what was decided, built, found or read). Empty when the title says it all.
         - Projects: 1 to 3 short names of what the pomodoro belongs to (a course, a repository, the job search, interview prep). Use the same name, spelled the same way, for the same thing all day. Never a catch-all such as "Miscellaneous", "Other", "Browsing" or "General": a scattered pomodoro gets no project.
+        - Off the timer: write each stretch the same way (title, detail, projects), plainly, whatever it was: "Watched Mafia videos on YouTube", "Replied to recruiters on LinkedIn". It is not focus time: never call it a pomodoro. Work done off the timer gets its project like any other.
         - Session: a run of pomodoros between long breaks. Title at most 6 words; summary one or two sentences, at most 35 words.
-        - Day headline: at most 12 words, the shape of the day. Day summary: 2 or 3 sentences, at most 70 words: where the time went, by project with rough hours, and what got done.
+        - Day headline: at most 12 words, the shape of the day. Day summary: 2 or 3 sentences, at most 70 words: where the focus time went, by project with rough hours, what got done, and, when there was a lot of it, what the time off the timer went to.
         - Plain and factual. No praise, no judgement, no advice, no markdown. Use the user's own words for things where you can.
-        - Pomodoros marked "kept" are already written: use them as context and don't return them. A title "from the user" is authoritative: return it unchanged, write its detail, and build the session and the day around it.
+        - Never refer to the user by a pronoun or as "the user": write like a log, starting with the verb ("Shared the video and said coding skills had rusted").
+        - Pomodoros and stretches marked "kept" are already written: use them as context and don't return them. A title "from the user" is authoritative: return it unchanged, write its detail, and build the session and the day around it.
         """;
 
     public static string Schema => """
@@ -63,20 +67,36 @@ public static class JournalPrompt
         """;
 
     /// <param name="local">The user's time zone: everything is written in their clock's time.</param>
-    public static string Build(DateOnly day, IReadOnlyList<PromptBlock> blocks, TimeZoneInfo local)
+    /// <param name="windowsRecorded">
+    /// Whether the windows in front were recorded that day. Without them, time off the timer is
+    /// only the moments something else left a trace, and says nothing about how long it was.
+    /// </param>
+    public static string Build(DateOnly day, IReadOnlyList<PromptBlock> blocks, TimeZoneInfo local, bool windowsRecorded = true)
     {
         string Time(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(utc, local).ToString("HH:mm", CultureInfo.InvariantCulture);
 
         var text = new StringBuilder();
         text.Append("Day: ").Append(day.ToString("dddd d MMMM yyyy", CultureInfo.InvariantCulture))
             .Append(". Times are the user's local time, 24-hour.\n");
-        var totalMinutes = blocks.Sum(b => b.Block.Minutes);
-        text.Append(CultureInfo.InvariantCulture, $"{blocks.Count} pomodoros, {totalMinutes / 60} h {totalMinutes % 60} min of focus, in {blocks.Select(b => b.Session).Distinct().Count()} sessions.\n");
+        var pomodoros = blocks.Where(b => !b.Block.OffTimer).ToList();
+        var offTimer = blocks.Where(b => b.Block.OffTimer).ToList();
+        var totalMinutes = pomodoros.Sum(b => b.Block.Minutes);
+        text.Append(CultureInfo.InvariantCulture, $"{pomodoros.Count} pomodoros, {totalMinutes / 60} h {totalMinutes % 60} min of focus, in {pomodoros.Select(b => b.Session).Distinct().Count()} sessions.\n");
+        if (offTimer.Count > 0)
+        {
+            var offMinutes = offTimer.Sum(b => b.Block.Minutes);
+            text.Append(windowsRecorded
+                ? string.Create(CultureInfo.InvariantCulture, $"{offTimer.Count} stretches off the timer, about {offMinutes / 60} h {offMinutes % 60} min at the computer.\n")
+                : string.Create(CultureInfo.InvariantCulture, $"{offTimer.Count} stretches off the timer. The windows in front weren't recorded this day, so these are only the moments a page, prompt or commit left a trace: say nothing about how long the user was at the computer off the timer.\n"));
+        }
 
         foreach (var b in blocks)
         {
-            text.Append('\n').Append(CultureInfo.InvariantCulture,
-                $"## Pomodoro {b.Block.PomodoroId} · {Time(b.Block.StartUtc)}–{Time(b.Block.EndUtc)} · {b.Block.Minutes} min · session {b.Session}");
+            var heading = b.Block.OffTimer
+                ? $"## Off the timer {b.Block.PomodoroId} · {Time(b.Block.StartUtc)}–{Time(b.Block.EndUtc)} · ~{b.Block.Minutes} min · " +
+                  (b.Session > 0 ? $"a break in session {b.Session}" : "outside the sessions")
+                : $"## Pomodoro {b.Block.PomodoroId} · {Time(b.Block.StartUtc)}–{Time(b.Block.EndUtc)} · {b.Block.Minutes} min · session {b.Session}";
+            text.Append('\n').Append(heading);
             if (b.Kept is { } kept)
             {
                 text.Append(" (kept)\n").Append("Title: ").Append(b.UserTitle ?? kept.Title).Append('\n');

@@ -5,11 +5,23 @@ using System.Collections.Generic;
 namespace YAPA.Shared.Journal;
 
 /// <summary>
-/// A pomodoro as the journal sees it: a stretch of wall-clock time that was work.
+/// A stretch of the day as the journal sees it: a pomodoro, or time at the computer off the
+/// timer (a break, or the time before, between and after sessions).
 /// </summary>
+/// <param name="PomodoroId">The pomodoro's id; 0 for the one under way; negative off the timer (see <see cref="OffTimerId"/>).</param>
 /// <param name="StartUtc">When it started, pauses included; from the event log when it knows, else end minus length.</param>
 /// <param name="Cycle">Its cycle that day, when the event log recorded one.</param>
-public sealed record WorkBlock(int PomodoroId, DateTime StartUtc, DateTime EndUtc, int Minutes, int? Cycle);
+/// <param name="OffTimer">Not a pomodoro: time at the computer outside one.</param>
+public sealed record WorkBlock(int PomodoroId, DateTime StartUtc, DateTime EndUtc, int Minutes, int? Cycle, bool OffTimer = false)
+{
+    private static readonly DateTime Epoch = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+    /// <summary>
+    /// An id for a stretch off the timer, from the minute it starts: stable as long as its
+    /// start is (so its write-up and any name the user gives it stay), never a pomodoro's.
+    /// </summary>
+    public static int OffTimerId(DateTime startUtc) => -(int)((startUtc - Epoch).Ticks / TimeSpan.TicksPerMinute) - 1;
+}
 
 /// <summary>Something typed into a Claude Code conversation.</summary>
 public sealed record AgentPrompt(DateTime AtUtc, string Text);

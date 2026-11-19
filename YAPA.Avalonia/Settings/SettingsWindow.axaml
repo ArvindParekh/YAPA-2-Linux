@@ -459,15 +459,18 @@
                     <Grid ColumnDefinitions="*,Auto" Margin="16,14,14,14">
                         <StackPanel VerticalAlignment="Center" Spacing="3" Margin="0,0,16,0">
                             <TextBlock Text="Your day" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" />
-                            <TextBlock Classes="note" Text="Each pomodoro with what you did in it, the sessions and the day in a few lines. From the timer's menu, Ctrl+D, or yapa2 --day." />
+                            <TextBlock Classes="note" Text="Each pomodoro with what you did in it, the time in between, the sessions and the day in a few lines. From the timer's menu, Ctrl+D, or yapa2 --day." />
                         </StackPanel>
                         <Button Grid.Column="1" Content="Open" Command="{Binding OpenDayCommand}" VerticalAlignment="Center" />
                     </Grid>
                 </Border>
 
-                <TextBlock Classes="group" Text="What it reads, from inside pomodoros only" />
+                <TextBlock Classes="group" Text="What it reads" />
                 <Border Classes="card">
                     <StackPanel>
+                        <c:SettingRow Title="The whole day" Description="Breaks and the time between sessions too, not just pomodoros. Off, only what happens inside a pomodoro is read.">
+                            <ToggleSwitch IsChecked="{Binding WholeDay}" />
+                        </c:SettingRow>
                         <c:SettingRow Title="Claude Code conversations" Description="Each conversation's title and folder, and what you typed into it.">
                             <ToggleSwitch IsChecked="{Binding ClaudeCode}" />
                         </c:SettingRow>
@@ -493,10 +496,18 @@
                     </StackPanel>
                 </Border>
 
-                <TextBlock Classes="group" Text="Never recorded" />
+                <TextBlock Classes="group" Text="Stops everything while open" />
                 <Border Classes="card">
                     <StackPanel Margin="16,13,16,15" Spacing="9">
-                        <TextBlock Classes="note" Text="Apps, sites or words, one per line. A window or page that matches keeps its time and loses its title; a matching conversation, prompt or commit is left out." />
+                        <TextBlock Classes="note" Text="Apps, one per line. While one is running, focused or not, nothing is recorded, and nothing your conversations, commits or browsing show from that time is used." />
+                        <TextBox Text="{Binding PauseFor}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="52" FontSize="13" />
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Classes="group" Text="Skipped" />
+                <Border Classes="card">
+                    <StackPanel Margin="16,13,16,15" Spacing="9">
+                        <TextBlock Classes="note" Text="Apps, sites or words, one per line. A window, page, conversation, prompt or commit that matches is left out, as if it never happened." />
                         <TextBox Text="{Binding Ignored}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="96" FontSize="13" />
                     </StackPanel>
                 </Border>

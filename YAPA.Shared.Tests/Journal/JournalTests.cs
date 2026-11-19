@@ -101,6 +101,41 @@ public class JournalBuilderTests
     }
 
     [TestMethod]
+    public void Time_off_the_timer_is_stretches_of_activity_split_by_quiet_and_by_pomodoros()
+    {
+        var pomodoros = new[] { Block(1, 0), Block(2, 60) };
+        var evidence = new EvidenceSet(
+            [new AgentSession("s", "yapa", "Journal", [new AgentPrompt(At(150), "make it all day")], [At(150), At(151)])],
+            [new Commit("yapa", "c1", At(55), "Made in the break: the first pomodoro's")],
+            [
+                new Visit(At(-30), "youtube.com", "Mafia, part 1 - YouTube"),
+                new Visit(At(52), "youtube.com", "Mafia, part 2 - YouTube"),
+                new Visit(At(200), "news.ycombinator.com", "Hacker News"),
+                new Visit(At(205), "login.microsoftonline.com", "Sign in to your account"),
+            ],
+            [new WindowSpan(At(-20), At(-10), "Zen", "Mafia, part 1 — Zen Browser")]);
+
+        var off = JournalBuilder.OffTimer(pomodoros, evidence, At(-120), At(300));
+
+        CollectionAssert.AreEqual(new[] { -30, 52, 150, 200 }, off.Select(b => (int)(b.StartUtc - Nine).TotalMinutes).ToList(),
+            "before the first, the break, and two stretches fifty quiet minutes apart; a commit claimed by a pomodoro and a sign-in page start nothing");
+        Assert.AreEqual(20, off[0].Minutes, "from the first page to the end of the window");
+        Assert.IsTrue(off.All(b => b.OffTimer && b.PomodoroId < 0));
+        Assert.AreEqual(WorkBlock.OffTimerId(At(52)), off[1].PomodoroId, "named by the minute it starts, so its write-up and its name stay");
+        Assert.AreNotEqual(WorkBlock.OffTimerId(At(52)), WorkBlock.OffTimerId(At(53)));
+    }
+
+    [TestMethod]
+    public void Excluded_time_has_no_stretch_and_splits_the_ones_around_it()
+    {
+        var visits = new[] { new Visit(At(0), "a.com", "A"), new Visit(At(10), "b.com", "B"), new Visit(At(15), "c.com", "C") };
+        var off = JournalBuilder.OffTimer([], new EvidenceSet([], [], visits, []), At(-60), At(60), [(At(5), At(12))]);
+
+        Assert.AreEqual(2, off.Count, "the paused time cuts the stretch in two");
+        Assert.IsTrue(off.All(b => b.EndUtc <= At(5) || b.StartUtc >= At(12)));
+    }
+
+    [TestMethod]
     public void Without_a_write_up_the_title_comes_from_the_strongest_evidence()
     {
         var conversation = new BlockEvidence([new SessionUse("p", "Interview prep strategy", 20, [])], [new Commit("r", "h", At(1), "Fix it")], [], []);
@@ -163,6 +198,25 @@ public class JournalPromptTests
         StringAssert.Contains(text, "(kept)\nTitle: Read papers");
         StringAssert.Contains(text, "Title from the user: \"Lecture\"");
         StringAssert.Contains(text, "Nothing on record.");
+    }
+
+    [TestMethod]
+    public void Time_off_the_timer_goes_in_the_request_as_itself()
+    {
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
+        var video = new BlockEvidence([], [], [new SiteUse("youtube.com", 2, ["Mafia, part 2"])], []);
+        var off = new WorkBlock(WorkBlock.OffTimerId(Start.AddMinutes(52)), Start.AddMinutes(52), Start.AddMinutes(58), 6, null, OffTimer: true);
+        var blocks = new[]
+        {
+            new PromptBlock(new WorkBlock(1, Start, Start.AddMinutes(50), 50, 1), 1, BlockEvidence(), null, null),
+            new PromptBlock(off, 1, video, null, null),
+        };
+
+        var text = JournalPrompt.Build(new DateOnly(2026, 11, 18), blocks, zone);
+
+        StringAssert.Contains(text, "1 pomodoros, 0 h 50 min of focus", "a break isn't focus");
+        StringAssert.Contains(text, $"## Off the timer {off.PomodoroId} · 09:52–09:58 · ~6 min · a break in session 1");
+        StringAssert.Contains(text, "youtube.com (2): \"Mafia, part 2\"");
     }
 
     private static BlockEvidence BlockEvidence() => new([], [], [], []);

@@ -28,6 +28,9 @@ public static class JournalBuilder
     /// <summary>Without cycle numbers, a gap this long starts a new session.</summary>
     public static readonly TimeSpan SessionGap = TimeSpan.FromMinutes(40);
 
+    /// <summary>Off the timer, this long with nothing on record ends one stretch at the computer.</summary>
+    public static readonly TimeSpan Quiet = TimeSpan.FromMinutes(20);
+
     private const int PromptsPerSession = 8;
     private const int TitlesPerSite = 4;
     private const int SitesPerBlock = 8;
@@ -49,7 +52,7 @@ public static class JournalBuilder
         "Verify it's you", "Attention Required",
     ];
 
-    /// <param name="blocks">Oldest first.</param>
+    /// <param name="blocks">Oldest first; pomodoros and stretches off the timer are attributed separately.</param>
     public static IReadOnlyList<BlockEvidence> Attribute(IReadOnlyList<WorkBlock> blocks, EvidenceSet evidence)
     {
         var result = new List<BlockEvidence>(blocks.Count);
@@ -57,10 +60,86 @@ public static class JournalBuilder
         {
             var block = blocks[i];
             var nextStart = i + 1 < blocks.Count ? blocks[i + 1].StartUtc : DateTime.MaxValue;
-            result.Add(For(block, nextStart, evidence));
+            // A break's commits are the pomodoro's before it, so time off the timer gets no grace.
+            result.Add(For(block, block.OffTimer ? block.EndUtc : nextStart, evidence));
         }
         return result;
     }
+
+    /// <summary>The commits a pomodoro claims: made in it, or in the break just after it.</summary>
+    public static IEnumerable<Commit> Claimed(IReadOnlyList<WorkBlock> pomodoros, IEnumerable<Commit> commits)
+    {
+        var ordered = pomodoros.OrderBy(b => b.StartUtc).ToList();
+        return commits.Where(c => ordered.Select((b, i) => (b, next: i + 1 < ordered.Count ? ordered[i + 1].StartUtc : DateTime.MaxValue))
+            .Any(x => c.AtUtc >= x.b.StartUtc && c.AtUtc < Min(x.b.EndUtc + CommitGrace, x.next)));
+    }
+
+    /// <summary>
+    /// The time at the computer outside pomodoros, in [<paramref name="fromUtc"/>,
+    /// <paramref name="toUtc"/>]: stretches of anything on record (windows in front, pages,
+    /// prompts typed, commits not claimed by a pomodoro) split wherever nothing happened for
+    /// <see cref="Quiet"/>, at pomodoros, and at <paramref name="excluded"/> (time nothing may be
+    /// recorded in).
+    /// </summary>
+    public static IReadOnlyList<WorkBlock> OffTimer(IReadOnlyList<WorkBlock> pomodoros, EvidenceSet evidence, DateTime fromUtc, DateTime toUtc,
+        IReadOnlyList<(DateTime Start, DateTime End)>? excluded = null)
+    {
+        var claimed = Claimed(pomodoros, evidence.Commits).Select(c => c.Hash).ToHashSet();
+        var moments = new List<(DateTime Start, DateTime End)>();
+        moments.AddRange(evidence.Windows.Select(w => (w.StartUtc, w.EndUtc)));
+        moments.AddRange(evidence.Visits.Where(Counts).Select(v => (v.AtUtc, v.AtUtc)));
+        moments.AddRange(evidence.Sessions.SelectMany(s => s.Prompts).Select(p => (p.AtUtc, p.AtUtc)));
+        moments.AddRange(evidence.Commits.Where(c => !claimed.Contains(c.Hash)).Select(c => (c.AtUtc, c.AtUtc)));
+
+        // The gaps: the range less the pomodoros and the excluded time.
+        var walls = pomodoros.Select(b => (Start: b.StartUtc, End: b.EndUtc)).Concat(excluded ?? []).OrderBy(w => w.Start).ToList();
+        var gaps = new List<(DateTime Start, DateTime End)>();
+        var cursor = fromUtc;
+        foreach (var wall in walls)
+        {
+            if (wall.Start > cursor) gaps.Add((cursor, Min(wall.Start, toUtc)));
+            if (wall.End > cursor) cursor = wall.End;
+            if (cursor >= toUtc) break;
+        }
+        if (cursor < toUtc) gaps.Add((cursor, toUtc));
+
+        var result = new List<WorkBlock>();
+        foreach (var (gapStart, gapEnd) in gaps.Where(g => g.End > g.Start))
+        {
+            var inside = moments
+                .Where(m => m.Start == m.End ? m.Start >= gapStart && m.Start < gapEnd : m.Start < gapEnd && m.End > gapStart)
+                .Select(m => (Start: Max(m.Start, gapStart), End: Min(m.End, gapEnd)))
+                .OrderBy(m => m.Start)
+                .ToList();
+            DateTime? start = null, end = null;
+            foreach (var m in inside)
+            {
+                if (start != null && m.Start - end!.Value > Quiet)
+                {
+                    result.Add(Stretch(start.Value, end.Value, gapEnd));
+                    start = null;
+                }
+                if (start == null)
+                {
+                    start = m.Start;
+                    end = m.End;
+                }
+                else if (m.End > end) end = m.End;
+            }
+            if (start != null) result.Add(Stretch(start.Value, end!.Value, gapEnd));
+        }
+        return result;
+    }
+
+    private static WorkBlock Stretch(DateTime start, DateTime end, DateTime limit)
+    {
+        // A single moment (one page, one prompt) still took a minute.
+        end = Min(Max(end, start + TimeSpan.FromMinutes(1)), limit);
+        return new WorkBlock(WorkBlock.OffTimerId(start), start, end, Math.Max(1, (int)Math.Round((end - start).TotalMinutes)), null, OffTimer: true);
+    }
+
+    // A visit that's the work, not a step on the way to it.
+    private static bool Counts(Visit v) => !IsPassThrough(v.Site) && CleanTitle(v.Title) is { Length: > 0 } t && !IsNoise(t);
 
     private static BlockEvidence For(WorkBlock block, DateTime nextStart, EvidenceSet evidence)
     {
@@ -186,6 +265,8 @@ public static class JournalBuilder
     }
 
     private static DateTime Min(DateTime a, DateTime b) => a < b ? a : b;
+
+    private static DateTime Max(DateTime a, DateTime b) => a > b ? a : b;
 
     public static bool IsPassThrough(string site)
     {

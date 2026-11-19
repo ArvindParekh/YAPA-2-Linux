@@ -16,10 +16,12 @@ public sealed partial class AppTools
         new AssistantTool
         {
             Name = "get_journal",
-            Description = "What the user worked on during one day, pomodoro by pomodoro and session by session (a session is a run of pomodoros between long breaks), " +
-                          "put together from their Claude Code conversations (titles and what they typed), git commits, browser history and the windows in front during pomodoros. " +
+            Description = "What the user did during one day, pomodoro by pomodoro and session by session (a session is a run of pomodoros between long breaks), " +
+                          "and the time at the computer off the timer (breaks, and before, between and after sessions), " +
+                          "put together from their Claude Code conversations (titles and what they typed), git commits, browser history and the windows in front. " +
                           "Each pomodoro has a written title and detail when the day has been written up, otherwise a title from the evidence; the evidence is always there. " +
-                          "Use it for anything about what was done: a session, the morning, yesterday, a standup, whether a day went anywhere, when something was last worked on. Read-only.",
+                          "Use it for anything about what was done: a session, the morning, a break, yesterday, a standup, whether a day went anywhere, what a video or page was, when something was last worked on. " +
+                          "Nothing is on record while Tor Browser (or another app the user listed) was open, nor from apps they skip. Read-only.",
             Schema = Object(("date", Str("'today', 'yesterday' or YYYY-MM-DD; today when left out."), false)),
             Activity = _ => "Reading your day",
             OffUiThread = true,
@@ -71,6 +73,8 @@ public sealed partial class AppTools
             ["date"] = date.ToString("yyyy-MM-dd (dddd)", CultureInfo.InvariantCulture),
             ["pomodoros"] = day.Count,
             ["focus_minutes"] = day.Minutes,
+            // Without the windows recorded, time off the timer is moments that left a trace, not a length.
+            ["minutes_off_the_timer"] = day.WindowsRecorded ? day.OffTimerMinutes : null,
             ["written_up"] = !day.Stale,
         };
         if (day.Summary is { } s)
@@ -80,7 +84,7 @@ public sealed partial class AppTools
         }
         if (day.Entries.Count == 0)
         {
-            result["note"] = "No pomodoros that day.";
+            result["note"] = "Nothing on record that day.";
             return result;
         }
         result["sessions"] = new JsonArray(day.Sessions.Select(session => (JsonNode)new JsonObject
@@ -89,12 +93,15 @@ public sealed partial class AppTools
             ["from"] = T(session.StartUtc),
             ["to"] = T(session.EndUtc),
             // Counted here: a model reading a list miscounts it.
-            ["pomodoro_count"] = day.Entries.Count(e => e.Session == session.Number && !e.InProgress),
+            ["pomodoro_count"] = day.Entries.Count(e => e.Session == session.Number && !e.InProgress && !e.OffTimer),
             ["focus_minutes"] = session.Blocks.Where(b => b.PomodoroId != 0).Sum(b => b.Minutes),
             ["title"] = day.SessionSummary(session.Number)?.Title,
             ["summary"] = day.SessionSummary(session.Number)?.Summary,
-            ["pomodoros"] = new JsonArray(day.Entries.Where(e => e.Session == session.Number).Select(e => (JsonNode)Describe(e, T)).ToArray()),
+            ["pomodoros"] = new JsonArray(day.Entries.Where(e => e.Session == session.Number && !e.OffTimer).Select(e => (JsonNode)Describe(e, T)).ToArray()),
+            ["breaks"] = new JsonArray(day.Entries.Where(e => e.Session == session.Number && e.OffTimer).Select(e => (JsonNode)Describe(e, T)).ToArray()),
         }).ToArray());
+        // Time at the computer before, between and after sessions; ids are negative.
+        result["off_the_timer"] = new JsonArray(day.Entries.Where(e => e.Session == 0).Select(e => (JsonNode)Describe(e, T)).ToArray());
         result["sources"] = string.Join(", ", day.Sources);
         return result;
     }
