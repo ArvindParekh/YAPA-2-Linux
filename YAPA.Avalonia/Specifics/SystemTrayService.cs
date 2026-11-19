@@ -78,6 +78,8 @@ public sealed class SystemTrayService : IDisposable
 
         var ask = new NativeMenuItem("Ask YAPA…");
         ask.Click += (_, _) => _navigator.ShowAssistant();
+        var day = new NativeMenuItem("Your day…");
+        day.Click += (_, _) => _navigator.ShowDay();
         var stats = new NativeMenuItem("Statistics…");
         stats.Click += (_, _) => _navigator.ShowStatistics();
         var settings = new NativeMenuItem("Settings…");
@@ -99,6 +101,7 @@ public sealed class SystemTrayService : IDisposable
         menu.Add(_ambience);
         menu.Add(new NativeMenuItemSeparator());
         menu.Add(ask);
+        menu.Add(day);
         menu.Add(stats);
         menu.Add(settings);
         menu.Add(new NativeMenuItemSeparator());

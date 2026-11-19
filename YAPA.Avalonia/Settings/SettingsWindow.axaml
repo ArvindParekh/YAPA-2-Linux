@@ -452,6 +452,67 @@
             </StackPanel>
         </DataTemplate>
 
+        <!-- ── Journal ───────────────────────────────────────────────────── -->
+        <DataTemplate DataType="s:JournalPageViewModel">
+            <StackPanel>
+                <Border Classes="card">
+                    <Grid ColumnDefinitions="*,Auto" Margin="16,14,14,14">
+                        <StackPanel VerticalAlignment="Center" Spacing="3" Margin="0,0,16,0">
+                            <TextBlock Text="Your day" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" />
+                            <TextBlock Classes="note" Text="Each pomodoro with what you did in it, the sessions and the day in a few lines. From the timer's menu, Ctrl+D, or yapa2 --day." />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Open" Command="{Binding OpenDayCommand}" VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+
+                <TextBlock Classes="group" Text="What it reads, from inside pomodoros only" />
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Claude Code conversations" Description="Each conversation's title and folder, and what you typed into it.">
+                            <ToggleSwitch IsChecked="{Binding ClaudeCode}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Git commits" Description="Your own commits, in the repositories under your home folder.">
+                            <ToggleSwitch IsChecked="{Binding Git}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="Browser history" Description="Titles of the pages you visited in Firefox, Zen, Chrome and their relatives.">
+                            <ToggleSwitch IsChecked="{Binding Browsers}" />
+                        </c:SettingRow>
+                        <c:SettingRow Title="The window in front" Description="{Binding WindowsDetail}">
+                            <ToggleSwitch IsChecked="{Binding RecordWindows}" />
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Classes="group" Text="Writing it up" />
+                <Border Classes="card">
+                    <StackPanel>
+                        <c:SettingRow Title="Write it up with Claude"
+                                      Description="A line for each pomodoro, session and day, through your Claude sign-in. Off, titles come from the evidence itself. Anything that looks like a key or a password is blanked first.">
+                            <ToggleSwitch IsChecked="{Binding Summaries}" />
+                        </c:SettingRow>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Classes="group" Text="Never recorded" />
+                <Border Classes="card">
+                    <StackPanel Margin="16,13,16,15" Spacing="9">
+                        <TextBlock Classes="note" Text="Apps, sites or words, one per line. A window or page that matches keeps its time and loses its title; a matching conversation, prompt or commit is left out." />
+                        <TextBox Text="{Binding Ignored}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="96" FontSize="13" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="card">
+                    <Grid ColumnDefinitions="*,Auto" Margin="16,13,14,13">
+                        <StackPanel VerticalAlignment="Center" Spacing="2" Margin="0,0,16,0">
+                            <TextBlock Text="Forget what it recorded" FontSize="14" Foreground="{DynamicResource Ink}" />
+                            <TextBlock Classes="note" Text="The windows recorded, the write-ups and the names you gave pomodoros. Your pomodoros and your own files stay." />
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="{Binding ForgetLabel}" Command="{Binding ForgetCommand}" VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </DataTemplate>
+
         <!-- ── General ───────────────────────────────────────────────────── -->
         <DataTemplate DataType="s:GeneralPageViewModel">
             <StackPanel>

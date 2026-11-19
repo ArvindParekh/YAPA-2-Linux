@@ -245,6 +245,9 @@ public abstract class TimerWindowBase : Window
             case Key.I when ctrl:
                 ViewModel.OpenStatisticsCommand.Execute(null);
                 break;
+            case Key.D when ctrl:
+                ViewModel.OpenDayCommand.Execute(null);
+                break;
             case Key.H when ctrl:
                 ViewModel.HideToTrayCommand.Execute(null);
                 break;

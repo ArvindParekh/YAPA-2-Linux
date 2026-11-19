@@ -21,6 +21,7 @@
     <Separator />
     <!-- Opened by "/" or a double-click on the timer as well; no gesture shown, Avalonia would print "OemQuestion". -->
     <MenuItem Header="Ask YAPA…" Command="{Binding OpenAssistantCommand}" />
+    <MenuItem Header="Your day…" Command="{Binding OpenDayCommand}" InputGesture="Ctrl+D" />
     <MenuItem Header="Statistics…" Command="{Binding OpenStatisticsCommand}" InputGesture="Ctrl+I" />
     <MenuItem Header="Settings…" Command="{Binding OpenSettingsCommand}" InputGesture="Ctrl+OemComma" />
     <Separator />

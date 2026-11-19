@@ -20,6 +20,7 @@ public enum AppCommand
     MarkDone,
     Settings,
     Statistics,
+    Day,
     Assistant,
     Status,
     StatusJson,
@@ -56,6 +57,8 @@ public static class CommandLine
         ["settings"] = AppCommand.Settings,
         ["stats"] = AppCommand.Statistics,
         ["statistics"] = AppCommand.Statistics,
+        ["day"] = AppCommand.Day,
+        ["journal"] = AppCommand.Day,
         ["ask"] = AppCommand.Assistant,
         ["assistant"] = AppCommand.Assistant,
         ["status"] = AppCommand.Status,
@@ -72,6 +75,7 @@ public static class CommandLine
                    --mark-done         count a pomodoro and its break done off the timer
         Sound:     --ambience          switch the rain / ticking on or off
         Windows:   --show  --hide  --toggle-window  --settings  --stats
+                   --day               what you did today, pomodoro by pomodoro
                    --ask               open the assistant (also: double-click the timer, or "/")
         Scripting: --status [--json]   print the running timer's state
                    --quit              quit the running instance

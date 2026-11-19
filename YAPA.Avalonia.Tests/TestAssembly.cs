@@ -21,6 +21,9 @@ public static class TestAssembly
         Environment.SetEnvironmentVariable("YAPA_HOME", Home);
         // The UI tests click through real settings, which preview sounds: keep them silent.
         Environment.SetEnvironmentVariable("YAPA_SILENT_AUDIO", "1");
+        // No test reaches the real claude (the user's plan, their transcripts): tests that need one bring a fake.
+        if (Environment.GetEnvironmentVariable(YAPA.Avalonia.Assistant.ClaudeCli.OverrideVariable) is not { Length: > 0 })
+            Environment.SetEnvironmentVariable(YAPA.Avalonia.Assistant.ClaudeCli.OverrideVariable, "/nonexistent/claude");
         if (!YAPA.Avalonia.Platform.AppPaths.IsIsolated || !YAPA.Avalonia.Platform.AppPaths.DataDirectory.StartsWith(Home))
             throw new InvalidOperationException("AppPaths was initialised before the test sandbox; refusing to run against real user data.");
     }

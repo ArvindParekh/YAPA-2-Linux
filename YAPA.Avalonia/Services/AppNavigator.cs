@@ -20,6 +20,7 @@ public sealed class AppNavigator : IAppNavigator
     private SettingsWindow? _settings;
     private StatisticsWindow? _statistics;
     private AssistantWindow? _assistant;
+    private YAPA.Avalonia.Journal.DayWindow? _day;
     private bool _quitting;
 
     public AppNavigator(AvaloniaThemeSettings themeSettings)
@@ -96,6 +97,19 @@ public sealed class AppNavigator : IAppNavigator
         _statistics.Activate();
     }
 
+    /// <summary>The day journal, on <paramref name="date"/> (today by default).</summary>
+    public void ShowDay(DateOnly? date = null)
+    {
+        if (_day == null)
+        {
+            _day = new YAPA.Avalonia.Journal.DayWindow();
+            _day.Closed += (_, _) => _day = null;
+        }
+        _day.Open(date);
+        _day.Show();
+        _day.Activate();
+    }
+
     /// <summary>Created once and kept: it holds the conversation's on-screen state between openings.</summary>
     public void ShowAssistant()
     {
@@ -112,6 +126,7 @@ public sealed class AppNavigator : IAppNavigator
         Quitting?.Invoke();
         _settings?.Close();
         _statistics?.Close();
+        _day?.Close();
         _assistant?.Close();
         _timer?.Close();
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)

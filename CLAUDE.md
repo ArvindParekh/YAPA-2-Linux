@@ -103,6 +103,20 @@ Per-machine settings (music paths, window position) live in `localSettings.json`
   TTY, so they go through `script(1)`. `ClaudeCli.Sanitize` drops variables inherited from a Claude Code
   session (`install.sh` restarts YAPA from whatever shell ran it), including the host's `ANTHROPIC_BASE_URL`.
   Never run either sign-in against the real `~/.claude` in tests: use a fake through `YAPA_CLAUDE`.
+- The day journal (`YAPA.Avalonia/Journal/`, pure logic in `YAPA.Shared/Journal/`): `JournalService` builds
+  a day from the history and event log (start = the WorkStarted before it, cycle = its WorkCompleted's),
+  gathers evidence (`ClaudeCodeHistory`, `GitHistory`, `BrowserHistory`, `ActivitySpans`), and
+  `JournalBuilder` matches it to pomodoros. `JournalPrompt` writes the request (redacted) and reads the
+  `--json-schema` answer from `ClaudeOneShot`; `JournalStore` keeps write-ups keyed by each pomodoro's
+  evidence fingerprint, so only changed pomodoros are rewritten (a background write follows each new one).
+  Changing `JournalPrompt.Describe` changes every fingerprint: all days get rewritten when next opened.
+- Claude Code transcripts are 1.5 GB and append-only: they're indexed per file (CacheDirectory/journal,
+  0700) and read on from the saved offset; only top-level fields are read, with `Utf8JsonReader`, since
+  nested content contains strings like `"timestamp":`. Typed prompts are `turnOrigin` human (or absent)
+  and not `promptSource` system. The desktop app forks conversations into several transcripts, so
+  uses sharing a prompt are merged. Browser databases are locked by the browser: copy them, WAL too.
+- Tests never reach the real `claude`: `TestAssembly` points `YAPA_CLAUDE` at nothing, and journal tests
+  switch the home-reading sources off.
 - Tools must refuse rather than guess when work is at stake (see `GuardWork`); prompt rules
   alone weren't enough. A real run once dropped a 27-minute paused pomodoro.
 - `RequestAnimationFrame` runs the renderer every vsync even when nothing is drawn; the orb

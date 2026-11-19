@@ -86,6 +86,15 @@ public sealed class AppBootstrapper : IDisposable
         services.AddSingleton<YAPA.Avalonia.Assistant.AssistantService>();
         services.AddSingleton<YAPA.Avalonia.Assistant.AssistantViewModel>();
 
+        // ── Day journal ──────────────────────────────────────────────────────
+        services.AddSingleton<YAPA.Avalonia.Journal.JournalSettings>();
+        services.AddSingleton<YAPA.Avalonia.Journal.JournalStore>(_ => new YAPA.Avalonia.Journal.JournalStore());
+        services.AddSingleton<YAPA.Avalonia.Journal.ActivityRecorder>();
+        services.AddSingleton<YAPA.Avalonia.Journal.JournalService>(sp => new YAPA.Avalonia.Journal.JournalService(
+            sp.GetRequiredService<IPomodoroRepository>(), sp.GetRequiredService<TimerEventLog>(), sp.GetRequiredService<IPomodoroEngine>(),
+            sp.GetRequiredService<YAPA.Avalonia.Journal.JournalStore>(), sp.GetRequiredService<YAPA.Avalonia.Journal.JournalSettings>(),
+            sp.GetRequiredService<YAPA.Avalonia.Assistant.ClaudeAccount>()));
+
         _provider = services.BuildServiceProvider();
     }
 
@@ -100,6 +109,9 @@ public sealed class AppBootstrapper : IDisposable
         // Listen from the first transition: the log records them, the scheduler acts on them.
         Resolve<TimerEventLog>();
         Resolve<YAPA.Avalonia.Assistant.Scheduler>();
+        // Records during pomodoros from the first one; writes each day up as pomodoros complete.
+        Resolve<YAPA.Avalonia.Journal.ActivityRecorder>();
+        Resolve<YAPA.Avalonia.Journal.JournalService>();
     }
 
     public void Dispose()

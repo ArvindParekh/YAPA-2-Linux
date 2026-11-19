@@ -28,6 +28,7 @@ public partial class SettingsWindow : Window, INotifyPropertyChanged, IFilePicke
             bs.Resolve<SoundsPageFactory>().Create(),
             new AssistantPageViewModel(bs.Resolve<YAPA.Avalonia.Assistant.AssistantSettings>(), bs.Resolve<YAPA.Avalonia.Assistant.AssistantMemory>(),
                 bs.Resolve<YAPA.Avalonia.Assistant.Scheduler>(), bs.Resolve<YAPA.Avalonia.Assistant.ClaudeAccount>()),
+            new JournalPageViewModel(bs.Resolve<YAPA.Avalonia.Journal.JournalSettings>(), bs.Resolve<YAPA.Avalonia.Journal.JournalService>()),
             new GeneralPageViewModel(bs.Resolve<GeneralSettings>(), bs.Resolve<AvaloniaYapaThemeSettings>()),
             new AboutPageViewModel(),
         };

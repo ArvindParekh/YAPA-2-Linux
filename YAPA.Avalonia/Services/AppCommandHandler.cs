@@ -38,6 +38,7 @@ public sealed class AppCommandHandler(TimerViewModel vm, IAppNavigator navigator
                 case AppCommand.MarkDone: vm.Engine.MarkDone(); break;
                 case AppCommand.Settings: navigator.ShowSettings(); break;
                 case AppCommand.Statistics: navigator.ShowStatistics(); break;
+                case AppCommand.Day: navigator.ShowDay(); break;
                 case AppCommand.Assistant: navigator.ShowAssistant(); break;
                 case AppCommand.Status: output.Add(StatusLine()); break;
                 case AppCommand.StatusJson: output.Add(StatusJson()); break;

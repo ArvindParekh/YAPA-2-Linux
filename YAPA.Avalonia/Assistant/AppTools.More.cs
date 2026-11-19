@@ -19,8 +19,10 @@ namespace YAPA.Avalonia.Assistant;
 public sealed partial class AppTools
 {
     /// <summary>What the tools beyond the timer need: later actions, memory, the event log, and every settings object for resets.</summary>
+    /// <param name="Journal">The day journal; without it (tests), its tools are left out.</param>
     public sealed record Extras(Scheduler Scheduler, AssistantMemory Memory, TimerEventLog Events, AvaloniaYapaThemeSettings Look,
-        AvaloniaThemeSettings Themes, SoundSettings Sounds, AvaloniaMusicPlayerSettings Music, TimerLooks Looks, TimerTexts Texts);
+        AvaloniaThemeSettings Themes, SoundSettings Sounds, AvaloniaMusicPlayerSettings Music, TimerLooks Looks, TimerTexts Texts,
+        YAPA.Avalonia.Journal.JournalService? Journal = null);
 
     private readonly Extras _extras;
 

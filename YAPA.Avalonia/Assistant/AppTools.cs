@@ -145,7 +145,7 @@ public sealed partial class AppTools
 
     // ── Tools ────────────────────────────────────────────────────────────────
 
-    public IEnumerable<AssistantTool> All() => Core().Concat(More());
+    public IEnumerable<AssistantTool> All() => Core().Concat(More()).Concat(JournalTools());
 
     private IEnumerable<AssistantTool> Core() =>
     [
@@ -341,13 +341,15 @@ public sealed partial class AppTools
         new AssistantTool
         {
             Name = "open_window",
-            Description = "Shows part of the app: the timer (show_timer / hide_timer), the Settings window at a page, or the Statistics window. Opening a window closes this assistant panel, so only do it when asked.",
+            Description = "Shows part of the app: the timer (show_timer / hide_timer), the Settings window at a page, the Statistics window, or the Day window (the journal of what was done, pomodoro by pomodoro; date optional). Opening a window closes this assistant panel, so only do it when asked.",
             Schema = Object(
-                ("window", Str("Which.", "show_timer", "hide_timer", "settings", "statistics"), true),
-                ("page", Str("For settings.", "timer", "appearance", "sounds", "general", "about"), false)),
+                ("window", Str("Which.", "show_timer", "hide_timer", "settings", "statistics", "day"), true),
+                ("page", Str("For settings.", "timer", "appearance", "sounds", "assistant", "journal", "general", "about"), false),
+                ("date", Str("For day: YYYY-MM-DD, today when left out."), false)),
             Activity = a => a.String("window") switch
             {
                 "statistics" => "Opening statistics",
+                "day" => "Opening your day",
                 "settings" => "Opening settings",
                 "hide_timer" => "Hiding the timer",
                 _ => "Showing the timer",
@@ -893,12 +895,20 @@ public sealed partial class AppTools
                 _navigator.ShowStatistics();
                 done = "Opened Statistics";
                 break;
+            case "day":
+                DateOnly? date = DateOnly.TryParseExact(a.String("date") ?? "", "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var d) ? d : null;
+                _navigator.ShowDay(date);
+                done = date is { } shown ? $"Opened the day of {shown:d MMM}" : "Opened today";
+                break;
             case "settings":
                 var page = a.String("page") switch
                 {
                     "appearance" => SettingsPage.Appearance,
                     "sounds" => SettingsPage.Sounds,
                     "general" => SettingsPage.General,
+                    "assistant" => SettingsPage.Assistant,
+                    "journal" => SettingsPage.Journal,
                     "about" => SettingsPage.About,
                     _ => SettingsPage.Timer,
                 };

@@ -15,6 +15,7 @@ public static class SettingsIcons
     private static readonly Geometry Appearance = Geometry.Parse("M 21 12 A 9 9 0 1 1 3 12 A 9 9 0 1 1 21 12 Z M 12 3 L 12 21 M 12 7 L 17.5 7 M 12 11 L 20.5 11 M 12 15 L 19.5 15");
     private static readonly Geometry Sounds = Geometry.Parse("M 4 9.5 L 7.5 9.5 L 12 5.5 L 12 18.5 L 7.5 14.5 L 4 14.5 Z M 15.5 9 A 4 4 0 0 1 15.5 15 M 18.5 6.5 A 7.5 7.5 0 0 1 18.5 17.5");
     private static readonly Geometry Assistant = Geometry.Parse("M 12 3.5 L 13.7 10.3 L 20.5 12 L 13.7 13.7 L 12 20.5 L 10.3 13.7 L 3.5 12 L 10.3 10.3 Z M 18.5 3.5 L 19.1 5 L 20.5 5.5 L 19.1 6 L 18.5 7.5 L 17.9 6 L 16.5 5.5 L 17.9 5 Z");
+    private static readonly Geometry Journal = Geometry.Parse("M 6 3.5 L 17 3.5 A 1.5 1.5 0 0 1 18.5 5 L 18.5 20.5 L 6.5 20.5 A 2 2 0 0 1 4.5 18.5 L 4.5 5 A 1.5 1.5 0 0 1 6 3.5 Z M 4.5 18.5 A 2 2 0 0 1 6.5 16.5 L 18.5 16.5 M 8.5 8 L 14.5 8 M 8.5 11.5 L 12.5 11.5");
     private static readonly Geometry General = Geometry.Parse("M 4 7 L 11 7 M 15 7 L 20 7 M 13 4.5 L 13 9.5 M 4 17 L 7 17 M 11 17 L 20 17 M 9 14.5 L 9 19.5");
     private static readonly Geometry About = Geometry.Parse("M 21 12 A 9 9 0 1 1 3 12 A 9 9 0 1 1 21 12 Z M 12 11 L 12 16.5 M 12 7.6 L 12 7.7");
 
@@ -24,6 +25,7 @@ public static class SettingsIcons
         SettingsPage.Appearance => Appearance,
         SettingsPage.Sounds => Sounds,
         SettingsPage.Assistant => Assistant,
+        SettingsPage.Journal => Journal,
         SettingsPage.About => About,
         _ => General,
     };

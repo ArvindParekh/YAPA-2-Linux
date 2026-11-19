@@ -226,6 +226,9 @@ public sealed partial class TimerViewModel : ObservableObject
     private void OpenAssistant() => _navigator.ShowAssistant();
 
     [RelayCommand]
+    private void OpenDay() => _navigator.ShowDay();
+
+    [RelayCommand]
     private void HideToTray() => _navigator.HideTimer();
 
     [RelayCommand]

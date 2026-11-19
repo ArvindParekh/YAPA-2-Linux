@@ -92,6 +92,16 @@ and the question you asked is answered as soon as you're done. Settings → Assi
 when it runs out and picks the model (Sonnet by default). It starts Claude Code only while you use it, with none of your Claude Code
 tools, plugins or MCP servers: only YAPA's own.
 
+**Your day.** <kbd>Ctrl</kbd>+<kbd>D</kbd> on the timer (or the menu, the tray, `yapa2 --day`)
+shows what you did, pomodoro by pomodoro, without your having typed anything. Each pomodoro is
+put together from what happened during it: the Claude Code conversations you typed into, your
+commits in the repositories under your home folder, the pages you visited (Firefox, Zen, Chrome
+and relatives) and, while a pomodoro runs on X11, the window in front. Claude writes each one
+up in a line, each session (the pomodoros between long breaks) in a sentence or two, and the day
+in a few. Breaks are never recorded, nothing is read from outside pomodoros, and the write-up goes
+through your own Claude sign-in with anything resembling a key or password blanked. Settings →
+Journal turns each source off and lists what is never recorded.
+
 ### Global shortcut
 
 GNOME Settings → Keyboard → View and Customise Shortcuts → Custom Shortcuts → add

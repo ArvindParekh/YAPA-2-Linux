@@ -47,6 +47,16 @@ A ground-up revival of the Linux port.
   its own for a year (renewal offered two weeks ahead). The panel also says so as it opens,
   before you've typed anything. YAPA no longer borrows the sign-in of a Claude Code session
   it was started from.
+- **Your day**, a journal of what you did in every pomodoro, with nothing to type as you go. It
+  rebuilds each pomodoro from what was going on during it: your Claude Code conversations (their
+  titles and what you typed), your git commits, browser history and, from now on, the window in
+  front. Claude then writes a line for each pomodoro, a title and summary for each session (the
+  pomodoros between long breaks) and a few lines for the day. It works for past days too, from the
+  first open. A ribbon shows the day by project; every line opens to its evidence; a double-click
+  renames a pomodoro and the day is rewritten around it; Copy gives the day as text for a standup.
+  From the timer's menu, <kbd>Ctrl</kbd>+<kbd>D</kbd>, the tray or `--day`, and Ask YAPA answers
+  "what did I do in my second session?" from it. Settings → Journal switches each source off, keeps
+  an ignore list, and forgets what was recorded.
 - A timer event log (starts, pauses, stops, breaks) in `Yapa.db`, so breaks and abandoned pomodoros
   can be asked about, not only completed ones.
 - A redesigned Settings window: dark grouped cards, a sidebar with icons, steppers, a live preview of the

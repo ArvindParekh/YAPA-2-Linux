@@ -6,6 +6,7 @@ public enum SettingsPage
     Appearance,
     Sounds,
     Assistant,
+    Journal,
     Notifications,
     General,
     About,
@@ -22,6 +23,9 @@ public interface IAppNavigator
     void ToggleTimerVisibility();
     void ShowSettings(SettingsPage page = SettingsPage.Timer);
     void ShowStatistics();
+
+    /// <summary>The day journal: what was done, pomodoro by pomodoro.</summary>
+    void ShowDay(System.DateOnly? date = null);
 
     /// <summary>Opens the assistant beside the timer.</summary>
     void ShowAssistant();
