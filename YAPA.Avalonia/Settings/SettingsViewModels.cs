@@ -417,10 +417,10 @@ public sealed partial class AboutPageViewModel : SettingsPageViewModel
         new("Esc", "Stop: abandon the pomodoro, or end the break"),
         new("S", "Skip the break"),
         new("L", "Take the long break now"),
-        new("/", "Ask YAPA (or double-click the timer)"),
-        new("Ctrl D", "Your day"),
+        new("/", "The command bar: any action, or ask YAPA (double-click works too)"),
+        new("Ctrl D", "Today"),
         new("Ctrl ,", "Settings"),
-        new("Ctrl I", "Statistics"),
+        new("Ctrl I", "Insights"),
         new("Ctrl H", "Hide to tray"),
         new("Ctrl Q", "Quit"),
         new("Right-click", "Settings; ⋯ has every action"),
@@ -428,20 +428,29 @@ public sealed partial class AboutPageViewModel : SettingsPageViewModel
 
     public IReadOnlyList<Shortcut> AssistantShortcuts { get; } =
     [
-        new("Enter", "Send"),
+        new("Enter", "Run the selected action, or send"),
+        new("↑ ↓", "Move through the list; in a conversation, earlier requests"),
+        new("/", "The actions, inside a conversation"),
         new("Shift Enter", "A new line"),
-        new("↑ ↓", "Earlier requests, from an empty prompt"),
         new("Ctrl N", "A new conversation"),
-        new("Esc", "Close; the conversation waits a while"),
+        new("Esc", "Clear what's typed, then close; the conversation waits a while"),
     ];
 
     public IReadOnlyList<Shortcut> DayShortcuts { get; } =
     [
         new("← →", "The day before, the day after"),
         new("T", "Today"),
-        new("G", "Go to any day"),
+        new("C", "Go to any day"),
         new("W", "The week, or back to the day"),
-        new("Esc", "Close"),
+    ];
+
+    public IReadOnlyList<Shortcut> HubShortcuts { get; } =
+    [
+        new("Ctrl K", "The command bar"),
+        new("G T", "Today"),
+        new("G W", "This week"),
+        new("G I", "Insights"),
+        new("G S", "Settings"),
     ];
 
     [RelayCommand]

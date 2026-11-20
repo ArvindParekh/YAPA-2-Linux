@@ -9,6 +9,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using YAPA.Avalonia.Bootstrap;
+using YAPA.Avalonia.Hub;
 using YAPA.Avalonia.Settings;
 using YAPA.Avalonia.Windows;
 using YAPA.Shared.Contracts;
@@ -89,16 +90,65 @@ public class UiSmokeTests
     });
 
     [TestMethod]
-    public void Every_settings_page_renders() => OnUi(() =>
+    public void Studio_timer_renders_in_every_phase() => OnUi(() =>
     {
-        var window = new SettingsWindow();
+        var engine = App.Bootstrapper!.Resolve<IPomodoroEngine>();
+        engine.Reset();
+        var window = new StudioWindow();
         window.Show();
+        Render(window, "timer-studio-ready");
+        engine.Start();
+        Render(window, "timer-studio-work");
+        engine.Pause();
+        Render(window, "timer-studio-paused");
+        engine.Stop();
+        window.Close();
+    });
+
+    [TestMethod]
+    public void Every_hub_page_renders() => OnUi(() =>
+    {
+        var window = new HubWindow { Width = 1100, Height = 760 };
+        window.Show();
+        window.ShowDay(null);
+        Render(window, "hub-today");
+        window.ShowWeek();
+        Render(window, "hub-week");
+        window.ShowInsights();
+        Thread.Sleep(300); // statistics load off the UI thread
+        Dispatcher.UIThread.RunJobs();
+        Render(window, "hub-insights");
         foreach (var page in window.Pages)
         {
             window.SelectedPage = page;
+            Assert.IsTrue(window.ShowsSettings);
             Render(window, "settings-" + page.Title.ToLowerInvariant());
         }
         window.Close();
+    });
+
+    [TestMethod]
+    public void Command_bar_filters_actions_and_offers_asking() => OnUi(() =>
+    {
+        var vm = App.Bootstrapper!.Resolve<YAPA.Avalonia.Assistant.AssistantViewModel>();
+        var window = new YAPA.Avalonia.Assistant.AssistantWindow();
+        window.ShowNear(null);
+        Dispatcher.UIThread.RunJobs();
+        var list = window.FindControl<ItemsControl>("List")!;
+        Render(window, "command-bar");
+
+        vm.Input = "week";
+        Dispatcher.UIThread.RunJobs();
+        var rows = list.ItemsSource!.Cast<YAPA.Avalonia.Assistant.PaletteRow>().ToList();
+        Assert.AreEqual("This week", rows[0].Title, "a word that names an action puts the action first");
+        Assert.IsTrue(rows[0].IsSelected);
+
+        vm.Input = "sett";
+        Dispatcher.UIThread.RunJobs();
+        Render(window, "command-bar-settings");
+        vm.Input = "";
+        window.Dismiss();
+        Dispatcher.UIThread.RunJobs();
     });
 
     [TestMethod]
@@ -107,9 +157,9 @@ public class UiSmokeTests
         var ambience = App.Bootstrapper!.Resolve<YAPA.Avalonia.Audio.Ambience.AmbienceSettings>();
         ambience.Sound = YAPA.Avalonia.Audio.Ambience.AmbientSound.SteadyRain;
         ambience.Ticking = true;
-        var window = new SettingsWindow { Height = 1500 };
+        var window = new HubWindow { Width = 1100, Height = 1500 };
         window.Show();
-        window.Navigate(YAPA.Avalonia.Services.SettingsPage.Sounds);
+        window.ShowSettings(YAPA.Avalonia.Services.SettingsPage.Sounds);
         Render(window, "settings-sounds-ambience");
         window.Close();
         ambience.ResetToDefaults();
@@ -124,7 +174,7 @@ public class UiSmokeTests
     [TestMethod]
     public void Every_settings_control_can_be_operated() => OnUi(() =>
     {
-        var window = new SettingsWindow();
+        var window = new HubWindow();
         window.Show();
         try
         {
@@ -180,7 +230,7 @@ public class UiSmokeTests
 
             // The specific crash: choosing a background sound.
             var ambience = App.Bootstrapper!.Resolve<YAPA.Avalonia.Audio.Ambience.AmbienceSettings>();
-            window.Navigate(YAPA.Avalonia.Services.SettingsPage.Sounds);
+            window.ShowSettings(YAPA.Avalonia.Services.SettingsPage.Sounds);
             Dispatcher.UIThread.RunJobs();
             var picker = window.GetVisualDescendants().OfType<ComboBox>()
                 .First(c => c.Items.Cast<object>().Any(o => o.ToString() == "Steady rain"));
@@ -193,17 +243,6 @@ public class UiSmokeTests
         {
             window.Close();
         }
-    });
-
-    [TestMethod]
-    public void Statistics_renders() => OnUi(() =>
-    {
-        var window = new StatisticsWindow();
-        window.Show();
-        Thread.Sleep(300); // statistics load off the UI thread
-        Dispatcher.UIThread.RunJobs();
-        Render(window, "statistics");
-        window.Close();
     });
 
     [TestMethod]
@@ -242,8 +281,8 @@ public class UiSmokeTests
         window.MouseUp(new Point(60, 50), global::Avalonia.Input.MouseButton.Right);
         Dispatcher.UIThread.RunJobs();
         var navigator = bs.Resolve<YAPA.Avalonia.Services.AppNavigator>();
-        Assert.IsNotNull(navigator.SettingsWindowForTests, "right-click should open settings");
-        navigator.SettingsWindowForTests!.Close();
+        Assert.IsTrue(navigator.HubForTests?.ShowsSettings == true, "right-click should open settings");
+        navigator.HubForTests!.Close();
         Dispatcher.UIThread.RunJobs();
 
         // The ⋯ actions menu is a native popup, which the headless platform can't

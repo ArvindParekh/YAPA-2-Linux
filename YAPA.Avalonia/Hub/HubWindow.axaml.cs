@@ -86,6 +86,7 @@ public partial class HubWindow : Window, INotifyPropertyChanged, IFilePicker
                 SetLink(Links.First(l => l.Key == (Day.IsWeek ? WeekKey : TodayKey)));
         };
         Timer.PropertyChanged += OnTimerChanged;
+        AddHandler(KeyDownEvent, OnTunnelKeyDown, RoutingStrategies.Tunnel);
         RefreshTimer();
         SetLink(Links[0]);
     }
@@ -198,31 +199,37 @@ public partial class HubWindow : Window, INotifyPropertyChanged, IFilePicker
         foreach (var page in Pages) page.Refresh();
     }
 
-    protected override void OnKeyDown(KeyEventArgs e)
+    /// <summary>
+    /// Ctrl K, and G then a letter as in Linear: G T today, G W the week, G I insights, G S settings.
+    /// Handled on the way down, before the page sees the keys: Your day has single-letter keys of its
+    /// own (W toggles day and week), and G W from the week must stay on the week.
+    /// </summary>
+    private void OnTunnelKeyDown(object? sender, KeyEventArgs e)
     {
-        base.OnKeyDown(e);
-        if (e.Handled || FocusManager?.GetFocusedElement() is TextBox) return;
         var ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
-
         if (ctrl && e.Key == Key.K)
         {
             OpenCommandBar();
             e.Handled = true;
             return;
         }
-        // G, then a letter, as in Linear: G T today, G W the week, G I insights, G S settings.
+        if (FocusManager?.GetFocusedElement() is TextBox) return;
         if (DateTime.UtcNow - _goPressedAt < TimeSpan.FromSeconds(1.2))
         {
             _goPressedAt = DateTime.MinValue;
             switch (e.Key)
             {
                 case Key.T: ShowDay(null); e.Handled = true; return;
-                case Key.W: SetLink(Links[1]); e.Handled = true; return;
+                case Key.W: ShowWeek(); e.Handled = true; return;
                 case Key.I: ShowInsights(); e.Handled = true; return;
                 case Key.S: SelectedPage = Pages[0]; e.Handled = true; return;
             }
         }
-        if (e.Key == Key.G && !ctrl) _goPressedAt = DateTime.UtcNow;
+        if (e.Key == Key.G && !ctrl)
+        {
+            _goPressedAt = DateTime.UtcNow;
+            e.Handled = true;
+        }
     }
 
     private void OpenCommandBar() => App.Bootstrapper?.Resolve<AppNavigator>().ShowAssistant(this);
