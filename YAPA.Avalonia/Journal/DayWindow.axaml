@@ -4,7 +4,7 @@
         x:Class="YAPA.Avalonia.Journal.DayWindow"
         x:DataType="j:DayViewModel"
         Title="Your day · YAPA"
-        Width="860" Height="900" MinWidth="620" MinHeight="520"
+        Width="860" Height="900" MinWidth="720" MinHeight="520"
         WindowStartupLocation="CenterScreen"
         RequestedThemeVariant="Dark"
         Background="{DynamicResource WindowSurface}"
