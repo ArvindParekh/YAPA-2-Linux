@@ -11,7 +11,8 @@ public sealed class BarFill : Control
     public static readonly StyledProperty<double> FractionProperty = AvaloniaProperty.Register<BarFill, double>(nameof(Fraction));
     public static readonly StyledProperty<bool> HighlightProperty = AvaloniaProperty.Register<BarFill, bool>(nameof(Highlight));
 
-    private static readonly IBrush Normal = new SolidColorBrush(Color.Parse("#FF6A3D"), 0.5);
+    // Neutral bars, and the focus colour only for the one that means something (today, the peak hour).
+    private static readonly IBrush Normal = new SolidColorBrush(Color.Parse("#4A4A53"));
     private static readonly IBrush Today = new SolidColorBrush(Color.Parse("#FF6A3D"));
     private static readonly IBrush Empty = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.07);
 
