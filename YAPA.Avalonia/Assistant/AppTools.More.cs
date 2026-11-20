@@ -199,7 +199,7 @@ public sealed partial class AppTools
         new AssistantTool
         {
             Name = "list_looks",
-            Description = "The timer's looks: the built-in ones and the user's own, with what each sets, and which one the timer is wearing now. A look covers: " + string.Join(", ", TimerLooks.Defaults.Keys) + " (size and position are not part of a look).",
+            Description = "The timer's looks: the built-in ones and the user's own, with what each sets, and which one the timer is wearing now. A look covers: " + string.Join(", ", TimerLooks.Defaults.Keys) + " (size and position are not part of a look). Looks dress the classic timer; the studio theme (the default) has one fixed design.",
             Activity = _ => "Looking at your looks",
             Run = _ => new ToolResult(new JsonObject
             {
@@ -229,7 +229,7 @@ public sealed partial class AppTools
                 _extras.Looks.Apply(look);
                 _journal.Record(() => _catalog.Restore(before));
                 _navigator.RefreshSettings();
-                return new ToolResult(new JsonObject { ["done"] = $"Applied the {look.Name} look" }, $"Applied the {look.Name} look");
+                return new ToolResult(new JsonObject { ["done"] = $"Applied the {look.Name} look" + OnStudio() }, $"Applied the {look.Name} look");
             },
         },
 
@@ -278,6 +278,11 @@ public sealed partial class AppTools
         },
     ];
 
+    /// <summary>A look changes nothing visible on the Studio card: said, so the reply doesn't promise a change.</summary>
+    private string OnStudio() => _catalog.Get("appearance.theme")?.ToString() == "studio"
+        ? ". It shows on the classic timer; the timer is on the studio theme, which looks the way it does (appearance.theme switches it)"
+        : "";
+
     private ToolResult SaveLook(ToolArgs a)
     {
         var name = a.RequiredString("name");
@@ -296,7 +301,7 @@ public sealed partial class AppTools
             _extras.Looks.Apply(look);
             _journal.Record(() => _catalog.Restore(before));
             _navigator.RefreshSettings();
-            done += " and put it on";
+            done += " and put it on" + OnStudio();
         }
         return new ToolResult(new JsonObject { ["done"] = done, ["sets"] = new JsonObject(look.Values.Select(v => new KeyValuePair<string, JsonNode?>(v.Key, v.Value))) }, done);
     }

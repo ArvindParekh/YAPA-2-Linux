@@ -26,9 +26,9 @@ public sealed class CycleStrip : Control
     public double LongBreak { get => GetValue(LongBreakProperty); set => SetValue(LongBreakProperty, value); }
     public int Count { get => GetValue(CountProperty); set => SetValue(CountProperty, value); }
 
-    private static readonly IBrush WorkBrush = new SolidColorBrush(Color.Parse("#FFFF6B57"));
-    private static readonly IBrush BreakBrush = new SolidColorBrush(Color.Parse("#B33CCB9B"));
-    private static readonly IBrush LongBrush = new SolidColorBrush(Color.Parse("#FF2FB874"));
+    private static readonly IBrush WorkBrush = new SolidColorBrush(Color.Parse("#FFFF6A3D"));
+    private static readonly IBrush BreakBrush = new SolidColorBrush(Color.Parse("#B334D3A0"));
+    private static readonly IBrush LongBrush = new SolidColorBrush(Color.Parse("#FF34D3A0"));
 
     protected override Size MeasureOverride(Size availableSize) => new(0, 10);
 

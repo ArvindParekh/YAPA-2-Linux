@@ -289,12 +289,18 @@ public sealed class AppearancePageViewModel : SettingsPageViewModel
 
     public IReadOnlyList<string> Themes { get; } = ["Studio", "Classic", "Motivational"];
 
+    /// <summary>
+    /// The Studio card draws from the design system: looks, colours, digit styles and the
+    /// backdrop are the classic timer's, so the page shows them only for that one.
+    /// </summary>
+    public bool IsStudio => themes.ActiveTheme == AppNavigator.StudioTheme;
+
     private static readonly string[] ThemeNames = [AppNavigator.StudioTheme, AppNavigator.ClassicTheme, AppNavigator.MotivationalTheme];
 
     public int ThemeIndex
     {
         get => Math.Max(0, Array.IndexOf(ThemeNames, themes.ActiveTheme));
-        set { themes.ActiveTheme = ThemeNames[Math.Clamp(value, 0, ThemeNames.Length - 1)]; Changed(); }
+        set { themes.ActiveTheme = ThemeNames[Math.Clamp(value, 0, ThemeNames.Length - 1)]; Changed(); Changed(nameof(IsStudio)); }
     }
 
     public IReadOnlyList<string> TextColors { get; } =

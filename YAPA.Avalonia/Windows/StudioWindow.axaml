@@ -229,9 +229,11 @@
                         </Grid>
 
                         <!-- Progress: a hairline along the bottom edge, in the state's colour. -->
-                        <Border VerticalAlignment="Bottom" Height="2" Margin="18,0,18,7" CornerRadius="1" Background="#12FFFFFF" />
-                        <Border x:Name="ProgressFill" VerticalAlignment="Bottom" HorizontalAlignment="Left" Height="2" Margin="18,0,0,7"
-                                CornerRadius="1" Background="{Binding #Root.StateBrush}" Width="0" />
+                        <Panel x:Name="Progress">
+                            <Border VerticalAlignment="Bottom" Height="2" Margin="18,0,18,7" CornerRadius="1" Background="#12FFFFFF" />
+                            <Border x:Name="ProgressFill" VerticalAlignment="Bottom" HorizontalAlignment="Left" Height="2" Margin="18,0,0,7"
+                                    CornerRadius="1" Background="{Binding #Root.StateBrush}" Width="0" />
+                        </Panel>
 
                         <Border x:Name="Glow" Classes.on="{Binding IsAlerting}" Margin="-1" />
                     </Panel>

@@ -166,6 +166,7 @@ public partial class StudioWindow : TimerWindowBase
         Width = Math.Round(DesignWidth * scale);
         Height = Math.Round(DesignHeight * scale);
         StatusLabel.IsVisible = Appearance.ShowStatusText;
+        Progress.IsVisible = Appearance.ShowProgress;
         // Without the flashing alert, the glow holds still instead of breathing.
         Glow.Classes.Set("still", Appearance.DisableFlashingAnimation);
     }
