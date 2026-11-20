@@ -11,9 +11,9 @@ public sealed class BarFill : Control
     public static readonly StyledProperty<double> FractionProperty = AvaloniaProperty.Register<BarFill, double>(nameof(Fraction));
     public static readonly StyledProperty<bool> HighlightProperty = AvaloniaProperty.Register<BarFill, bool>(nameof(Highlight));
 
-    private static readonly IBrush Normal = new SolidColorBrush(Color.Parse("#F3603F"), 0.55);
-    private static readonly IBrush Today = new SolidColorBrush(Color.Parse("#F3603F"));
-    private static readonly IBrush Empty = new SolidColorBrush(Color.Parse("#808080"), 0.18);
+    private static readonly IBrush Normal = new SolidColorBrush(Color.Parse("#FF6A3D"), 0.5);
+    private static readonly IBrush Today = new SolidColorBrush(Color.Parse("#FF6A3D"));
+    private static readonly IBrush Empty = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.07);
 
     static BarFill() => AffectsRender<BarFill>(FractionProperty, HighlightProperty);
 

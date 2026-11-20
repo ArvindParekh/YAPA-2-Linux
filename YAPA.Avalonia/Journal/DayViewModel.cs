@@ -139,6 +139,9 @@ public sealed partial class EntryViewModel : ObservableObject
     [RelayCommand]
     private void Forget() => _day.Forget(Entry.Block.StartUtc, InProgress ? null : Entry.Block.EndUtc, ForgetConversations && HasConversations);
     public string NowLabel => IsOffTimer ? "NOW" : Entry.Paused ? "PAUSED" : "UNDER WAY";
+
+    /// <summary>Held: the badge takes the timer's held colour rather than focus.</summary>
+    public bool IsHeld => !IsOffTimer && Entry.Paused;
     public bool IsNamedByUser => Entry.UserTitle != null;
 
     /// <summary>Nothing on record and nobody said what it was.</summary>

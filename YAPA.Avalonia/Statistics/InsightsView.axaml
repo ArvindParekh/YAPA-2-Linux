@@ -114,7 +114,7 @@
 
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel>
-                    <TextBlock Classes="title" Text="Statistics" />
+                    <TextBlock Classes="title" Text="Insights" />
                     <TextBlock Classes="subtitle" Text="{Binding GoalText}" IsVisible="{Binding HasGoal}" />
                 </StackPanel>
                 <ComboBox Grid.Column="1" VerticalAlignment="Center" MinWidth="180"
@@ -123,11 +123,12 @@
             </Grid>
 
             <ProgressBar Minimum="0" Maximum="1" Value="{Binding GoalProgress}" Height="5" MinHeight="5"
-                         CornerRadius="3" Foreground="{DynamicResource AccentBrush}" Background="#14FFFFFF"
+                         CornerRadius="3" Foreground="{DynamicResource AccentBrush}" Background="{StaticResource FillActive}"
                          IsVisible="{Binding HasGoal}" Margin="0,-8,0,0"
                          ToolTip.Tip="Today against your daily goal (Settings → General)" />
 
-            <ItemsControl ItemsSource="{Binding Cards}">
+            <!-- Each card keeps a gap on its right; the last one's hangs off the edge, so the row lines up. -->
+            <ItemsControl ItemsSource="{Binding Cards}" Margin="0,0,-12,0">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>

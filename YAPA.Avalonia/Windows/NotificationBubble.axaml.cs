@@ -24,7 +24,7 @@ public partial class NotificationBubble : Window
     private const double Gap = 2; // between the timer and the tail's tip
 
     public static readonly StyledProperty<IBrush> AccentProperty =
-        AvaloniaProperty.Register<NotificationBubble, IBrush>(nameof(Accent), new SolidColorBrush(Color.Parse("#FFFF6B57")));
+        AvaloniaProperty.Register<NotificationBubble, IBrush>(nameof(Accent), new SolidColorBrush(Color.Parse("#FFFF6A3D")));
 
     /// <summary>The dot and the main button: tomato after work, green after a break, violet for a reminder.</summary>
     public IBrush Accent
@@ -80,9 +80,9 @@ public partial class NotificationBubble : Window
 
         Accent = new SolidColorBrush(Color.Parse(notice.Category switch
         {
-            DesktopNotification.BreakCategory => "#FF3CCB9B",
-            DesktopNotification.ReminderCategory => "#FF8B7CFF",
-            _ => "#FFFF6B57",
+            DesktopNotification.BreakCategory => "#FF34D3A0",
+            DesktopNotification.ReminderCategory => "#FF9B8AFB",
+            _ => "#FFFF6A3D",
         }));
         TitleText.Text = notice.Title;
         BodyText.Text = notice.Body;

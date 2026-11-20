@@ -252,8 +252,8 @@ public partial class HubWindow : Window, INotifyPropertyChanged, IFilePicker
             _ => "Text3",
         };
         if (this.TryFindResource(key, out var brush) && brush is IBrush b && !ReferenceEquals(b, _stateBrush)) StateBrush = b;
-        if (MiniProgress is { Parent: Control track })
-            MiniProgress.Width = Timer.Phase is PomodoroPhase.NotStarted ? 0 : Math.Clamp(Timer.Progress, 0, 1) * Math.Max(0, track.Bounds.Width);
+        var progress = Timer.Phase is PomodoroPhase.NotStarted ? 0 : Math.Clamp(Timer.Progress, 0, 1);
+        MiniProgress.RenderTransform = new ScaleTransform(progress, 1);
     }
 
     // ── The window's own frame ───────────────────────────────────────────────

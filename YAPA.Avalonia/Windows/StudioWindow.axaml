@@ -6,11 +6,12 @@
                    x:Name="Root"
                    x:DataType="vm:TimerViewModel"
                    Classes="transparent"
+                   RenderOptions.TextRenderingMode="Antialias"
                    Width="328" Height="132">
 
     <!--
       The Studio timer: one card. A status line (the state's dot and word, the cycle, today's
-      count), the time in Geist Mono, one round button for what's next, and a hairline of
+      count), the time in Geist (tabular figures), one round button for what's next, and a hairline of
       progress along the bottom in the state's colour. Skip and stop wait for the pointer.
       The card floats in a transparent margin that holds its shadow; clicks there go through.
     -->
@@ -65,6 +66,12 @@
             <Setter Property="FontFeatures" Value="+tnum,+zero" />
             <Setter Property="FontSize" Value="11.5" />
             <Setter Property="Foreground" Value="#FF71717A" />
+        </Style>
+        <!-- Words in the status line (a note, the goal's forecast) read as words: Geist, not mono. -->
+        <Style Selector="TextBlock.meta.prose">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontFeatures" Value="+tnum" />
+            <Setter Property="FontSize" Value="12" />
         </Style>
         <!-- Geist with tabular figures: digits that don't jump as they change, and a colon that doesn't gape the way a monospace one does. -->
         <Style Selector="TextBlock.digits">
@@ -171,7 +178,7 @@
                                     <TextBlock x:Name="StatusLabel" Classes="state" Text="{Binding StatusText}" VerticalAlignment="Center" />
                                     <TextBlock Classes="meta" Text="{Binding #Root.CycleText}" VerticalAlignment="Center" Margin="1,1,0,0" />
                                 </StackPanel>
-                                <TextBlock Grid.Column="1" Classes="meta" Text="{Binding #Root.AsideText}" TextTrimming="CharacterEllipsis"
+                                <TextBlock Grid.Column="1" Classes="meta prose" Text="{Binding #Root.AsideText}" TextTrimming="CharacterEllipsis"
                                            VerticalAlignment="Center" Margin="10,1,8,0" Classes.calm="True" Classes.hidden="{Binding #Root.Hovering}" />
                                 <!-- Right: what's at a glance, and on hover, the window's own buttons in its place. -->
                                 <Panel Grid.Column="2">

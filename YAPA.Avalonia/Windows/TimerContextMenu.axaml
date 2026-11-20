@@ -20,8 +20,8 @@
               ToggleType="CheckBox" IsChecked="{Binding AmbienceOn, Mode=OneWay}" />
     <Separator />
     <!-- Opened by "/" or a double-click on the timer as well; no gesture shown, Avalonia would print "OemQuestion". -->
-    <MenuItem Header="Ask YAPA…" Command="{Binding OpenAssistantCommand}" />
-    <MenuItem Header="Your day…" Command="{Binding OpenDayCommand}" InputGesture="Ctrl+D" />
+    <MenuItem Header="Ask YAPA or run a command…" Command="{Binding OpenAssistantCommand}" />
+    <MenuItem Header="Today…" Command="{Binding OpenDayCommand}" InputGesture="Ctrl+D" />
     <!-- Nothing recorded or kept while it lasts; the timer shows a crossed-out eye. -->
     <MenuItem Header="Off the record" IsVisible="{Binding CanStartOffRecord}">
         <MenuItem Header="For 30 minutes" Command="{Binding GoOffRecordCommand}" CommandParameter="30" />
@@ -30,7 +30,7 @@
         <MenuItem Header="Until I turn it back on" Command="{Binding GoOffRecordCommand}" CommandParameter="" />
     </MenuItem>
     <MenuItem Header="{Binding BackOnRecordText}" Command="{Binding BackOnRecordCommand}" IsVisible="{Binding IsOffRecord}" />
-    <MenuItem Header="Statistics…" Command="{Binding OpenStatisticsCommand}" InputGesture="Ctrl+I" />
+    <MenuItem Header="Insights…" Command="{Binding OpenStatisticsCommand}" InputGesture="Ctrl+I" />
     <MenuItem Header="Settings…" Command="{Binding OpenSettingsCommand}" InputGesture="Ctrl+OemComma" />
     <Separator />
     <MenuItem Header="Hide to tray" Command="{Binding HideToTrayCommand}" InputGesture="Ctrl+H" />

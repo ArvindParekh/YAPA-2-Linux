@@ -82,7 +82,7 @@ public sealed class SystemTrayService : IDisposable
         ask.Click += (_, _) => _navigator.ShowAssistant();
         var day = new NativeMenuItem("Your day…");
         day.Click += (_, _) => _navigator.ShowDay();
-        var stats = new NativeMenuItem("Statistics…");
+        var stats = new NativeMenuItem("Insights…");
         stats.Click += (_, _) => _navigator.ShowStatistics();
         var settings = new NativeMenuItem("Settings…");
         settings.Click += (_, _) => _navigator.ShowSettings();

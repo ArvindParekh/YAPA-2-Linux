@@ -57,8 +57,49 @@
             <!-- Shadows: a soft lift for cards, a deep one for floating panels. -->
             <BoxShadows x:Key="ShadowCard">0 1 2 0 #40000000</BoxShadows>
             <BoxShadows x:Key="ShadowFloat">0 24 48 -12 #B0000000, 0 0 0 1 #14FFFFFF</BoxShadows>
+
+            <!-- Menus (the timer's, the tray-less fallback, every flyout): Fluent's own, retoned. -->
+            <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="#FA18181C" />
+            <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush" Color="#1FFFFFFF" />
+            <SolidColorBrush x:Key="MenuFlyoutItemBackground" Color="Transparent" />
+            <SolidColorBrush x:Key="MenuFlyoutItemBackgroundPointerOver" Color="#14FFFFFF" />
+            <SolidColorBrush x:Key="MenuFlyoutItemBackgroundPressed" Color="#1FFFFFFF" />
+            <SolidColorBrush x:Key="MenuFlyoutItemBackgroundDisabled" Color="Transparent" />
+            <SolidColorBrush x:Key="MenuFlyoutItemForeground" Color="#FFEDEDEF" />
+            <SolidColorBrush x:Key="MenuFlyoutItemForegroundPointerOver" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="MenuFlyoutItemForegroundPressed" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="MenuFlyoutItemForegroundDisabled" Color="#FF71717A" />
+            <SolidColorBrush x:Key="MenuFlyoutItemKeyboardAcceleratorTextForeground" Color="#FF71717A" />
+            <SolidColorBrush x:Key="MenuFlyoutItemKeyboardAcceleratorTextForegroundPointerOver" Color="#FFA1A1AA" />
+            <SolidColorBrush x:Key="MenuFlyoutItemKeyboardAcceleratorTextForegroundPressed" Color="#FFA1A1AA" />
+            <SolidColorBrush x:Key="MenuFlyoutItemKeyboardAcceleratorTextForegroundDisabled" Color="#FF4C4C55" />
+            <SolidColorBrush x:Key="MenuFlyoutSubItemChevron" Color="#FF71717A" />
+            <SolidColorBrush x:Key="MenuFlyoutSubItemChevronPointerOver" Color="#FFEDEDEF" />
+            <SolidColorBrush x:Key="MenuFlyoutSubItemChevronSubMenuOpened" Color="#FFEDEDEF" />
+            <SolidColorBrush x:Key="MenuFlyoutSeparatorBackground" Color="#14FFFFFF" />
+            <Thickness x:Key="MenuFlyoutPresenterThemePadding">5</Thickness>
+            <Thickness x:Key="MenuFlyoutItemThemePadding">10,6,10,7</Thickness>
+            <Thickness x:Key="MenuFlyoutSeparatorThemePadding">-5,4</Thickness>
         </ResourceDictionary>
     </Styles.Resources>
+
+    <!-- ── Menus ─────────────────────────────────────────────────────────── -->
+    <Style Selector="ContextMenu">
+        <Setter Property="CornerRadius" Value="11" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="MinWidth" Value="220" />
+    </Style>
+    <Style Selector="MenuFlyoutPresenter">
+        <Setter Property="CornerRadius" Value="11" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+    <Style Selector="MenuItem">
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="MenuItem /template/ TextBlock#PART_InputGestureText">
+        <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+        <Setter Property="FontSize" Value="11.5" />
+    </Style>
 
     <!-- ── Type ──────────────────────────────────────────────────────────── -->
     <Style Selector="TextBlock.display">

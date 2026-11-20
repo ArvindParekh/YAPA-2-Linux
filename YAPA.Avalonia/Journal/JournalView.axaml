@@ -23,15 +23,10 @@
 
         <!-- The day at the top. -->
         <Style Selector="Border.hero">
-            <Setter Property="Background">
-                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                    <GradientStop Offset="0" Color="#FF1F1F25" />
-                    <GradientStop Offset="1" Color="#FF19191E" />
-                </LinearGradientBrush>
-            </Setter>
-            <Setter Property="BorderBrush" Value="#16FFFFFF" />
+            <Setter Property="Background" Value="{StaticResource Surface}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineStrong}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="CornerRadius" Value="14" />
             <Setter Property="Padding" Value="24,22,24,20" />
         </Style>
         <Style Selector="TextBlock.headline">
@@ -45,7 +40,7 @@
         <Style Selector="TextBlock.summary">
             <Setter Property="FontSize" Value="14" />
             <Setter Property="LineHeight" Value="22" />
-            <Setter Property="Foreground" Value="#FFB4B4BE" />
+            <Setter Property="Foreground" Value="{StaticResource Text2}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
         <Style Selector="TextBlock.stats">
@@ -62,14 +57,14 @@
         </Style>
         <Style Selector="Border.chip TextBlock">
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#FFC8C8D0" />
+            <Setter Property="Foreground" Value="{StaticResource Text1}" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="Border.chip TextBlock.faint">
             <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
         </Style>
         <Style Selector="Border.badge">
-            <Setter Property="BorderBrush" Value="#16FFFFFF" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineStrong}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="11" />
             <Setter Property="Padding" Value="8,2,8,3" />
@@ -104,7 +99,7 @@
         <Style Selector="TextBlock.sessionSummary">
             <Setter Property="FontSize" Value="13.5" />
             <Setter Property="LineHeight" Value="20" />
-            <Setter Property="Foreground" Value="#FFA2A2AC" />
+            <Setter Property="Foreground" Value="{StaticResource Text2}" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Margin" Value="0,4,0,0" />
         </Style>
@@ -124,7 +119,7 @@
         <Style Selector="TextBlock.time">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="Medium" />
-            <Setter Property="Foreground" Value="#FFD6D6DC" />
+            <Setter Property="Foreground" Value="{StaticResource Text1}" />
             <Setter Property="FontFeatures" Value="+tnum" />
         </Style>
         <Style Selector="TextBlock.length">
@@ -148,7 +143,7 @@
         <!-- Time off the timer: there, quieter than the pomodoros. -->
         <Style Selector="Border.entry.off TextBlock.title">
             <Setter Property="FontWeight" Value="Normal" />
-            <Setter Property="Foreground" Value="#FFB6B6BF" />
+            <Setter Property="Foreground" Value="{StaticResource Text2}" />
         </Style>
         <Style Selector="Border.entry.off TextBlock.time">
             <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
@@ -164,7 +159,7 @@
         <Style Selector="TextBlock.detail">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="LineHeight" Value="19" />
-            <Setter Property="Foreground" Value="#FF9C9CA6" />
+            <Setter Property="Foreground" Value="{StaticResource Text2}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
         <Style Selector="Button.reveal">
@@ -173,19 +168,28 @@
         <Style Selector="Border.entry:pointerover Button.reveal">
             <Setter Property="Opacity" Value="1" />
         </Style>
+        <Style Selector="Border.now TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Focus}" />
+        </Style>
         <Style Selector="Border.now">
-            <Setter Property="Background" Value="#26FF6B57" />
+            <Setter Property="Background" Value="{StaticResource FocusSoft}" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="6,1,6,2" />
             <Setter Property="HorizontalAlignment" Value="Left" />
             <Setter Property="Margin" Value="0,5,0,0" />
+        </Style>
+        <Style Selector="Border.now.held">
+            <Setter Property="Background" Value="{StaticResource HoldSoft}" />
+        </Style>
+        <Style Selector="Border.now.held TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Hold}" />
         </Style>
 
         <!-- What happened, when an entry is opened. -->
         <Style Selector="TextBlock.evHead">
             <Setter Property="FontSize" Value="11.5" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#FF8A8A95" />
+            <Setter Property="Foreground" Value="{StaticResource Text3}" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         </Style>
         <Style Selector="TextBlock.evTime">
@@ -196,13 +200,13 @@
         <Style Selector="TextBlock.evText">
             <Setter Property="FontSize" Value="12.5" />
             <Setter Property="LineHeight" Value="18" />
-            <Setter Property="Foreground" Value="#FF9A9AA4" />
+            <Setter Property="Foreground" Value="{StaticResource Text2}" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="MaxLines" Value="3" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         </Style>
         <Style Selector="TextBlock.evText.quote">
-            <Setter Property="Foreground" Value="#FFC2C2CA" />
+            <Setter Property="Foreground" Value="{StaticResource Text1}" />
         </Style>
 
         <Style Selector="Button.ghost:disabled /template/ ContentPresenter#PART_ContentPresenter">
@@ -214,8 +218,8 @@
 
         <!-- Flyouts: the calendar, and forgetting. Raised a step above the window, like a card. -->
         <Style Selector="FlyoutPresenter.day">
-            <Setter Property="Background" Value="#FF1F1F25" />
-            <Setter Property="BorderBrush" Value="#1FFFFFFF" />
+            <Setter Property="Background" Value="{StaticResource Raised}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineStrong}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="14" />
             <Setter Property="Padding" Value="18,16,18,16" />
@@ -241,7 +245,7 @@
         </Style>
         <Style Selector="TextBlock.problem">
             <Setter Property="FontSize" Value="12.5" />
-            <Setter Property="Foreground" Value="#FFFF8F7F" />
+            <Setter Property="Foreground" Value="{StaticResource Danger}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
         <Style Selector="TextBox.time">
@@ -252,7 +256,7 @@
         </Style>
         <Style Selector="Button.chipButton">
             <Setter Property="Background" Value="#12FFFFFF" />
-            <Setter Property="Foreground" Value="#FFC8C8D0" />
+            <Setter Property="Foreground" Value="{StaticResource Text1}" />
             <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Padding" Value="11,4,11,5" />
             <Setter Property="FontSize" Value="12.5" />
@@ -267,11 +271,11 @@
             <Setter Property="CornerRadius" Value="8" />
         </Style>
         <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#FFFF7D6B" />
+            <Setter Property="Background" Value="#FFFF8459" />
             <Setter Property="Foreground" Value="#FF16161A" />
         </Style>
         <Style Selector="Button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#FFE04E3B" />
+            <Setter Property="Background" Value="#FFE5552B" />
             <Setter Property="Foreground" Value="#FF16161A" />
         </Style>
 
@@ -379,7 +383,7 @@
             <Setter Property="HorizontalAlignment" Value="Center" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Stretch" />
-            <Setter Property="Foreground" Value="#FFD6D6DC" />
+            <Setter Property="Foreground" Value="{StaticResource Text1}" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontFeatures" Value="+tnum" />
         </Style>
@@ -396,11 +400,11 @@
             <Setter Property="Background" Value="Transparent" />
         </Style>
         <Style Selector="Button.calDay.today /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="BorderBrush" Value="#59FF6B57" />
+            <Setter Property="BorderBrush" Value="#59FF6A3D" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
         <Style Selector="Button.calDay.selected /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#26FF6B57" />
+            <Setter Property="Background" Value="{StaticResource FocusSoft}" />
         </Style>
         <Style Selector="Button.calDay.selected">
             <Setter Property="Foreground" Value="{DynamicResource Ink}" />
@@ -410,7 +414,7 @@
         <!-- Off the record, said at the top while it lasts. -->
         <Style Selector="Border.banner">
             <Setter Property="Background" Value="#0FFFFFFF" />
-            <Setter Property="BorderBrush" Value="#14FFFFFF" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineStrong}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Padding" Value="14,10,10,10" />
@@ -689,8 +693,8 @@
                                                                      LostFocus="OnEditLostFocus" PlaceholderText="What was it? Leave empty to let the write-up name it"
                                                                      FontSize="14" Margin="-10,-6,0,-2" />
                                                             <TextBlock Classes="detail" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" />
-                                                            <Border Classes="now" IsVisible="{Binding InProgress}">
-                                                                <TextBlock Text="{Binding NowLabel}" FontSize="10.5" FontWeight="SemiBold" LetterSpacing="0.8" Foreground="{DynamicResource AccentBrush}" />
+                                                            <Border Classes="now" Classes.held="{Binding IsHeld}" IsVisible="{Binding InProgress}">
+                                                                <TextBlock Text="{Binding NowLabel}" FontSize="10.5" FontWeight="SemiBold" LetterSpacing="0.8" />
                                                             </Border>
                                                             <WrapPanel IsVisible="{Binding HasChips}" Margin="0,4,0,-6">
                                                                 <ItemsControl ItemsSource="{Binding Projects}">

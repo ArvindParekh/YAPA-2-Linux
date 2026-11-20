@@ -6,6 +6,7 @@
         Title="YAPA notice"
         Width="372" SizeToContent="Height"
         RequestedThemeVariant="Dark"
+        RenderOptions.TextRenderingMode="Antialias"
         FontFamily="{StaticResource UiFont}">
 
     <!--
@@ -15,15 +16,15 @@
     -->
     <Window.Styles>
         <Style Selector="Border#Card">
-            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="CornerRadius" Value="14" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Background">
                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                    <GradientStop Offset="0" Color="#F7242429" />
-                    <GradientStop Offset="1" Color="#F718181C" />
+                    <GradientStop Offset="0" Color="#FA1C1C21" />
+                    <GradientStop Offset="1" Color="#FA131316" />
                 </LinearGradientBrush>
             </Setter>
-            <Setter Property="BorderBrush" Value="#26FFFFFF" />
+            <Setter Property="BorderBrush" Value="#1FFFFFFF" />
             <Setter Property="BoxShadow" Value="0 12 32 -8 #A0000000, 0 2 8 0 #50000000" />
         </Style>
         <Style Selector="Panel#Root">
@@ -45,13 +46,14 @@
         </Style>
 
         <Style Selector="Button.act">
-            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="12,6" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="MinHeight" Value="0" />
-            <Setter Property="Background" Value="#16FFFFFF" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Foreground" Value="#EDFFFFFF" />
+            <Setter Property="Background" Value="{StaticResource FillActive}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{StaticResource Text1}" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Margin" Value="0,0,6,0" />
         </Style>
@@ -90,19 +92,19 @@
 
     <Panel x:Name="Root" Margin="14,4,14,22">
         <!-- The tail: a small diamond tucked under the card, pointing at the timer. -->
-        <Border x:Name="Tail" Width="14" Height="14" Background="#F7242429" BorderBrush="#26FFFFFF" BorderThickness="1,1,0,0"
+        <Border x:Name="Tail" Width="14" Height="14" Background="#FA1C1C21" BorderBrush="#1FFFFFFF" BorderThickness="1,1,0,0"
                 CornerRadius="3" RenderTransform="rotate(45deg)" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,3,0,0" />
         <Border x:Name="Card" Margin="0,9,0,0">
             <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" Margin="14,12,10,13">
                 <Ellipse x:Name="Dot" Width="9" Height="9" Fill="{Binding $parent[w:NotificationBubble].Accent}" VerticalAlignment="Center" Margin="2,0,10,0" />
-                <TextBlock x:Name="TitleText" Grid.Column="1" FontSize="14" FontWeight="SemiBold" Foreground="#F5FFFFFF"
+                <TextBlock x:Name="TitleText" Grid.Column="1" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Text1}"
                            TextWrapping="Wrap" VerticalAlignment="Center" />
                 <Button Grid.Column="2" Classes="close" Click="OnCloseClick" Margin="6,-4,0,-4" AutomationProperties.Name="Dismiss">
                     <Path Width="9" Height="9" Stretch="Uniform" StrokeThickness="1.7" StrokeLineCap="Round"
                           Stroke="{Binding $parent[Button].Foreground}" Data="M 0 0 L 10 10 M 10 0 L 0 10" />
                 </Button>
                 <TextBlock x:Name="BodyText" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" FontSize="13" LineHeight="18"
-                           Foreground="#A8FFFFFF" TextWrapping="Wrap" Margin="0,3,8,0" />
+                           Foreground="{StaticResource Text2}" TextWrapping="Wrap" Margin="0,3,8,0" />
                 <WrapPanel x:Name="Actions" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,11,0,0" />
             </Grid>
         </Border>

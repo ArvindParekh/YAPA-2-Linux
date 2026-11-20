@@ -24,13 +24,22 @@ public sealed class HeatmapControl : Control
     public static readonly StyledProperty<Heatmap?> HeatmapProperty =
         AvaloniaProperty.Register<HeatmapControl, Heatmap?>(nameof(Heatmap));
 
-    // Tomato ramp, matching the timer's "work" colour. Level 0 depends on the theme.
-    private static readonly Color[] Ramp =
+    // The focus colour, ramped. On light, more is darker; on dark, more is brighter: either way
+    // the busiest days stand out from the background rather than sinking into it.
+    private static readonly Color[] LightRamp =
     [
         Color.Parse("#FFC9BE"),
         Color.Parse("#FF9580"),
         Color.Parse("#F3603F"),
         Color.Parse("#C2391B"),
+    ];
+
+    private static readonly Color[] DarkRamp =
+    [
+        Color.Parse("#4A2116"),
+        Color.Parse("#8C3418"),
+        Color.Parse("#D9532A"),
+        Color.Parse("#FF7A4D"),
     ];
 
     static HeatmapControl()
@@ -48,7 +57,7 @@ public sealed class HeatmapControl : Control
     /// <summary>A day (not in the future) was clicked.</summary>
     public event Action<DateOnly>? DayClicked;
 
-    private static readonly IPen TodayRing = new Pen(new SolidColorBrush(Color.Parse("#FFFF6B57")), 1.5);
+    private static readonly IPen TodayRing = new Pen(new SolidColorBrush(Color.Parse("#FFEDEDEF")), 1.5);
 
     /// <summary>The day under <paramref name="p"/>, if there's one there and it isn't in the future.</summary>
     private HeatmapCell? CellAt(Point p)
@@ -74,10 +83,11 @@ public sealed class HeatmapControl : Control
         if (map == null) return;
 
         var dark = ActualThemeVariant == ThemeVariant.Dark;
-        var empty = new SolidColorBrush(dark ? Color.Parse("#2B2B2E") : Color.Parse("#EBEDF0"));
+        var empty = new SolidColorBrush(dark ? Color.Parse("#1C1C21") : Color.Parse("#EBEDF0"));
         var future = new SolidColorBrush(Colors.Transparent);
-        var label = new SolidColorBrush(dark ? Color.Parse("#A0A0A0") : Color.Parse("#606060"));
-        var typeface = new Typeface(FontFamily.Default);
+        var label = new SolidColorBrush(dark ? Color.Parse("#71717A") : Color.Parse("#606060"));
+        var ramp = dark ? DarkRamp : LightRamp;
+        var typeface = new Typeface(this.TryFindResource("UiFont", out var ui) && ui is FontFamily f ? f : FontFamily.Default);
         var culture = CultureInfo.CurrentCulture;
         var today = DateOnly.FromDateTime(DateTime.Now);
 
@@ -113,7 +123,7 @@ public sealed class HeatmapControl : Control
                 var cell = week.Days[row];
                 IBrush brush = cell.IsFuture ? future
                     : cell.Level == 0 ? empty
-                    : new SolidColorBrush(Ramp[Math.Clamp(cell.Level, 1, 4) - 1]);
+                    : new SolidColorBrush(ramp[Math.Clamp(cell.Level, 1, 4) - 1]);
                 var rect = new Rect(x, LabelRow + row * (Cell + Gap), Cell, Cell);
                 context.DrawRectangle(brush, null, new RoundedRect(rect, 2.5));
                 if (cell.Date == today) context.DrawRectangle(null, TodayRing, new RoundedRect(rect.Inflate(1.5), 3.5));

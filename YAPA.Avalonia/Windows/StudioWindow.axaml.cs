@@ -142,7 +142,10 @@ public partial class StudioWindow : TimerWindowBase
         // The classic timer's suffix reads " · Cycle 2"; here the cycle is the number alone, as the pomodoro's place in it.
         CycleText = ViewModel.Phase is PomodoroPhase.NotStarted ? "" : ViewModel.Engine.Index + "/" + Math.Max(1, CycleLength);
         var note = ViewModel.NoteSuffix.TrimStart(' ', '·').Trim();
-        AsideText = note.Length > 0 ? note : ViewModel.HasGoalForecast ? ViewModel.GoalForecastText : "";
+        // The count is already at the right ("3/12"), so the forecast needs only its time: "goal by 18:40".
+        AsideText = note.Length > 0 ? note
+            : ViewModel.HasGoalForecast ? System.Text.RegularExpressions.Regex.Replace(ViewModel.GoalForecastText, @"^\d+ ", "goal ").Replace("after midnight", "past midnight")
+            : "";
         UpdateTime();
         UpdateProgress();
     }
