@@ -6,7 +6,7 @@
         Title="YAPA notice"
         Width="372" SizeToContent="Height"
         RequestedThemeVariant="Dark"
-        RenderOptions.TextRenderingMode="Antialias"
+        TextOptions.TextRenderingMode="Antialias"
         FontFamily="{StaticResource UiFont}">
 
     <!--

@@ -7,7 +7,21 @@ public sealed class AvaloniaThemeSettings : IPluginSettings, INotifyPropertyChan
 {
     private readonly ISettingsForComponent _s;
 
-    public AvaloniaThemeSettings(ISettings settings) => _s = settings.GetSettingsForComponent("ThemeManager");
+    public AvaloniaThemeSettings(ISettings settings)
+    {
+        _s = settings.GetSettingsForComponent("ThemeManager");
+        // Before the redesign the classic timer was the default, and profiles from then hold it
+        // as their choice whether or not anyone chose it. Moved to Studio once; a theme picked
+        // after that sticks.
+        if (!_s.Get(StudioIntroduced, false))
+        {
+            if (_s.Get(nameof(ActiveTheme), "") == YAPA.Avalonia.Services.AppNavigator.ClassicTheme)
+                _s.Update(nameof(ActiveTheme), YAPA.Avalonia.Services.AppNavigator.StudioTheme);
+            _s.Update(StudioIntroduced, true);
+        }
+    }
+
+    private const string StudioIntroduced = "StudioIntroduced";
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

@@ -6,7 +6,7 @@
                    x:Name="Root"
                    x:DataType="vm:TimerViewModel"
                    Classes="transparent"
-                   RenderOptions.TextRenderingMode="Antialias"
+                   TextOptions.TextRenderingMode="Antialias"
                    Width="328" Height="132">
 
     <!--

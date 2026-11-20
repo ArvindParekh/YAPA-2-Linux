@@ -162,3 +162,6 @@ TestResults/
 
 # Claude Code local state (settings, agent worktrees)
 .claude/
+
+# The redesign preview (preview.sh): its build and its own YAPA_HOME
+.preview/

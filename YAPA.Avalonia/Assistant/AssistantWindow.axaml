@@ -7,7 +7,7 @@
         Title="Ask YAPA"
         Width="500" Height="600"
         RequestedThemeVariant="Dark"
-        RenderOptions.TextRenderingMode="Antialias"
+        TextOptions.TextRenderingMode="Antialias"
         FontFamily="{StaticResource UiFont}">
 
     <!--
