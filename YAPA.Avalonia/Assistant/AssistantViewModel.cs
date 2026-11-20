@@ -15,7 +15,8 @@ namespace YAPA.Avalonia.Assistant;
 /// <param name="Prompt">What it puts in the prompt.</param>
 /// <param name="Send">Runs at once; otherwise it fills the prompt to finish or change first
 /// (anything with a number in it the user may want to change, or that writes history).</param>
-public sealed record Suggestion(string Label, string Prompt, bool Send);
+/// <param name="Acts">It only runs a timer action (Resume, Start my break): the command bar has those already.</param>
+public sealed record Suggestion(string Label, string Prompt, bool Send, bool Acts = false);
 
 /// <summary>
 /// One line of an answer: a paragraph, or a list item drawn with its bullet hanging, so
@@ -757,9 +758,9 @@ public sealed partial class AssistantViewModel : ObservableObject
         {
             PomodoroPhase.Work => [new("5 more minutes", "Give me 5 more minutes", true), today, stopAt],
             PomodoroPhase.Break => [new("Longer break…", "Extend my break by 5 minutes", false), today, goal],
-            PomodoroPhase.WorkEnded => [new("Start my break", "Start my break", true), today, goal],
-            PomodoroPhase.BreakEnded => [new("Start the next one", "Start the next pomodoro", true), today, goal],
-            PomodoroPhase.Pause => [new("Resume", "Resume", true), today, goal],
+            PomodoroPhase.WorkEnded => [new("Start my break", "Start my break", true, Acts: true), today, goal],
+            PomodoroPhase.BreakEnded => [new("Start the next one", "Start the next pomodoro", true, Acts: true), today, goal],
+            PomodoroPhase.Pause => [new("Resume", "Resume", true, Acts: true), today, goal],
             _ => [new("Log time away…", "I worked for an hour away from the timer, log it", false), today,
                   new("When do I focus best?", "When do I focus best?", true)],
         };

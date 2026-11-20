@@ -7,17 +7,20 @@
     <Application.Resources>
         <FontFamily x:Key="TimerFont">avares://Avalonia.Fonts.Inter/Assets#Inter</FontFamily>
         <FontFamily x:Key="UiFont">avares://YAPA.Avalonia/Assets/Fonts/Geist#Geist</FontFamily>
+        <FontFamily x:Key="MonoFont">avares://YAPA.Avalonia/Assets/Fonts/GeistMono#Geist Mono</FontFamily>
     </Application.Resources>
 
     <Application.Styles>
         <!-- One accent, the pomodoro's tomato, for every toggle, slider and selection. -->
         <FluentTheme>
             <FluentTheme.Palettes>
-                <ColorPaletteResources x:Key="Dark" Accent="#FFFF6B57" />
+                <ColorPaletteResources x:Key="Dark" Accent="#FFFF6A3D" />
                 <ColorPaletteResources x:Key="Light" Accent="#FFE0503C" />
             </FluentTheme.Palettes>
         </FluentTheme>
         <StyleInclude Source="avares://YAPA.Avalonia/Windows/TimerStyles.axaml" />
+        <!-- The design system: tokens and components the redesigned surfaces are built from. -->
+        <StyleInclude Source="avares://YAPA.Avalonia/Design/Theme.axaml" />
 
         <!-- Timer windows draw everything themselves: strip Fluent's window chrome. -->
         <Style Selector="Window.transparent">

@@ -287,12 +287,14 @@ public sealed class AppearancePageViewModel : SettingsPageViewModel
     public string OpacityText => $"{s.ClockOpacity:P0}";
     public string ShadowText => $"{s.ShadowOpacity:P0}";
 
-    public IReadOnlyList<string> Themes { get; } = ["Classic", "Motivational"];
+    public IReadOnlyList<string> Themes { get; } = ["Studio", "Classic", "Motivational"];
+
+    private static readonly string[] ThemeNames = [AppNavigator.StudioTheme, AppNavigator.ClassicTheme, AppNavigator.MotivationalTheme];
 
     public int ThemeIndex
     {
-        get => themes.ActiveTheme == AppNavigator.MotivationalTheme ? 1 : 0;
-        set { themes.ActiveTheme = value == 1 ? AppNavigator.MotivationalTheme : AppNavigator.ClassicTheme; Changed(); }
+        get => Math.Max(0, Array.IndexOf(ThemeNames, themes.ActiveTheme));
+        set { themes.ActiveTheme = ThemeNames[Math.Clamp(value, 0, ThemeNames.Length - 1)]; Changed(); }
     }
 
     public IReadOnlyList<string> TextColors { get; } =

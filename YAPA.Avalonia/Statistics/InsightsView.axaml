@@ -1,17 +1,12 @@
-<Window xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:s="using:YAPA.Avalonia.Statistics"
-        x:Class="YAPA.Avalonia.Windows.StatisticsWindow"
+        x:Class="YAPA.Avalonia.Statistics.InsightsView"
         x:DataType="s:StatisticsViewModel"
-        Title="Statistics · YAPA"
-        Width="920" Height="780" MinWidth="720" MinHeight="520"
-        WindowStartupLocation="CenterScreen"
-        RequestedThemeVariant="Dark"
-        Background="{DynamicResource WindowSurface}"
         FontFamily="{StaticResource UiFont}">
 
     <!-- Settings' look (dark cards, hairlines, one tomato accent), so the app's windows read as one. -->
-    <Window.Styles>
+    <UserControl.Styles>
         <StyleInclude Source="avares://YAPA.Avalonia/Settings/SettingsStyles.axaml" />
 
         <Style Selector="TextBlock.title">
@@ -112,7 +107,7 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Foreground" Value="{DynamicResource Ink}" />
         </Style>
-    </Window.Styles>
+    </UserControl.Styles>
 
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="36,28,36,36" MaxWidth="900" Spacing="20">
@@ -220,4 +215,4 @@
             </WrapPanel>
         </StackPanel>
     </ScrollViewer>
-</Window>
+</UserControl>

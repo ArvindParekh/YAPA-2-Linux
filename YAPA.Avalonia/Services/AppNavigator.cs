@@ -14,13 +14,12 @@ public sealed class AppNavigator : IAppNavigator
 {
     public const string ClassicTheme = "YAPA 1.0";
     public const string MotivationalTheme = "Motivational";
+    public const string StudioTheme = "Studio";
 
     private readonly AvaloniaThemeSettings _themeSettings;
     private TimerWindowBase? _timer;
-    private SettingsWindow? _settings;
-    private StatisticsWindow? _statistics;
+    private YAPA.Avalonia.Hub.HubWindow? _hub;
     private AssistantWindow? _assistant;
-    private YAPA.Avalonia.Journal.DayWindow? _day;
     private bool _quitting;
 
     public AppNavigator(AvaloniaThemeSettings themeSettings)
@@ -37,17 +36,35 @@ public sealed class AppNavigator : IAppNavigator
 
     public TimerWindowBase? TimerWindow => _timer;
 
-    internal SettingsWindow? SettingsWindowForTests => _settings;
+    internal YAPA.Avalonia.Hub.HubWindow? HubForTests => _hub;
 
-    public bool IsSettingsOpen => _settings != null;
+    public bool IsSettingsOpen => _hub?.ShowsSettings == true;
 
-    public bool IsStatisticsOpen => _statistics != null;
+    public bool IsStatisticsOpen => _hub?.ShowsInsights == true;
 
     /// <summary>
-    /// Settings changed elsewhere (the assistant): an open settings window shows the new
-    /// values, since its pages only notice changes made through them.
+    /// Settings changed elsewhere (the assistant): an open Hub shows the new values, since its
+    /// pages only notice changes made through them.
     /// </summary>
-    public void RefreshSettings() => _settings?.RefreshPages();
+    public void RefreshSettings() => _hub?.RefreshPages();
+
+    /// <summary>The Hub, made once and kept until it's closed.</summary>
+    private YAPA.Avalonia.Hub.HubWindow Hub()
+    {
+        if (_hub == null)
+        {
+            _hub = new YAPA.Avalonia.Hub.HubWindow();
+            _hub.Closed += (_, _) => _hub = null;
+        }
+        return _hub;
+    }
+
+    private void Present(YAPA.Avalonia.Hub.HubWindow hub)
+    {
+        hub.Show();
+        if (hub.WindowState == WindowState.Minimized) hub.WindowState = WindowState.Normal;
+        hub.Activate();
+    }
 
     public void ShowTimer()
     {
@@ -76,45 +93,43 @@ public sealed class AppNavigator : IAppNavigator
 
     public void ShowSettings(SettingsPage page = SettingsPage.Timer)
     {
-        if (_settings == null)
-        {
-            _settings = new SettingsWindow();
-            _settings.Closed += (_, _) => _settings = null;
-        }
-        _settings.Navigate(page);
-        _settings.Show();
-        _settings.Activate();
+        var hub = Hub();
+        hub.ShowSettings(page);
+        Present(hub);
     }
 
     public void ShowStatistics()
     {
-        if (_statistics == null)
-        {
-            _statistics = new StatisticsWindow();
-            _statistics.Closed += (_, _) => _statistics = null;
-        }
-        _statistics.Show();
-        _statistics.Activate();
+        var hub = Hub();
+        hub.ShowInsights();
+        Present(hub);
     }
 
-    /// <summary>The day journal, on <paramref name="date"/> (today by default).</summary>
+    /// <summary>Your day, on <paramref name="date"/> (today by default).</summary>
     public void ShowDay(DateOnly? date = null)
     {
-        if (_day == null)
-        {
-            _day = new YAPA.Avalonia.Journal.DayWindow();
-            _day.Closed += (_, _) => _day = null;
-        }
-        _day.Open(date);
-        _day.Show();
-        _day.Activate();
+        var hub = Hub();
+        hub.ShowDay(date);
+        Present(hub);
+    }
+
+    /// <summary>The journal's week view, this week.</summary>
+    public void ShowWeek()
+    {
+        var hub = Hub();
+        hub.ShowWeek();
+        Present(hub);
     }
 
     /// <summary>Created once and kept: it holds the conversation's on-screen state between openings.</summary>
-    public void ShowAssistant()
+    public void ShowAssistant() => ShowAssistant(null);
+
+    /// <param name="over">A window to open over, palette-style (the hub); beside the timer otherwise.</param>
+    public void ShowAssistant(Window? over)
     {
         _assistant ??= new AssistantWindow();
-        _assistant.ShowNear(IsTimerShowing ? _timer : null);
+        if (over is { IsVisible: true }) _assistant.ShowOver(over);
+        else _assistant.ShowNear(IsTimerShowing ? _timer : null);
     }
 
     public bool IsAssistantShowing => _assistant?.IsShowing == true;
@@ -124,9 +139,7 @@ public sealed class AppNavigator : IAppNavigator
         if (_quitting) return;
         _quitting = true;
         Quitting?.Invoke();
-        _settings?.Close();
-        _statistics?.Close();
-        _day?.Close();
+        _hub?.Close();
         _assistant?.Close();
         _timer?.Close();
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
@@ -142,9 +155,12 @@ public sealed class AppNavigator : IAppNavigator
 
     private TimerWindowBase CreateTimer()
     {
-        TimerWindowBase window = _themeSettings.ActiveTheme == MotivationalTheme
-            ? new MotivationalWindow()
-            : new MainWindow();
+        TimerWindowBase window = _themeSettings.ActiveTheme switch
+        {
+            MotivationalTheme => new MotivationalWindow(),
+            ClassicTheme => new MainWindow(),
+            _ => new StudioWindow(),
+        };
 
         window.PropertyChanged += (_, e) =>
         {

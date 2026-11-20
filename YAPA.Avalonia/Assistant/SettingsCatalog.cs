@@ -113,9 +113,10 @@ public sealed class SettingsCatalog
 
             // ── Appearance ──────────────────────────────────────────────────────
             Choice("appearance.theme", "The timer's look.",
-                [("classic", "big digits with a column of text buttons"), ("motivational", "the timer with a motivational quote")],
-                () => themes.ActiveTheme == AppNavigator.MotivationalTheme ? "motivational" : "classic",
-                v => themes.ActiveTheme = v == "motivational" ? AppNavigator.MotivationalTheme : AppNavigator.ClassicTheme),
+                [("studio", "a dark card: the state's colour, mono digits, one round button"), ("classic", "big digits with a column of text buttons"),
+                 ("motivational", "the timer with a motivational quote")],
+                () => themes.ActiveTheme switch { AppNavigator.MotivationalTheme => "motivational", AppNavigator.ClassicTheme => "classic", _ => "studio" },
+                v => themes.ActiveTheme = v switch { "motivational" => AppNavigator.MotivationalTheme, "classic" => AppNavigator.ClassicTheme, _ => AppNavigator.StudioTheme }),
             Int("appearance.size", "Width of the timer in pixels (it keeps its proportions).", 120, 800,
                 () => look.Width, v => look.Width = v),
             Percent("appearance.opacity", "How opaque the timer is (20–100%).", () => look.ClockOpacity, v => look.ClockOpacity = Math.Max(0.2, v)),

@@ -1,16 +1,12 @@
-<Window xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:j="using:YAPA.Avalonia.Journal"
-        x:Class="YAPA.Avalonia.Journal.DayWindow"
+        x:Class="YAPA.Avalonia.Journal.JournalView"
         x:DataType="j:DayViewModel"
-        Title="Your day · YAPA"
-        Width="860" Height="900" MinWidth="720" MinHeight="520"
-        WindowStartupLocation="CenterScreen"
-        RequestedThemeVariant="Dark"
-        Background="{DynamicResource WindowSurface}"
+        Focusable="True"
         FontFamily="{StaticResource UiFont}">
 
-    <Window.Styles>
+    <UserControl.Styles>
         <StyleInclude Source="avares://YAPA.Avalonia/Settings/SettingsStyles.axaml" />
 
         <Style Selector="TextBlock.weekday">
@@ -436,13 +432,13 @@
                 </Animation>
             </Style.Animations>
         </Style>
-    </Window.Styles>
+    </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,*">
         <!-- The date, and stepping through days. -->
         <Grid ColumnDefinitions="*,Auto" Margin="36,26,28,16">
             <Button x:Name="DateButton" Classes="dateButton" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-10,-6,0,-8"
-                    ToolTip.Tip="Go to any day (G)" AutomationProperties.Name="Choose a day">
+                    ToolTip.Tip="Go to any day (C)" AutomationProperties.Name="Choose a day">
                 <Button.Flyout>
                     <Flyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="day" Opening="OnCalendarOpening">
                         <StackPanel Width="290" Spacing="8">
@@ -880,4 +876,4 @@
             </Panel>
         </ScrollViewer>
     </Grid>
-</Window>
+</UserControl>

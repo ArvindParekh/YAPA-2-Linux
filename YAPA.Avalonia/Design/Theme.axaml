@@ -1,0 +1,234 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!--
+      YAPA's design system. Monochrome by default: a near-black zinc scale, hairlines instead of
+      boxes, and colour only when it means something, which here is the timer's state:
+        Focus  ember    a pomodoro under way
+        Rest   mint     a break
+        Hold   amber    paused, or an interval that ended and is waiting
+        Quiet  violet   off the record
+      Words are Geist, numbers and keys Geist Mono. Radii: 6 controls, 10 rows, 14 cards, 18 panels.
+      Spacing on a 4 px grid. Components are opt-in classes (Button.primary, Border.card…), so the
+      older surfaces that still use Fluent's own look are untouched.
+    -->
+    <Styles.Resources>
+        <ResourceDictionary>
+            <!-- Surfaces, darkest first. -->
+            <Color x:Key="Ds.Canvas">#FF09090B</Color>
+            <Color x:Key="Ds.Sunken">#FF0C0C0F</Color>
+            <Color x:Key="Ds.Surface">#FF111114</Color>
+            <Color x:Key="Ds.Raised">#FF18181C</Color>
+            <Color x:Key="Ds.Overlay">#FF1E1E23</Color>
+            <SolidColorBrush x:Key="Canvas" Color="{StaticResource Ds.Canvas}" />
+            <SolidColorBrush x:Key="Sunken" Color="{StaticResource Ds.Sunken}" />
+            <SolidColorBrush x:Key="Surface" Color="{StaticResource Ds.Surface}" />
+            <SolidColorBrush x:Key="Raised" Color="{StaticResource Ds.Raised}" />
+            <SolidColorBrush x:Key="Overlay" Color="{StaticResource Ds.Overlay}" />
+
+            <!-- Lines and fills, as white over whatever is below. -->
+            <SolidColorBrush x:Key="Line" Color="#0FFFFFFF" />
+            <SolidColorBrush x:Key="LineStrong" Color="#1AFFFFFF" />
+            <SolidColorBrush x:Key="LineFocus" Color="#40FFFFFF" />
+            <SolidColorBrush x:Key="FillSubtle" Color="#08FFFFFF" />
+            <SolidColorBrush x:Key="FillHover" Color="#0FFFFFFF" />
+            <SolidColorBrush x:Key="FillActive" Color="#17FFFFFF" />
+
+            <!-- Text: four steps. -->
+            <SolidColorBrush x:Key="Text1" Color="#FFEDEDEF" />
+            <SolidColorBrush x:Key="Text2" Color="#FFA1A1AA" />
+            <SolidColorBrush x:Key="Text3" Color="#FF71717A" />
+            <SolidColorBrush x:Key="Text4" Color="#FF4C4C55" />
+
+            <!-- State. -->
+            <Color x:Key="Ds.Focus">#FFFF6A3D</Color>
+            <Color x:Key="Ds.Rest">#FF34D3A0</Color>
+            <Color x:Key="Ds.Hold">#FFF5B544</Color>
+            <Color x:Key="Ds.Quiet">#FF9B8AFB</Color>
+            <SolidColorBrush x:Key="Focus" Color="{StaticResource Ds.Focus}" />
+            <SolidColorBrush x:Key="Rest" Color="{StaticResource Ds.Rest}" />
+            <SolidColorBrush x:Key="Hold" Color="{StaticResource Ds.Hold}" />
+            <SolidColorBrush x:Key="Quiet" Color="{StaticResource Ds.Quiet}" />
+            <SolidColorBrush x:Key="FocusSoft" Color="#24FF6A3D" />
+            <SolidColorBrush x:Key="RestSoft" Color="#2434D3A0" />
+            <SolidColorBrush x:Key="HoldSoft" Color="#24F5B544" />
+            <SolidColorBrush x:Key="QuietSoft" Color="#249B8AFB" />
+            <SolidColorBrush x:Key="Danger" Color="#FFFF6B6B" />
+
+            <!-- Shadows: a soft lift for cards, a deep one for floating panels. -->
+            <BoxShadows x:Key="ShadowCard">0 1 2 0 #40000000</BoxShadows>
+            <BoxShadows x:Key="ShadowFloat">0 24 48 -12 #B0000000, 0 0 0 1 #14FFFFFF</BoxShadows>
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <!-- ── Type ──────────────────────────────────────────────────────────── -->
+    <Style Selector="TextBlock.display">
+        <Setter Property="FontSize" Value="30" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LetterSpacing" Value="-0.8" />
+        <Setter Property="Foreground" Value="{StaticResource Text1}" />
+    </Style>
+    <Style Selector="TextBlock.h1">
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LetterSpacing" Value="-0.4" />
+        <Setter Property="LineHeight" Value="29" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Foreground" Value="{StaticResource Text1}" />
+    </Style>
+    <Style Selector="TextBlock.h2">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LetterSpacing" Value="-0.1" />
+        <Setter Property="Foreground" Value="{StaticResource Text1}" />
+    </Style>
+    <Style Selector="TextBlock.body">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="LineHeight" Value="22" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Foreground" Value="{StaticResource Text2}" />
+    </Style>
+    <Style Selector="TextBlock.small">
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="LineHeight" Value="18" />
+        <Setter Property="Foreground" Value="{StaticResource Text3}" />
+    </Style>
+    <!-- Section labels: small caps in all but name. -->
+    <Style Selector="TextBlock.eyebrow">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="LetterSpacing" Value="0.6" />
+        <Setter Property="Foreground" Value="{StaticResource Text3}" />
+    </Style>
+    <Style Selector="TextBlock.mono">
+        <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+        <Setter Property="FontFeatures" Value="+tnum,+zero" />
+    </Style>
+
+    <!-- ── Keys ──────────────────────────────────────────────────────────── -->
+    <Style Selector="Border.kbd">
+        <Setter Property="Background" Value="{StaticResource FillSubtle}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineStrong}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="5" />
+        <Setter Property="Padding" Value="5,1,5,2" />
+        <Setter Property="MinWidth" Value="20" />
+    </Style>
+    <Style Selector="Border.kbd > TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{StaticResource Text2}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ── Buttons ───────────────────────────────────────────────────────── -->
+    <!-- Primary: white on black, the one thing to press. -->
+    <Style Selector="Button.primary">
+        <Setter Property="Background" Value="#FFEDEDEF" />
+        <Setter Property="Foreground" Value="#FF09090B" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="14,7,14,8" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#FFFFFFFF" />
+        <Setter Property="Foreground" Value="#FF09090B" />
+    </Style>
+    <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#FFD4D4D8" />
+    </Style>
+    <Style Selector="Button.primary.danger">
+        <Setter Property="Background" Value="{StaticResource Focus}" />
+    </Style>
+    <Style Selector="Button.primary.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#FFFF825C" />
+    </Style>
+
+    <!-- Secondary: a quiet raised button with a hairline. -->
+    <Style Selector="Button.secondary">
+        <Setter Property="Background" Value="{StaticResource Raised}" />
+        <Setter Property="Foreground" Value="{StaticResource Text1}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineStrong}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="12,6,12,7" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Overlay}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineFocus}" />
+        <Setter Property="Foreground" Value="{StaticResource Text1}" />
+    </Style>
+
+    <!-- Quiet: text until hovered. -->
+    <Style Selector="Button.quiet">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource Text2}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Padding" Value="9,5,9,6" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.quiet:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource FillHover}" />
+        <Setter Property="Foreground" Value="{StaticResource Text1}" />
+    </Style>
+    <Style Selector="Button.quiet:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource FillActive}" />
+    </Style>
+    <Style Selector="Button.quiet:disabled">
+        <Setter Property="Opacity" Value="0.35" />
+    </Style>
+    <Style Selector="Button.quiet:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.square">
+        <Setter Property="Width" Value="30" />
+        <Setter Property="Height" Value="30" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- Line icons: 24-unit paths, round joins. -->
+    <Style Selector="Path.glyph">
+        <Setter Property="Width" Value="15" />
+        <Setter Property="Height" Value="15" />
+        <Setter Property="Stretch" Value="Uniform" />
+        <Setter Property="StrokeThickness" Value="1.75" />
+        <Setter Property="StrokeLineCap" Value="Round" />
+        <Setter Property="StrokeJoin" Value="Round" />
+        <Setter Property="Stroke" Value="{Binding $parent[ContentPresenter].Foreground}" />
+    </Style>
+
+    <!-- ── Surfaces ──────────────────────────────────────────────────────── -->
+    <Style Selector="Border.panel">
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
+    </Style>
+    <Style Selector="Border.well">
+        <Setter Property="Background" Value="{StaticResource Sunken}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+    </Style>
+    <Style Selector="Border.hairline">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{StaticResource Line}" />
+    </Style>
+
+    <!-- A pill of state: a dot and a word, in the state's colour. -->
+    <Style Selector="Border.pill">
+        <Setter Property="CornerRadius" Value="99" />
+        <Setter Property="Padding" Value="8,2,9,3" />
+        <Setter Property="Background" Value="{StaticResource FillHover}" />
+    </Style>
+</Styles>

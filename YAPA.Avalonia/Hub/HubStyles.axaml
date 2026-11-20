@@ -1,0 +1,132 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- The Hub's chrome: sidebar, its rows, the search bar, the mini timer, the window's buttons. -->
+
+    <Style Selector="Border.sidebar">
+        <Setter Property="Background" Value="{StaticResource Sunken}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+        <Setter Property="BorderThickness" Value="0,0,1,0" />
+    </Style>
+
+    <!-- The mark: a tomato, reduced to a glowing ember. -->
+    <Style Selector="Border.mark">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="20" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Background">
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                <GradientStop Offset="0" Color="#FFFF8A5B" />
+                <GradientStop Offset="1" Color="#FFE8452B" />
+            </LinearGradientBrush>
+        </Setter>
+        <Setter Property="BoxShadow" Value="0 0 12 0 #55FF6A3D, inset 0 1 0 0 #40FFFFFF" />
+    </Style>
+
+    <!-- Search or ask: looks like a field, is a button that opens the command bar. -->
+    <Style Selector="Button.search">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="Padding" Value="10,7,7,7" />
+        <Setter Property="Foreground" Value="{StaticResource Text3}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.search:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Raised}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineStrong}" />
+        <Setter Property="Foreground" Value="{StaticResource Text2}" />
+    </Style>
+
+    <Style Selector="TextBlock.navHead">
+        <Setter Property="Margin" Value="10,4,0,6" />
+    </Style>
+    <Style Selector="Path.navGlyph">
+        <Setter Property="Width" Value="15" />
+        <Setter Property="Height" Value="15" />
+        <Setter Property="Stretch" Value="Uniform" />
+        <Setter Property="StrokeThickness" Value="1.7" />
+        <Setter Property="StrokeLineCap" Value="Round" />
+        <Setter Property="StrokeJoin" Value="Round" />
+        <Setter Property="Stroke" Value="{StaticResource Text3}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.navKeys">
+        <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="Foreground" Value="{StaticResource Text4}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Opacity" Value="0" />
+    </Style>
+
+    <!-- The nav: rows that light up, the selected one held. -->
+    <Style Selector="ListBox.hubnav">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="ListBox.hubnav ListBoxItem">
+        <Setter Property="Padding" Value="10,6.5" />
+        <Setter Property="Margin" Value="0,1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="FontSize" Value="13.5" />
+        <Setter Property="Foreground" Value="{StaticResource Text2}" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="ListBox.hubnav ListBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource FillSubtle}" />
+        <Setter Property="Foreground" Value="{StaticResource Text1}" />
+    </Style>
+    <Style Selector="ListBox.hubnav ListBoxItem:pointerover TextBlock.navKeys">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="ListBox.hubnav ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource FillActive}" />
+        <Setter Property="Foreground" Value="{StaticResource Text1}" />
+    </Style>
+    <Style Selector="ListBox.hubnav ListBoxItem:selected Path.navGlyph">
+        <Setter Property="Stroke" Value="{StaticResource Text1}" />
+    </Style>
+
+    <!-- The timer at the sidebar's foot. -->
+    <Style Selector="Button.miniTimer">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="11" />
+        <Setter Property="Padding" Value="12,10,12,11" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.miniTimer:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource Raised}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineStrong}" />
+    </Style>
+
+    <!-- The window's own buttons. -->
+    <Style Selector="Button.chrome">
+        <Setter Property="Width" Value="34" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource Text3}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.chrome:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{StaticResource FillHover}" />
+        <Setter Property="Foreground" Value="{StaticResource Text1}" />
+    </Style>
+    <Style Selector="Button.chrome.close:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#E0E5484D" />
+        <Setter Property="Foreground" Value="#FFFFFFFF" />
+    </Style>
+
+    <Style Selector="Border.grip">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+</Styles>

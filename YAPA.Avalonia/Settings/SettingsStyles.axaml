@@ -10,25 +10,25 @@
     <Styles.Resources>
         <ResourceDictionary>
             <!-- Fluent derives toggles, sliders, checkboxes and accent buttons from these. -->
-            <Color x:Key="SystemAccentColor">#FFFF6B57</Color>
-            <Color x:Key="SystemAccentColorDark1">#FFF25C48</Color>
-            <Color x:Key="SystemAccentColorDark2">#FFE04E3B</Color>
-            <Color x:Key="SystemAccentColorDark3">#FFC9412F</Color>
-            <Color x:Key="SystemAccentColorLight1">#FFFF7D6B</Color>
-            <Color x:Key="SystemAccentColorLight2">#FFFF8F7F</Color>
-            <Color x:Key="SystemAccentColorLight3">#FFFFA294</Color>
+            <Color x:Key="SystemAccentColor">#FFFF6A3D</Color>
+            <Color x:Key="SystemAccentColorDark1">#FFF25E33</Color>
+            <Color x:Key="SystemAccentColorDark2">#FFE0502A</Color>
+            <Color x:Key="SystemAccentColorDark3">#FFC94322</Color>
+            <Color x:Key="SystemAccentColorLight1">#FFFF7C55</Color>
+            <Color x:Key="SystemAccentColorLight2">#FFFF8F6E</Color>
+            <Color x:Key="SystemAccentColorLight3">#FFFFA287</Color>
 
             <SolidColorBrush x:Key="Ink" Color="#FFEDEDF0" />
-            <SolidColorBrush x:Key="InkMuted" Color="#FF8F8F99" />
-            <SolidColorBrush x:Key="InkFaint" Color="#FF63636C" />
-            <SolidColorBrush x:Key="WindowSurface" Color="#FF121215" />
-            <SolidColorBrush x:Key="SidebarSurface" Color="#FF17171B" />
-            <SolidColorBrush x:Key="CardSurface" Color="#FF1B1B20" />
-            <SolidColorBrush x:Key="Hairline" Color="#12FFFFFF" />
+            <SolidColorBrush x:Key="InkMuted" Color="#FF8E8E97" />
+            <SolidColorBrush x:Key="InkFaint" Color="#FF5A5A63" />
+            <SolidColorBrush x:Key="WindowSurface" Color="#FF09090B" />
+            <SolidColorBrush x:Key="SidebarSurface" Color="#FF0C0C0F" />
+            <SolidColorBrush x:Key="CardSurface" Color="#FF111114" />
+            <SolidColorBrush x:Key="Hairline" Color="#0FFFFFFF" />
             <SolidColorBrush x:Key="Fill" Color="#10FFFFFF" />
             <SolidColorBrush x:Key="FillHover" Color="#1CFFFFFF" />
             <SolidColorBrush x:Key="FillPressed" Color="#26FFFFFF" />
-            <SolidColorBrush x:Key="AccentBrush" Color="#FFFF6B57" />
+            <SolidColorBrush x:Key="AccentBrush" Color="#FFFF6A3D" />
 
             <!-- Fluent control brushes, quieted to match. -->
             <SolidColorBrush x:Key="ButtonBackground" Color="#14FFFFFF" />
@@ -50,7 +50,7 @@
             <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#1CFFFFFF" />
             <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
             <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
-            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#FFFF6B57" />
+            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#40FFFFFF" />
             <SolidColorBrush x:Key="ToggleSwitchFillOff" Color="#26FFFFFF" />
             <SolidColorBrush x:Key="ToggleSwitchFillOffPointerOver" Color="#33FFFFFF" />
             <SolidColorBrush x:Key="ToggleSwitchFillOffPressed" Color="#3DFFFFFF" />

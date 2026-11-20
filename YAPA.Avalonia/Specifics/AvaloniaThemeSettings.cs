@@ -13,7 +13,7 @@ public sealed class AvaloniaThemeSettings : IPluginSettings, INotifyPropertyChan
 
     public string ActiveTheme
     {
-        get => _s.Get(nameof(ActiveTheme), "YAPA 1.0");
+        get => _s.Get(nameof(ActiveTheme), YAPA.Avalonia.Services.AppNavigator.StudioTheme);
         set
         {
             if (value == ActiveTheme) return;
@@ -22,7 +22,7 @@ public sealed class AvaloniaThemeSettings : IPluginSettings, INotifyPropertyChan
         }
     }
 
-    public void ResetToDefaults() => ActiveTheme = "YAPA 1.0";
+    public void ResetToDefaults() => ActiveTheme = YAPA.Avalonia.Services.AppNavigator.StudioTheme;
 
     public void DeferChanges() => _s.DeferChanges();
 }

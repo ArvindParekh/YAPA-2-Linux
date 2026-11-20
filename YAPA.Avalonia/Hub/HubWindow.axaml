@@ -1,22 +1,40 @@
-﻿<Window xmlns="https://github.com/avaloniaui"
+<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:s="using:YAPA.Avalonia.Settings"
         xmlns:c="using:YAPA.Avalonia.Settings.Controls"
         xmlns:a="using:YAPA.Avalonia.Assistant"
-        x:Class="YAPA.Avalonia.Settings.SettingsWindow"
-        x:DataType="s:SettingsWindow"
-        Title="YAPA Settings"
-        Width="900" Height="660" MinWidth="720" MinHeight="480"
+        xmlns:j="using:YAPA.Avalonia.Journal"
+        xmlns:st="using:YAPA.Avalonia.Statistics"
+        xmlns:h="using:YAPA.Avalonia.Hub"
+        x:Class="YAPA.Avalonia.Hub.HubWindow"
+        x:DataType="h:HubWindow"
+        Title="YAPA"
+        Width="1180" Height="800" MinWidth="960" MinHeight="600"
         WindowStartupLocation="CenterScreen"
         RequestedThemeVariant="Dark"
-        Background="{DynamicResource WindowSurface}"
+        Background="{StaticResource Canvas}"
         FontFamily="{StaticResource UiFont}">
 
+    <!--
+      The Hub: one window for everything that isn't the timer. A sidebar (Your day, your week,
+      Insights, and Settings' pages), a slim title bar of its own, and the page. Drawn edge to
+      edge in the design system's dark: the window manager's frame is left off, so the window
+      brings its own dragging, buttons and resize edges.
+    -->
     <Window.Styles>
         <StyleInclude Source="avares://YAPA.Avalonia/Settings/SettingsStyles.axaml" />
+        <StyleInclude Source="avares://YAPA.Avalonia/Hub/HubStyles.axaml" />
     </Window.Styles>
 
     <Window.DataTemplates>
+        <!-- The Hub's own pages: Your day and week, and Insights. -->
+        <DataTemplate DataType="j:DayViewModel">
+            <j:JournalView />
+        </DataTemplate>
+        <DataTemplate DataType="st:StatisticsViewModel">
+            <st:InsightsView />
+        </DataTemplate>
+
         <!-- ── Timer ─────────────────────────────────────────────────────── -->
         <DataTemplate DataType="s:TimerPageViewModel">
             <StackPanel>
@@ -146,7 +164,7 @@
                 <TextBlock Classes="group" Text="Timer" />
                 <Border Classes="card">
                     <StackPanel>
-                        <c:SettingRow Title="Theme" Description="Classic is the compact original; Motivational adds a quote">
+                        <c:SettingRow Title="Theme" Description="Studio is the card; Classic the original floating digits; Motivational adds a quote">
                             <ComboBox ItemsSource="{Binding Themes}" SelectedIndex="{Binding ThemeIndex}" Width="170" />
                         </c:SettingRow>
                         <c:SettingRow Title="Size">
@@ -702,55 +720,134 @@
         </DataTemplate>
     </Window.DataTemplates>
 
-    <Grid ColumnDefinitions="224,*">
-        <!-- Sidebar -->
-        <Border Background="{DynamicResource SidebarSurface}" BorderBrush="{DynamicResource Hairline}" BorderThickness="0,0,1,0">
-            <Grid RowDefinitions="Auto,*,Auto" Margin="12,0">
-                <StackPanel Orientation="Horizontal" Spacing="11" Margin="8,22,0,20">
-                    <Image Source="avares://YAPA.Avalonia/Assets/yapa2_128.png" Width="30" Height="30" />
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="YAPA" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" />
-                        <TextBlock Text="Settings" FontSize="12" Foreground="{DynamicResource InkMuted}" />
-                    </StackPanel>
-                </StackPanel>
+    <Panel>
+        <Grid ColumnDefinitions="248,*">
+            <!-- ── Sidebar ─────────────────────────────────────────────────── -->
+            <Border Classes="sidebar">
+                <Grid RowDefinitions="Auto,Auto,*,Auto">
+                    <!-- The mark, and somewhere to drag the window by. -->
+                    <Border Background="Transparent" PointerPressed="OnDragPressed" DoubleTapped="OnTitleDoubleTapped" Padding="18,18,14,14">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Border Classes="mark" />
+                            <TextBlock Text="YAPA" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource Text1}" VerticalAlignment="Center" LetterSpacing="0.2" />
+                        </StackPanel>
+                    </Border>
 
-                <ListBox Grid.Row="1" x:Name="Nav" Classes="nav" ItemsSource="{Binding Pages}" SelectedItem="{Binding SelectedPage}">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="s:SettingsPageViewModel">
-                            <StackPanel Orientation="Horizontal" Spacing="11">
-                                <Path Classes="navIcon" Data="{Binding Icon}" />
-                                <TextBlock Text="{Binding Title}" FontSize="14" VerticalAlignment="Center" />
+                    <!-- Everything else is a search away: the command bar, which also asks YAPA. -->
+                    <Button Grid.Row="1" Classes="search" Click="OnSearchClick" Margin="12,0,12,14" AutomationProperties.Name="Search or ask">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <Path Classes="navGlyph" Data="M 10.5 4 A 6.5 6.5 0 1 1 10.5 17 A 6.5 6.5 0 1 1 10.5 4 Z M 15.5 15.5 L 20 20" />
+                            <TextBlock Grid.Column="1" Text="Search or ask…" Margin="9,0,0,0" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="3">
+                                <Border Classes="kbd"><TextBlock Text="Ctrl" /></Border>
+                                <Border Classes="kbd"><TextBlock Text="K" /></Border>
                             </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                        </Grid>
+                    </Button>
 
-                <!-- No Save button anywhere, so say it once. -->
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="7" Margin="10,0,0,18">
-                    <Path Classes="icon" Data="{StaticResource IconCheck}" Width="12" Height="12" Stroke="{DynamicResource InkFaint}" />
-                    <TextBlock Text="Changes apply as you make them" FontSize="12" Foreground="{DynamicResource InkFaint}" />
-                </StackPanel>
-            </Grid>
-        </Border>
+                    <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="10,0,10,12">
+                            <TextBlock Classes="eyebrow navHead" Text="YOUR TIME" />
+                            <ListBox x:Name="JournalNav" Classes="hubnav" ItemsSource="{Binding Links}" SelectedItem="{Binding SelectedLink}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="h:HubLink">
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <Path Classes="navGlyph" Data="{Binding Icon}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Title}" Margin="11,0,0,0" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2" Classes="navKeys" Text="{Binding Keys}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
 
-        <!-- Page -->
-        <Grid Grid.Column="1" RowDefinitions="Auto,*">
-            <Grid ColumnDefinitions="*,Auto" Margin="36,26,28,18">
-                <StackPanel Spacing="4">
-                    <TextBlock Text="{Binding SelectedPage.Title}" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource Ink}" />
-                    <TextBlock Text="{Binding SelectedPage.Subtitle}" FontSize="13.5" Foreground="{DynamicResource InkMuted}" TextWrapping="Wrap" />
-                </StackPanel>
-                <Button Grid.Column="1" Classes="ghost" Click="OnResetClick" VerticalAlignment="Top" Margin="0,2,0,0"
-                        IsVisible="{Binding SelectedPage.CanReset}" AutomationProperties.Name="Reset this page to defaults">
-                    <StackPanel Orientation="Horizontal" Spacing="7">
-                        <Path Classes="icon" Data="{StaticResource IconReset}" Width="13" Height="13" />
-                        <TextBlock Text="Reset page" FontSize="13" />
-                    </StackPanel>
-                </Button>
+                            <TextBlock Classes="eyebrow navHead" Text="SETTINGS" Margin="10,22,0,6" />
+                            <ListBox x:Name="SettingsNav" Classes="hubnav" ItemsSource="{Binding Pages}" SelectedItem="{Binding SelectedPage}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="s:SettingsPageViewModel">
+                                        <StackPanel Orientation="Horizontal" Spacing="11">
+                                            <Path Classes="navGlyph" Data="{Binding Icon}" />
+                                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- The timer, live, at the foot: a glance, and a click brings it forward. -->
+                    <Button Grid.Row="3" Classes="miniTimer" Click="OnMiniTimerClick" Margin="12,0,12,14" AutomationProperties.Name="Show the timer">
+                        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
+                            <Ellipse Width="7" Height="7" Fill="{Binding StateBrush}" VerticalAlignment="Center" Margin="0,0,9,0" />
+                            <TextBlock Grid.Column="1" Text="{Binding Timer.StatusText}" FontSize="13" FontWeight="Medium" Foreground="{StaticResource Text1}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="2" Classes="mono" Text="{Binding Timer.TimeText}" FontSize="13" Foreground="{StaticResource Text2}" VerticalAlignment="Center" />
+                            <Border Grid.Row="1" Grid.ColumnSpan="3" Height="2" CornerRadius="1" Background="#12FFFFFF" Margin="0,10,0,0" />
+                            <Border Grid.Row="1" Grid.ColumnSpan="3" x:Name="MiniProgress" Height="2" CornerRadius="1" Background="{Binding StateBrush}"
+                                    HorizontalAlignment="Left" Margin="0,10,0,0" Width="0" />
+                        </Grid>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- ── Page ────────────────────────────────────────────────────── -->
+            <Grid Grid.Column="1" RowDefinitions="44,*">
+                <!-- The title bar: where you are, and the window's own buttons. -->
+                <Border Background="Transparent" PointerPressed="OnDragPressed" DoubleTapped="OnTitleDoubleTapped">
+                    <Grid ColumnDefinitions="*,Auto" Margin="28,0,8,0">
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Section}" FontSize="12.5" Foreground="{StaticResource Text3}" />
+                            <TextBlock Text="/" FontSize="12.5" Foreground="{StaticResource Text4}" />
+                            <TextBlock Text="{Binding PageTitle}" FontSize="12.5" Foreground="{StaticResource Text2}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                            <Button Classes="chrome" Click="OnMinimizeClick" AutomationProperties.Name="Minimize">
+                                <Border Width="10" Height="1.5" Background="{Binding $parent[Button].Foreground}" />
+                            </Button>
+                            <Button Classes="chrome" Click="OnMaximizeClick" AutomationProperties.Name="Maximize">
+                                <Border Width="10" Height="10" BorderThickness="1.5" CornerRadius="2" BorderBrush="{Binding $parent[Button].Foreground}" />
+                            </Button>
+                            <Button Classes="chrome close" Click="OnCloseClick" AutomationProperties.Name="Close">
+                                <Path Width="10" Height="10" Stretch="Uniform" StrokeThickness="1.5" StrokeLineCap="Round"
+                                      Stroke="{Binding $parent[Button].Foreground}" Data="M 5 5 L 19 19 M 19 5 L 5 19" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Your day and week, and Insights, bring their own headers. -->
+                <ContentControl Grid.Row="1" Content="{Binding Day}" IsVisible="{Binding ShowsJournal}" />
+                <ContentControl Grid.Row="1" Content="{Binding Insights}" IsVisible="{Binding ShowsInsights}" />
+
+                <!-- A settings page: its title, and the page. -->
+                <Grid Grid.Row="1" RowDefinitions="Auto,*" IsVisible="{Binding ShowsSettings}">
+                    <Grid ColumnDefinitions="*,Auto" Margin="44,10,36,20" MaxWidth="800">
+                        <StackPanel Spacing="5">
+                            <TextBlock Classes="display" Text="{Binding SelectedPage.Title}" />
+                            <TextBlock Classes="body" Text="{Binding SelectedPage.Subtitle}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="secondary" Click="OnResetClick" VerticalAlignment="Top" Margin="0,4,0,0"
+                                IsVisible="{Binding SelectedPage.CanReset}" AutomationProperties.Name="Reset this page to defaults">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <Path Classes="navGlyph" Data="{StaticResource IconReset}" Width="12" Height="12" />
+                                <TextBlock Text="Reset page" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <ScrollViewer Grid.Row="1" x:Name="PageScroller" HorizontalScrollBarVisibility="Disabled">
+                        <ContentControl x:Name="PageHost" Content="{Binding SelectedPage}" Margin="44,0,36,28" MaxWidth="800" HorizontalAlignment="Stretch" />
+                    </ScrollViewer>
+                </Grid>
             </Grid>
-            <ScrollViewer Grid.Row="1" x:Name="PageScroller" HorizontalScrollBarVisibility="Disabled">
-                <ContentControl x:Name="PageHost" Content="{Binding SelectedPage}" Margin="36,0,36,20" MaxWidth="720" HorizontalAlignment="Stretch" />
-            </ScrollViewer>
         </Grid>
-    </Grid>
+
+        <!-- Resize edges: the window manager's frame would have had these. -->
+        <Border Classes="grip" Height="5" VerticalAlignment="Top" Cursor="TopSide" Tag="North" PointerPressed="OnGripPressed" />
+        <Border Classes="grip" Height="5" VerticalAlignment="Bottom" Cursor="BottomSide" Tag="South" PointerPressed="OnGripPressed" />
+        <Border Classes="grip" Width="5" HorizontalAlignment="Left" Cursor="LeftSide" Tag="West" PointerPressed="OnGripPressed" />
+        <Border Classes="grip" Width="5" HorizontalAlignment="Right" Cursor="RightSide" Tag="East" PointerPressed="OnGripPressed" />
+        <Border Classes="grip" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="TopLeftCorner" Tag="NorthWest" PointerPressed="OnGripPressed" />
+        <Border Classes="grip" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" Cursor="TopRightCorner" Tag="NorthEast" PointerPressed="OnGripPressed" />
+        <Border Classes="grip" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Bottom" Cursor="BottomLeftCorner" Tag="SouthWest" PointerPressed="OnGripPressed" />
+        <Border Classes="grip" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="BottomRightCorner" Tag="SouthEast" PointerPressed="OnGripPressed" />
+        <Border BorderBrush="{StaticResource LineStrong}" BorderThickness="1" IsHitTestVisible="False" />
+    </Panel>
 </Window>

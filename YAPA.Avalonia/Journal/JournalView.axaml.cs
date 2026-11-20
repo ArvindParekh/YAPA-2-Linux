@@ -12,63 +12,73 @@ using Avalonia.VisualTree;
 
 namespace YAPA.Avalonia.Journal;
 
-/// <summary>The day journal's window. The view model does the work; this is focus, copying and scrolling.</summary>
-public partial class DayWindow : Window
+/// <summary>
+/// Your day and your week, as a page of the Hub. The view model (the Hub's, kept for the window's
+/// life) does the work; this is focus, copying, flyouts and scrolling.
+/// </summary>
+public partial class JournalView : UserControl
 {
-    private readonly DayViewModel _model;
+    private DayViewModel? _model;
     private readonly DispatcherTimer _copied;
 
-    public DayWindow() : this(new DayViewModel(App.Bootstrapper!.Resolve<JournalService>(), App.Bootstrapper!.Resolve<JournalSettings>())) { }
-
-    public DayWindow(DayViewModel model)
+    public JournalView()
     {
-        _model = model;
-        DataContext = model;
         InitializeComponent();
-        // Before the first map, so the frame comes up dark rather than flipping.
-        if (TryGetPlatformHandle() is { HandleDescriptor: "XID" } handle)
-            YAPA.Avalonia.Platform.Linux.X11.X11Window.PreferDarkFrame(handle.Handle);
-        Ribbon.BlockClicked += id => _model.RevealPomodoro(id);
-        _model.Reveal += ScrollTo;
-        _model.CalendarDone += () => DateButton.Flyout?.Hide();
+        Ribbon.BlockClicked += id => _model?.RevealPomodoro(id);
         _copied = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.6) };
         _copied.Tick += (_, _) =>
         {
             _copied.Stop();
             CopyLabel.Text = "Copy";
         };
-        Closed += (_, _) => _model.Dispose();
     }
 
-    public void Open(DateOnly? date = null) => _model.Open(date);
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        if (_model != null)
+        {
+            _model.Reveal -= ScrollTo;
+            _model.CalendarDone -= HideCalendar;
+        }
+        _model = DataContext as DayViewModel;
+        if (_model != null)
+        {
+            _model.Reveal += ScrollTo;
+            _model.CalendarDone += HideCalendar;
+        }
+    }
+
+    private void HideCalendar() => DateButton.Flyout?.Hide();
+
+    private DayViewModel Model => _model!;
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (e.Handled || FocusManager?.GetFocusedElement() is TextBox) return;
+        if (e.Handled || _model == null || TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is TextBox) return;
         switch (e.Key)
         {
-            case Key.Left: _model.PreviousCommand.Execute(null); e.Handled = true; break;
-            case Key.Right: _model.NextCommand.Execute(null); e.Handled = true; break;
-            case Key.T: _model.TodayCommand.Execute(null); e.Handled = true; break;
-            case Key.G: DateButton.Flyout?.ShowAt(DateButton); e.Handled = true; break;
+            case Key.Left: Model.PreviousCommand.Execute(null); e.Handled = true; break;
+            case Key.Right: Model.NextCommand.Execute(null); e.Handled = true; break;
+            case Key.T: Model.TodayCommand.Execute(null); e.Handled = true; break;
+            case Key.C: DateButton.Flyout?.ShowAt(DateButton); e.Handled = true; break;
             case Key.W:
-                if (_model.IsWeek) _model.ShowDayViewCommand.Execute(null);
-                else _model.ShowWeekCommand.Execute(null);
+                if (Model.IsWeek) Model.ShowDayViewCommand.Execute(null);
+                else Model.ShowWeekCommand.Execute(null);
                 e.Handled = true;
                 break;
-            case Key.Escape: Close(); e.Handled = true; break;
         }
     }
 
-    private void OnCalendarOpening(object? sender, EventArgs e) => _model.PrepareCalendar();
+    private void OnCalendarOpening(object? sender, EventArgs e) => Model.PrepareCalendar();
 
     private void OnWeekDayClick(object? sender, RoutedEventArgs e)
     {
-        if (sender is Button { DataContext: WeekDayRow row } && !row.IsEmpty) _model.OpenDay(row.Date);
+        if (sender is Button { DataContext: WeekDayRow row } && !row.IsEmpty) Model.OpenDay(row.Date);
     }
 
-    private void OnForgetOpening(object? sender, EventArgs e) => _model.PrepareForgetRange();
+    private void OnForgetOpening(object? sender, EventArgs e) => Model.PrepareForgetRange();
 
     private void OnEntryForgetOpening(object? sender, EventArgs e)
     {
@@ -77,7 +87,7 @@ public partial class DayWindow : Window
 
     private void OnForgetRangeClick(object? sender, RoutedEventArgs e)
     {
-        if (_model.ForgetTypedRange()) CloseFlyout(sender);
+        if (Model.ForgetTypedRange()) CloseFlyout(sender);
     }
 
     /// <summary>A choice in a flyout was made (or Cancel): the flyout goes.</summary>
@@ -94,8 +104,8 @@ public partial class DayWindow : Window
 
     private async void OnCopyClick(object? sender, RoutedEventArgs e)
     {
-        var text = _model.AsText();
-        if (text.Length == 0 || Clipboard is not { } clipboard) return;
+        var text = Model.AsText();
+        if (text.Length == 0 || TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
         await clipboard.SetTextAsync(text);
         CopyLabel.Text = "Copied";
         _copied.Stop();
