@@ -892,7 +892,7 @@
                 </Border>
 
                 <!-- Your day and week, and Insights, bring their own headers. -->
-                <ContentControl Grid.Row="1" Content="{Binding Day}" IsVisible="{Binding ShowsJournal}" />
+                <ContentControl Grid.Row="1" x:Name="DayHost" Content="{Binding Day}" IsVisible="{Binding ShowsJournal}" />
                 <ContentControl Grid.Row="1" Content="{Binding Insights}" IsVisible="{Binding ShowsInsights}" />
 
                 <!-- A settings page: its title, and the page. -->

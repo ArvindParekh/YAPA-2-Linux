@@ -11,6 +11,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using YAPA.Avalonia.Journal;
 using YAPA.Avalonia.Services;
 using YAPA.Avalonia.Settings;
@@ -84,6 +85,7 @@ public partial class HubWindow : Window, INotifyPropertyChanged, IFilePicker
         {
             if (e.PropertyName == nameof(DayViewModel.IsWeek) && SelectedLink?.Key is TodayKey or WeekKey)
                 SetLink(Links.First(l => l.Key == (Day.IsWeek ? WeekKey : TodayKey)));
+            if (e.PropertyName is nameof(DayViewModel.AtToday) or nameof(DayViewModel.Date)) Changed(nameof(PageTitle));
         };
         Timer.PropertyChanged += OnTimerChanged;
         AddHandler(KeyDownEvent, OnTunnelKeyDown, RoutingStrategies.Tunnel);
@@ -135,7 +137,13 @@ public partial class HubWindow : Window, INotifyPropertyChanged, IFilePicker
     public string Section => ShowsSettings ? "Settings" : "Your time";
 
     /// <summary>…and the page.</summary>
-    public string PageTitle => _selectedPage?.Title ?? _selectedLink?.Title ?? "";
+    /// <summary>The breadcrumb's last part: the page, or for Your day the day or week actually shown.</summary>
+    public string PageTitle => _selectedPage?.Title
+        ?? (ShowsJournal && !Day.AtToday
+            ? Day.IsWeek ? "Week of " + Day.Week.Start.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture)
+                : Day.Date.ToString("ddd d MMM", System.Globalization.CultureInfo.CurrentCulture)
+            : _selectedLink?.Title)
+        ?? "";
 
     /// <summary>The timer's state colour, for the mini timer's dot and line.</summary>
     public IBrush StateBrush
@@ -169,7 +177,16 @@ public partial class HubWindow : Window, INotifyPropertyChanged, IFilePicker
                 _ = Insights.LoadAsync();
                 break;
         }
+        if (link.Key is TodayKey or WeekKey) FocusJournal();
     }
+
+    /// <summary>
+    /// Your day's keys (← →, T, C, W) belong to the page, so the page takes focus when shown;
+    /// left on the sidebar, the arrows would walk the sidebar instead.
+    /// </summary>
+    private void FocusJournal()
+        => Dispatcher.UIThread.Post(() => DayHost.GetVisualDescendants().OfType<JournalView>().FirstOrDefault()?.Focus(),
+            DispatcherPriority.Background);
 
     private void ChangedPlace()
     {
@@ -292,6 +309,7 @@ public partial class HubWindow : Window, INotifyPropertyChanged, IFilePicker
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
+        if (ShowsJournal) FocusJournal();
         // Coming back after dropping files into the Sounds folder shows them straight away.
         Activated += (_, _) =>
         {

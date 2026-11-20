@@ -58,6 +58,12 @@
             <BoxShadows x:Key="ShadowCard">0 1 2 0 #40000000</BoxShadows>
             <BoxShadows x:Key="ShadowFloat">0 24 48 -12 #B0000000, 0 0 0 1 #14FFFFFF</BoxShadows>
 
+            <!-- Keyboard focus: a soft ring rather than Fluent's two-tone white box. -->
+            <SolidColorBrush x:Key="SystemControlFocusVisualPrimaryBrush" Color="#66FF6A3D" />
+            <SolidColorBrush x:Key="SystemControlFocusVisualSecondaryBrush" Color="Transparent" />
+            <Thickness x:Key="SystemControlFocusVisualPrimaryThickness">1.5</Thickness>
+            <Thickness x:Key="SystemControlFocusVisualSecondaryThickness">0</Thickness>
+
             <!-- Menus (the timer's, the tray-less fallback, every flyout): Fluent's own, retoned. -->
             <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="#FA18181C" />
             <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush" Color="#1FFFFFFF" />
