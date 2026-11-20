@@ -138,7 +138,7 @@ public sealed partial class EntryViewModel : ObservableObject
 
     [RelayCommand]
     private void Forget() => _day.Forget(Entry.Block.StartUtc, InProgress ? null : Entry.Block.EndUtc, ForgetConversations && HasConversations);
-    public string NowLabel => IsOffTimer ? "NOW" : "UNDER WAY";
+    public string NowLabel => IsOffTimer ? "NOW" : Entry.Paused ? "PAUSED" : "UNDER WAY";
     public bool IsNamedByUser => Entry.UserTitle != null;
 
     /// <summary>Nothing on record and nobody said what it was.</summary>
@@ -148,7 +148,8 @@ public sealed partial class EntryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsBlank), nameof(ShownTitle))]
     private string _title;
 
-    public string ShownTitle => IsOffRecord ? "Off the record" : Title.Length > 0 ? Title : InProgress ? "Under way" : "Nothing on record";
+    public string ShownTitle => IsOffRecord ? "Off the record" : Title.Length > 0 ? Title
+        : InProgress ? (Entry.Paused ? "Paused" : "Under way") : "Nothing on record";
 
     [ObservableProperty] private bool _isExpanded;
 
@@ -223,10 +224,11 @@ public sealed class SessionViewModel
         string Time(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(utc, zone).ToString(ClockFormat.Is24Hour ? "HH:mm" : "h:mm", CultureInfo.CurrentCulture);
         var done = entries.Count(e => !e.InProgress && !e.IsOffTimer);
         var running = entries.Any(e => e.InProgress && !e.IsOffTimer);
+        var state = entries.Any(e => e.InProgress && e.Entry.Paused) ? "paused" : "under way";
         var count = (done, running) switch
         {
-            (0, true) => "under way",
-            (_, true) => $"{done} pomodoro{(done == 1 ? "" : "s")} and one under way",
+            (0, true) => state,
+            (_, true) => $"{done} pomodoro{(done == 1 ? "" : "s")} and one {state}",
             _ => $"{done} pomodoro{(done == 1 ? "" : "s")}",
         };
         Label = $"SESSION {session.Number}";
@@ -687,7 +689,7 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
             {
                 Status = problem.SignedOut
                     ? "Signed out of Claude, so this is the evidence without the write-up."
-                    : $"Couldn't write it up: {problem.Message}";
+                    : ProblemText(problem.Message);
                 ShowSignIn = problem.SignedOut;
                 CanRetry = !problem.SignedOut;
             }
@@ -750,6 +752,19 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
         BuildRibbon(day);
         BuildTotals(day);
         Sources = day.Sources.Count == 0 ? "" : "Put together from " + Join(day.Sources) + ".";
+    }
+
+    /// <summary>
+    /// Why the write-up didn't happen, in a line: a known failure in plain words, a short message
+    /// as it is, and anything else (a stack trace, a wall of output) left to the log, which has it.
+    /// </summary>
+    internal static string ProblemText(string message)
+    {
+        if (YAPA.Avalonia.Assistant.AssistantViewModel.KnownFailure(message) is { } known) return known;
+        var first = message.Trim().Split('\n')[0].Trim();
+        var readable = first.Length is > 0 and <= 120 && !first.StartsWith("Traceback", StringComparison.Ordinal)
+                       && !message.Contains("\n   at ", StringComparison.Ordinal);
+        return readable ? $"Couldn't write it up: {first}" : "Couldn't write it up this time. Try again; the details are in the log.";
     }
 
     private static string FallbackHeadline(JournalDay day)

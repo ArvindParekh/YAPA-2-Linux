@@ -416,11 +416,29 @@ public sealed partial class AboutPageViewModel : SettingsPageViewModel
         new("S", "Skip the break"),
         new("L", "Take the long break now"),
         new("/", "Ask YAPA (or double-click the timer)"),
+        new("Ctrl D", "Your day"),
         new("Ctrl ,", "Settings"),
         new("Ctrl I", "Statistics"),
         new("Ctrl H", "Hide to tray"),
         new("Ctrl Q", "Quit"),
         new("Right-click", "Settings; ⋯ has every action"),
+    ];
+
+    public IReadOnlyList<Shortcut> AssistantShortcuts { get; } =
+    [
+        new("Enter", "Send"),
+        new("Shift Enter", "A new line"),
+        new("↑ ↓", "Earlier requests, from an empty prompt"),
+        new("Ctrl N", "A new conversation"),
+        new("Esc", "Close; the conversation waits a while"),
+    ];
+
+    public IReadOnlyList<Shortcut> DayShortcuts { get; } =
+    [
+        new("← →", "The day before, the day after"),
+        new("T", "Today"),
+        new("G", "Go to any day"),
+        new("Esc", "Close"),
     ];
 
     [RelayCommand]

@@ -904,6 +904,11 @@ public class ClaudeStreamTests
         StringAssert.Contains(AssistantViewModel.KnownFailure("request to api.anthropic.com failed, reason: getaddrinfo ENOTFOUND"), "couldn't reach");
         StringAssert.Contains(AssistantViewModel.KnownFailure("Overloaded"), "overloaded");
         Assert.IsNull(AssistantViewModel.KnownFailure("Tool refused: pick a profile first"));
+
+        // The Day window's line under a failed write-up: short messages as they are, the rest to the log.
+        Assert.AreEqual("Couldn't write it up: Claude took too long", YAPA.Avalonia.Journal.DayViewModel.ProblemText("Claude took too long"));
+        StringAssert.Contains(YAPA.Avalonia.Journal.DayViewModel.ProblemText("Traceback (most recent call last):\n  File \"x\", line 12"), "in the log");
+        StringAssert.Contains(YAPA.Avalonia.Journal.DayViewModel.ProblemText("API Error: 529 overloaded_error"), "overloaded");
     }
 
     [TestMethod]

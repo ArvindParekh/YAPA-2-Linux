@@ -81,12 +81,17 @@ public static class JournalBuilder
     /// <see cref="Quiet"/>, at pomodoros, and at <paramref name="excluded"/> (time nothing may be
     /// recorded in).
     /// </summary>
+    /// <summary>Less time than this in one window doesn't make time at the computer by itself.</summary>
+    public static readonly TimeSpan Glance = TimeSpan.FromSeconds(30);
+
     public static IReadOnlyList<WorkBlock> OffTimer(IReadOnlyList<WorkBlock> pomodoros, EvidenceSet evidence, DateTime fromUtc, DateTime toUtc,
         IReadOnlyList<(DateTime Start, DateTime End)>? excluded = null)
     {
         var claimed = Claimed(pomodoros, evidence.Commits).Select(c => c.Hash).ToHashSet();
         var moments = new List<(DateTime Start, DateTime End)>();
-        moments.AddRange(evidence.Windows.Select(w => (w.StartUtc, w.EndUtc)));
+        // A window in front for under half a minute is a glance: too short to show as an app (minutes
+        // round to nothing), so on its own it would make a stretch with nothing in it.
+        moments.AddRange(evidence.Windows.Where(w => w.Length >= Glance).Select(w => (w.StartUtc, w.EndUtc)));
         moments.AddRange(evidence.Visits.Where(Counts).Select(v => (v.AtUtc, v.AtUtc)));
         moments.AddRange(evidence.Sessions.SelectMany(s => s.Prompts).Select(p => (p.AtUtc, p.AtUtc)));
         moments.AddRange(evidence.Commits.Where(c => !claimed.Contains(c.Hash)).Select(c => (c.AtUtc, c.AtUtc)));

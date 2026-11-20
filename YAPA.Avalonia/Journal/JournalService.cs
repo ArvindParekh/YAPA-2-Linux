@@ -17,8 +17,9 @@ namespace YAPA.Avalonia.Journal;
 /// <param name="UserTitle">What the user called it; it wins.</param>
 /// <param name="InProgress">The pomodoro running now, or the stretch off the timer going on now: shown, not yet written up.</param>
 /// <param name="OffRecord">A pomodoro (nearly) all of whose time is off the record: it counts, but nothing about it is kept or sent.</param>
+/// <param name="Paused">The pomodoro under way, sitting paused.</param>
 public sealed record JournalEntry(WorkBlock Block, int Session, BlockEvidence Evidence, string Fingerprint, PomodoroSummary? Summary,
-    string? UserTitle, bool InProgress = false, bool OffRecord = false)
+    string? UserTitle, bool InProgress = false, bool OffRecord = false, bool Paused = false)
 {
     public bool OffTimer => Block.OffTimer;
 
@@ -218,13 +219,15 @@ public sealed class JournalService : IDisposable
             // Off the timer there's nothing left once the time is gone; a pomodoro stays, as a pomodoro and nothing more.
             if (!block.OffTimer && Uncovered(block.StartUtc, block.EndUtc, paused) < OffRecordSlack)
             {
-                entries.Add(new JournalEntry(block, SessionOf(block, sessions), BlockEvidence.None, "", null, null, isRunning, OffRecord: true));
+                entries.Add(new JournalEntry(block, SessionOf(block, sessions), BlockEvidence.None, "", null, null, isRunning, OffRecord: true,
+                    Paused: ReferenceEquals(block, inProgress) && TimerPaused));
                 continue;
             }
             PomodoroSummary? summary = null;
             if (!isRunning && stored != null && stored.Fingerprints.TryGetValue(block.PomodoroId, out var was) && was == print)
                 summary = stored.Summary.Pomodoros.FirstOrDefault(p => p.PomodoroId == block.PomodoroId);
-            entries.Add(new JournalEntry(block, SessionOf(block, sessions), attributed[i], print, summary, titles.GetValueOrDefault(block.PomodoroId), isRunning));
+            entries.Add(new JournalEntry(block, SessionOf(block, sessions), attributed[i], print, summary, titles.GetValueOrDefault(block.PomodoroId), isRunning,
+                Paused: ReferenceEquals(block, inProgress) && TimerPaused));
         }
         entries.Sort((a, b) => a.Block.StartUtc.CompareTo(b.Block.StartUtc));
         // An entry not written for its evidence, or the day's own lines cleared by forgetting.
@@ -300,8 +303,15 @@ public sealed class JournalService : IDisposable
         var phase = _engine.Phase == PomodoroPhase.Pause ? _engine.PausedPhase : _engine.Phase;
         if (phase != PomodoroPhase.Work || _engine.Elapsed <= 0) return null;
         var now = _utcNow();
-        return new WorkBlock(0, now - TimeSpan.FromSeconds(_engine.Elapsed), now, Math.Max(1, _engine.Elapsed / 60), _engine.Cycle);
+        var elapsed = TimeSpan.FromSeconds(_engine.Elapsed);
+        // When it really started: "now less the time worked" drifts later for every minute it sits
+        // paused. The WorkStarted it began with says, if it's in the log and old enough to be it.
+        var started = _events.Between(now - elapsed - TimeSpan.FromHours(6), now - elapsed)
+            .LastOrDefault(e => e.Kind == nameof(PomodoroTransitionKind.WorkStarted))?.AtUtc;
+        return new WorkBlock(0, started ?? now - elapsed, now, Math.Max(1, _engine.Elapsed / 60), _engine.Cycle);
     }
+
+    private bool TimerPaused => _engine?.Phase == PomodoroPhase.Pause;
 
     private EvidenceSet Gather(DateTime fromUtc, DateTime toUtc)
     {

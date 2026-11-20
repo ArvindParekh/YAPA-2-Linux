@@ -11,6 +11,9 @@ public partial class StatisticsWindow : Window
     public StatisticsWindow()
     {
         InitializeComponent();
+        // Before the first map, so the frame comes up dark like the content, as Settings and Your day do.
+        if (TryGetPlatformHandle() is { HandleDescriptor: "XID" } handle)
+            YAPA.Avalonia.Platform.Linux.X11.X11Window.PreferDarkFrame(handle.Handle);
         var bs = App.Bootstrapper!;
         _vm = new StatisticsViewModel(
             bs.Resolve<YAPA.Shared.Contracts.IPomodoroRepository>(),

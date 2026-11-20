@@ -630,6 +630,54 @@
                     </ItemsControl>
                 </Border>
 
+                <TextBlock Classes="group" Text="In Ask YAPA" />
+                <Border Classes="card">
+                    <ItemsControl ItemsSource="{Binding AssistantShortcuts}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="s:Shortcut">
+                                <c:SettingRow Title="{Binding Action}">
+                                    <ItemsControl ItemsSource="{Binding Caps}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4" /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <Border Classes="keycap">
+                                                    <TextBlock Text="{Binding}" FontSize="12" FontWeight="Medium" HorizontalAlignment="Center" Foreground="{DynamicResource Ink}" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </c:SettingRow>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
+                <TextBlock Classes="group" Text="In Your day" />
+                <Border Classes="card">
+                    <ItemsControl ItemsSource="{Binding DayShortcuts}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="s:Shortcut">
+                                <c:SettingRow Title="{Binding Action}">
+                                    <ItemsControl ItemsSource="{Binding Caps}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4" /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <Border Classes="keycap">
+                                                    <TextBlock Text="{Binding}" FontSize="12" FontWeight="Medium" HorizontalAlignment="Center" Foreground="{DynamicResource Ink}" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </c:SettingRow>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
                 <TextBlock Classes="group" Text="Command line" />
                 <Border Classes="card" Padding="16,14">
                     <SelectableTextBlock Text="{Binding Usage}" FontFamily="avares://YAPA.Avalonia/Assets/Fonts/Geist#Geist, monospace" FontSize="12.5"

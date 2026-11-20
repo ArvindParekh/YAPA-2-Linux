@@ -91,6 +91,11 @@ A ground-up revival of the Linux port.
   again (in place of the failed one), every answer has Copy, and Ctrl+N starts over. Scrolled up
   to read, new text no longer pulls you down: a fade and an arrow say there's more. Server
   failures read plainly ("Claude ran into a problem on its side").
+- Your day: a pomodoro that's paused says so (it read "under way"), and keeps the start it
+  really had instead of drifting later with every paused minute. A glance at a window (under
+  half a minute) no longer makes an empty "Nothing on record" stretch. A failed write-up says
+  why in a line, never a stack trace. Statistics asks for a dark title bar like the rest, and
+  Settings → About lists the keys for Your day and Ask YAPA.
 - Your day has a calendar: click the date (or press <kbd>G</kbd>) to jump to any day; days with
   pomodoros and days at the computer are marked.
 - A timer event log (starts, pauses, stops, breaks) in `Yapa.db`, so breaks and abandoned pomodoros

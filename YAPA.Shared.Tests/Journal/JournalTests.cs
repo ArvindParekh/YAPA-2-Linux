@@ -126,6 +126,17 @@ public class JournalBuilderTests
     }
 
     [TestMethod]
+    public void A_glance_at_a_window_makes_no_stretch_of_its_own()
+    {
+        var glance = new WindowSpan(At(10), At(10).AddSeconds(4), "Zenity", "Ordinary notes");
+        var stay = new WindowSpan(At(90), At(92), "Zen", "Docs");
+
+        var off = JournalBuilder.OffTimer([], new EvidenceSet([], [], [], [glance, stay]), At(0), At(120));
+
+        Assert.AreEqual(At(90), off.Single().StartUtc, "four seconds in front isn't time at the computer; two minutes is");
+    }
+
+    [TestMethod]
     public void Excluded_time_has_no_stretch_and_splits_the_ones_around_it()
     {
         var visits = new[] { new Visit(At(0), "a.com", "A"), new Visit(At(10), "b.com", "B"), new Visit(At(15), "c.com", "C") };
