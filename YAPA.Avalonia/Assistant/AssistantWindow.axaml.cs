@@ -3,6 +3,7 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -20,10 +21,9 @@ namespace YAPA.Avalonia.Assistant;
 /// </summary>
 public partial class AssistantWindow : Window
 {
-    private const double CardWidth = 360;
+    private const double CardWidth = 380;
     private const double Gutter = 20; // around the card: its shadow, and room to grow
     private const double Gap = 8;     // between the timer and the card
-    private const double ChromeHeight = 136; // the card without its conversation: orb row and prompt
 
     private static readonly TimeSpan HideFade = TimeSpan.FromMilliseconds(130);
     private static readonly TimeSpan SettleAfterShow = TimeSpan.FromMilliseconds(400);
@@ -32,7 +32,9 @@ public partial class AssistantWindow : Window
     private readonly GeneralSettings _general;
     private readonly DispatcherTimer _hideTimer;
     private DateTime _shownAt;
-    private string? _lastQuestion;
+    private readonly System.Collections.Generic.List<string> _asked = [];
+    private int _recalled = -1; // where Up has got to in _asked; -1 when not walking it
+    private bool _following = true; // the reader is at the end of the conversation: new text keeps it in view
     private (int, int, int, int)? _inputRegion;
     private YAPA.Avalonia.Platform.Linux.X11.X11PointerWatch? _outside;
 
@@ -78,7 +80,17 @@ public partial class AssistantWindow : Window
         vm.ActionCompleted += () => Orb.Pulse();
         vm.Spoke += () => Orb.Nudge(0.16);
         vm.Answered += () => Orb.Pulse();
-        vm.ContentGrew += () => Dispatcher.UIThread.Post(() => Scroller.ScrollToEnd(), DispatcherPriority.Background);
+        // Streaming text keeps the end in view only while the reader is there; scrolled up to
+        // read something earlier, they stay put. A new question always goes to the end.
+        vm.ContentGrew += () =>
+        {
+            if (_following) Dispatcher.UIThread.Post(() => Scroller.ScrollToEnd(), DispatcherPriority.Background);
+        };
+        vm.Asked += () =>
+        {
+            _following = true;
+            Dispatcher.UIThread.Post(() => Scroller.ScrollToEnd(), DispatcherPriority.Background);
+        };
 
         Deactivated += OnDeactivated;
         // Typing always goes to the prompt, wherever focus is (after clicking Undo, say).
@@ -87,7 +99,15 @@ public partial class AssistantWindow : Window
         Prompt.TextChanged += (_, _) => Orb.Nudge();
         Prompt.GotFocus += (_, _) => Field.Classes.Set("focused", true);
         Prompt.LostFocus += (_, _) => Field.Classes.Set("focused", false);
-        Scroller.ScrollChanged += (_, _) => Scroller.Classes.Set("scrolled", Scroller.Offset.Y > 1);
+        Scroller.ScrollChanged += (_, e) =>
+        {
+            Scroller.Classes.Set("scrolled", Scroller.Offset.Y > 1);
+            Scroller.Classes.Set("more", Scroller.Offset.Y < Scroller.Extent.Height - Scroller.Viewport.Height - 1);
+            // Only a move of the reader's own counts: content growing under them changes the extent, not the offset.
+            if (e.OffsetDelta.Y != 0)
+                _following = Scroller.Offset.Y >= Scroller.Extent.Height - Scroller.Viewport.Height - 24;
+            JumpButton.Classes.Set("shown", !_following && Scroller.Classes.Contains("more"));
+        };
         Card.PropertyChanged += (_, e) =>
         {
             if (e.Property == BoundsProperty) UpdateInputRegion();
@@ -161,8 +181,8 @@ public partial class AssistantWindow : Window
 
         Width = CardWidth + 2 * Gutter;
         Height = cardMax + 2 * Gutter;
+        // The conversation's row takes what the rest leaves, so the prompt can grow without pushing out of the card.
         Card.MaxHeight = cardMax;
-        Scroller.MaxHeight = Math.Max(80, cardMax - ChromeHeight);
         Card.VerticalAlignment = above ? VerticalAlignment.Bottom : VerticalAlignment.Top;
         Card.Classes.Set("above", above);
         Position = new PixelPoint(x - Px(Gutter), y - Px(Gutter));
@@ -227,14 +247,25 @@ public partial class AssistantWindow : Window
         switch (e.Key)
         {
             case Key.Enter or Key.Return when !e.KeyModifiers.HasFlag(KeyModifiers.Shift):
-                if (!string.IsNullOrWhiteSpace(_vm.Input)) _lastQuestion = _vm.Input.Trim();
+                Remember(_vm.Input);
                 _vm.SubmitCommand.Execute(null);
                 e.Handled = true;
                 break;
-            case Key.Up when string.IsNullOrEmpty(_vm.Input) && _lastQuestion != null:
-                // Like a shell: the last request back, to fix or repeat.
-                _vm.Input = _lastQuestion;
-                Prompt.CaretIndex = _lastQuestion.Length;
+            // Like a shell: earlier requests back, to fix or repeat. Only from an empty prompt or one
+            // Up filled in, and only on its first line, so Up still moves the caret in a long prompt.
+            case Key.Up when _asked.Count > 0 && Recalling() && OnFirstLine():
+                _recalled = _recalled < 0 ? _asked.Count - 1 : Math.Max(0, _recalled - 1);
+                Recall(_asked[_recalled]);
+                e.Handled = true;
+                break;
+            case Key.Down when _recalled >= 0 && Recalling():
+                _recalled++;
+                Recall(_recalled < _asked.Count ? _asked[_recalled] : "");
+                if (_recalled >= _asked.Count) _recalled = -1;
+                e.Handled = true;
+                break;
+            case Key.N when e.KeyModifiers.HasFlag(KeyModifiers.Control):
+                _vm.NewConversationCommand.Execute(null);
                 e.Handled = true;
                 break;
             case Key.Escape:
@@ -242,6 +273,26 @@ public partial class AssistantWindow : Window
                 e.Handled = true;
                 break;
         }
+    }
+
+    private bool Recalling() => string.IsNullOrEmpty(_vm.Input) || _recalled >= 0 && _vm.Input == _asked[_recalled];
+
+    private bool OnFirstLine() => !(_vm.Input ?? "")[..Math.Min(Prompt.CaretIndex, (_vm.Input ?? "").Length)].Contains('\n');
+
+    private void Recall(string text)
+    {
+        _vm.Input = text;
+        // After the binding has put the text in: setting it now would be undone by that.
+        Dispatcher.UIThread.Post(() => Prompt.CaretIndex = Prompt.Text?.Length ?? 0, DispatcherPriority.Background);
+    }
+
+    private void Remember(string? question)
+    {
+        _recalled = -1;
+        var q = question?.Trim();
+        if (string.IsNullOrEmpty(q)) return;
+        _asked.Remove(q);
+        _asked.Add(q);
     }
 
     private void OnTextInput(object? sender, TextInputEventArgs e)
@@ -257,7 +308,7 @@ public partial class AssistantWindow : Window
     {
         if (sender is Button { DataContext: Suggestion suggestion })
         {
-            if (_vm.UseSuggestion(suggestion)) _lastQuestion = suggestion.Prompt;
+            if (_vm.UseSuggestion(suggestion)) Remember(suggestion.Prompt);
             Prompt.Focus();
             // A filled-in prompt: select the part most likely to change, the number.
             if (!suggestion.Send && System.Text.RegularExpressions.Regex.Match(_vm.Input, @"\d+|an hour") is { Success: true } m)
@@ -273,6 +324,30 @@ public partial class AssistantWindow : Window
     }
 
     private void OnNewConversationClick(object? sender, RoutedEventArgs e) => Prompt.Focus();
+
+    private void OnJumpClick(object? sender, RoutedEventArgs e)
+    {
+        _following = true;
+        JumpButton.Classes.Set("shown", false);
+        Scroller.ScrollToEnd();
+        Prompt.Focus();
+    }
+
+    private void OnRetryClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: Exchange exchange }) _vm.RetryCommand.Execute(exchange);
+        Prompt.Focus();
+    }
+
+    private async void OnCopyClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: Exchange exchange } || Clipboard is not { } clipboard) return;
+        await clipboard.SetTextAsync(exchange.Answer);
+        exchange.Copied = true;
+        Prompt.Focus();
+        // A tick for a moment, then the copy icon again.
+        DispatcherTimer.RunOnce(() => exchange.Copied = false, TimeSpan.FromSeconds(1.6));
+    }
 
     private void OnUndoClick(object? sender, RoutedEventArgs e)
     {

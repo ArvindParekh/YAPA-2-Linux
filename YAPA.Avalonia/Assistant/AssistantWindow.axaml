@@ -16,7 +16,7 @@
     -->
     <Window.Styles>
         <Style Selector="Border#Card">
-            <Setter Property="Width" Value="360" />
+            <Setter Property="Width" Value="380" />
             <Setter Property="CornerRadius" Value="22" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="ClipToBounds" Value="False" />
@@ -60,11 +60,20 @@
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
 
-        <Style Selector="TextBlock.question">
-            <Setter Property="FontSize" Value="12.5" />
-            <Setter Property="Foreground" Value="#80FFFFFF" />
+        <Style Selector="Border.question">
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="MaxWidth" Value="292" />
+            <Setter Property="Margin" Value="36,0,0,0" />
+            <Setter Property="Padding" Value="13,7,13,8" />
+            <Setter Property="CornerRadius" Value="16,16,5,16" />
+            <Setter Property="Background" Value="#17FFFFFF" />
+        </Style>
+        <Style Selector="SelectableTextBlock.question">
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="LineHeight" Value="19" />
+            <Setter Property="Foreground" Value="#E6FFFFFF" />
             <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="LineHeight" Value="17" />
+            <Setter Property="SelectionBrush" Value="#553E9BFF" />
         </Style>
         <Style Selector="SelectableTextBlock.answer">
             <Setter Property="FontSize" Value="15" />
@@ -73,8 +82,74 @@
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="SelectionBrush" Value="#553E9BFF" />
         </Style>
-        <Style Selector="SelectableTextBlock.answer.error">
+        <Style Selector="ItemsControl.answer.error SelectableTextBlock.answer">
             <Setter Property="Foreground" Value="#FFF0A39A" />
+        </Style>
+        <Style Selector="Grid.block.paragraph">
+            <Setter Property="Margin" Value="0,9,0,0" />
+        </Style>
+        <Style Selector="Grid.block.item">
+            <Setter Property="Margin" Value="0,3,0,0" />
+        </Style>
+        <Style Selector="Grid.block.item.paragraph">
+            <Setter Property="Margin" Value="0,9,0,0" />
+        </Style>
+        <!-- Centred on the first line (line height 22): a wrapped item's next lines align with its text. -->
+        <Style Selector="Ellipse.bullet">
+            <Setter Property="Width" Value="5" />
+            <Setter Property="Height" Value="5" />
+            <Setter Property="Fill" Value="#8CFFFFFF" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Margin" Value="3,9,11,0" />
+        </Style>
+        <Style Selector="Button.jump">
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Bottom" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="Background" Value="#FF2C2C33" />
+            <Setter Property="BorderBrush" Value="#30FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#DDFFFFFF" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.jump.shown">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="IsHitTestVisible" Value="True" />
+        </Style>
+        <Style Selector="Button.jump:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#FF38383F" />
+            <Setter Property="Foreground" Value="#FFFFFFFF" />
+        </Style>
+        <!-- Copy shows on the answer under the pointer, and stays a moment as a tick once used. -->
+        <Style Selector="Button.copy">
+            <Setter Property="Opacity" Value="0.45" />
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.12" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="StackPanel.exchange:pointerover Button.copy">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="Button.copy.done">
+            <Setter Property="Opacity" Value="1" />
         </Style>
         <Style Selector="TextBlock.action">
             <Setter Property="FontSize" Value="12.5" />
@@ -89,9 +164,20 @@
                     <DoubleTransition Property="Opacity" Duration="0:0:0.25" />
                 </Transitions>
             </Setter>
+            <!-- A new exchange fades in rather than popping into place. -->
+            <Style.Animations>
+                <Animation Duration="0:0:0.2" Easing="CubicEaseOut" FillMode="Backward">
+                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0" /></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1" /></KeyFrame>
+                </Animation>
+            </Style.Animations>
         </Style>
         <Style Selector="StackPanel.exchange.older">
             <Setter Property="Opacity" Value="0.5" />
+        </Style>
+        <!-- Dimmed to keep the eye on the latest, but there to read when pointed at. -->
+        <Style Selector="StackPanel.exchange.older:pointerover">
+            <Setter Property="Opacity" Value="0.9" />
         </Style>
 
         <!-- Flat text-ish buttons that belong to the card. -->
@@ -195,7 +281,9 @@
             <Setter Property="MinHeight" Value="0" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="MaxHeight" Value="120" />
+            <Setter Property="LineHeight" Value="20" />
+            <!-- Six lines, then it scrolls inside. -->
+            <Setter Property="MaxHeight" Value="140" />
         </Style>
         <Style Selector="TextBox.prompt /template/ Border#PART_BorderElement">
             <Setter Property="Background" Value="Transparent" />
@@ -318,11 +406,31 @@
                 </LinearGradientBrush>
             </Setter>
         </Style>
+        <!-- And at the bottom while there's more below, so it's clear the conversation goes on. -->
+        <Style Selector="ScrollViewer#Scroller.more">
+            <Setter Property="OpacityMask">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Offset="0" Color="Black" />
+                    <GradientStop Offset="0.9" Color="Black" />
+                    <GradientStop Offset="1" Color="Transparent" />
+                </LinearGradientBrush>
+            </Setter>
+        </Style>
+        <Style Selector="ScrollViewer#Scroller.scrolled.more">
+            <Setter Property="OpacityMask">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Offset="0" Color="Transparent" />
+                    <GradientStop Offset="0.08" Color="Black" />
+                    <GradientStop Offset="0.9" Color="Black" />
+                    <GradientStop Offset="1" Color="Transparent" />
+                </LinearGradientBrush>
+            </Setter>
+        </Style>
     </Window.Styles>
 
     <Panel>
         <Border x:Name="Card" Margin="20" HorizontalAlignment="Left" VerticalAlignment="Top">
-            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+            <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
 
                 <!-- Orb and what it's doing. -->
                 <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="12,12,10,4">
@@ -355,29 +463,43 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <!-- The conversation. -->
-                <ScrollViewer Grid.Row="2" x:Name="Scroller" IsVisible="{Binding HasConversation}"
+                <!-- The conversation. It takes what's left of the card's height, so the prompt can grow. -->
+                <Panel Grid.Row="2" IsVisible="{Binding HasConversation}">
+                <ScrollViewer x:Name="Scroller"
                               HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                               Margin="0,2,0,0">
-                    <ItemsControl ItemsSource="{Binding Exchanges}" Margin="0,0,0,2">
+                    <ItemsControl ItemsSource="{Binding Exchanges}" Margin="0,0,0,4">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="a:Exchange">
-                                <StackPanel Classes="exchange" Classes.older="{Binding !IsLatest}" Margin="20,8,20,6" Spacing="5">
-                                    <TextBlock Classes="question" Text="{Binding Question}" />
+                                <StackPanel Classes="exchange" Classes.older="{Binding !IsLatest}" Margin="20,10,16,2" Spacing="8">
+                                    <!-- What was asked, as a bubble on the right: the turns read as turns. -->
+                                    <Border Classes="question">
+                                        <SelectableTextBlock Classes="question" Text="{Binding Question}" />
+                                    </Border>
                                     <StackPanel Orientation="Horizontal" Margin="0,6,0,4"
                                                 IsVisible="{Binding IsWaiting}">
                                         <Ellipse Classes="dot" />
                                         <Ellipse Classes="dot second" />
                                         <Ellipse Classes="dot third" />
                                     </StackPanel>
-                                    <SelectableTextBlock Classes="answer" Classes.error="{Binding IsError}" Text="{Binding Answer}"
-                                                         IsVisible="{Binding Answer, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                    <ItemsControl Classes="answer" Classes.error="{Binding IsError}" ItemsSource="{Binding Blocks}"
+                                                  IsVisible="{Binding HasAnswer}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="a:AnswerBlock">
+                                                <Grid ColumnDefinitions="Auto,*" Classes="block" Classes.paragraph="{Binding StartsParagraph}"
+                                                      Classes.item="{Binding IsBullet}">
+                                                    <Ellipse Classes="bullet" IsVisible="{Binding IsBullet}" />
+                                                    <SelectableTextBlock Grid.Column="1" Classes="answer" Text="{Binding Text}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                     <ItemsControl ItemsSource="{Binding Actions}" IsVisible="{Binding HasActions}" Margin="0,2,0,0">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="x:String">
-                                                <Grid ColumnDefinitions="Auto,*" Margin="0,1">
-                                                    <Border Width="15" Height="15" CornerRadius="8" Background="#2E5AD48B"
-                                                            VerticalAlignment="Top" Margin="0,1,7,0">
+                                                <Grid ColumnDefinitions="Auto,*" Margin="0,2">
+                                                    <Border Width="16" Height="16" CornerRadius="8" Background="#2E5AD48B"
+                                                            VerticalAlignment="Top" Margin="0,0,8,0">
                                                         <Path Width="8" Height="8" Stretch="Uniform" Stroke="#FF7EE2A8" StrokeThickness="1.8"
                                                               StrokeLineCap="Round" StrokeJoin="Round" Data="M 1 5 L 4 8 L 9 2" />
                                                     </Border>
@@ -386,17 +508,37 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                    <StackPanel Orientation="Horizontal" Spacing="4" Margin="-6,0,0,0">
+                                    <!-- What can be done with the answer: Undo, Try again, Copy. -->
+                                    <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" Height="24" Margin="-6,-4,-4,0" IsVisible="{Binding HasFooter}">
                                         <Button Classes="link" Content="Undo" IsVisible="{Binding CanUndo}"
                                                 Click="OnUndoClick" AutomationProperties.Name="Undo what this did" />
-                                        <TextBlock Classes="action" Text="Undone" Foreground="#80FFFFFF" Margin="6,2,0,0"
+                                        <TextBlock Grid.Column="1" Classes="action" Text="Undone" Foreground="#80FFFFFF" Margin="6,0,0,0"
                                                    IsVisible="{Binding WasUndone}" />
-                                    </StackPanel>
+                                        <Button Grid.Column="2" Classes="link" Content="Try again" IsVisible="{Binding CanRetry}"
+                                                Click="OnRetryClick" AutomationProperties.Name="Ask this again" />
+                                        <Button Grid.Column="4" Classes="icon copy" Classes.done="{Binding Copied}" IsVisible="{Binding CanCopy}"
+                                                Click="OnCopyClick" AutomationProperties.Name="Copy the answer">
+                                            <Panel>
+                                                <Path Width="13" Height="13" Stretch="Uniform" StrokeThickness="1.6" IsVisible="{Binding !Copied}"
+                                                      Stroke="{Binding $parent[Button].Foreground}" StrokeLineCap="Round" StrokeJoin="Round"
+                                                      Data="M 8 8 V 5 A 2 2 0 0 1 10 3 H 19 A 2 2 0 0 1 21 5 V 14 A 2 2 0 0 1 19 16 H 16 M 5 8 H 14 A 2 2 0 0 1 16 10 V 19 A 2 2 0 0 1 14 21 H 5 A 2 2 0 0 1 3 19 V 10 A 2 2 0 0 1 5 8 Z" />
+                                                <Path Width="13" Height="13" Stretch="Uniform" StrokeThickness="1.9" IsVisible="{Binding Copied}"
+                                                      Stroke="#FF7EE2A8" StrokeLineCap="Round" StrokeJoin="Round" Data="M 4 12.5 L 9.5 18 L 20 6.5" />
+                                            </Panel>
+                                        </Button>
+                                    </Grid>
                                 </StackPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </ScrollViewer>
+                <!-- Scrolled up while more is there below: one click back to the end. -->
+                <Button x:Name="JumpButton" Classes="jump" Click="OnJumpClick" AutomationProperties.Name="Go to the latest">
+                    <Path Width="10" Height="11" Stretch="Uniform" StrokeThickness="2"
+                          Stroke="{Binding $parent[Button].Foreground}" StrokeLineCap="Round" StrokeJoin="Round"
+                          Data="M 6 1 L 6 13 M 1 8 L 6 13 L 11 8" />
+                </Button>
+                </Panel>
 
                 <!-- Signed out of Claude, or about to be. -->
                 <Border Grid.Row="3" Classes="signin" Classes.alone="{Binding NeedsSignIn}" IsVisible="{Binding ShowSignIn}">
@@ -415,10 +557,12 @@
                 <Border Grid.Row="4" x:Name="Field" Classes="field" Margin="12,8,12,12"
                         IsVisible="{Binding ShowPrompt}">
                     <Grid ColumnDefinitions="*,Auto" Margin="10,0,5,0">
+                        <!-- Enter sends; Shift+Enter is a new line. -->
                         <TextBox x:Name="Prompt" Classes="prompt" Text="{Binding Input}"
                                  PlaceholderText="{Binding Placeholder}"
-                                 AcceptsReturn="False" />
-                        <Button Grid.Column="1" Classes="round" VerticalAlignment="Center"
+                                 AcceptsReturn="True" />
+                        <!-- At the bottom, by the last line, as the prompt grows. -->
+                        <Button Grid.Column="1" Classes="round" VerticalAlignment="Bottom" Margin="0,0,0,5"
                                 Command="{Binding SubmitCommand}" IsVisible="{Binding !IsBusy}"
                                 IsEnabled="{Binding Input, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                 AutomationProperties.Name="Send">
@@ -426,7 +570,7 @@
                                   Stroke="{Binding $parent[Button].Foreground}" StrokeLineCap="Round" StrokeJoin="Round"
                                   Data="M 6 13 L 6 1 M 1 6 L 6 1 L 11 6" />
                         </Button>
-                        <Button Grid.Column="1" Classes="round" VerticalAlignment="Center"
+                        <Button Grid.Column="1" Classes="round" VerticalAlignment="Bottom" Margin="0,0,0,5"
                                 Command="{Binding StopCommand}" IsVisible="{Binding IsBusy}"
                                 AutomationProperties.Name="Stop">
                             <Border Width="10" Height="10" CornerRadius="2.5" Background="{Binding $parent[Button].Foreground}" />

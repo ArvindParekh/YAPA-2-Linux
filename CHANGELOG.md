@@ -84,6 +84,13 @@ A ground-up revival of the Linux port.
   (Unlicense) and kept to well-known sites whose names say what they are, plus hand-checked brands that
   don't. Mainstream sites that list also carries (news, shops, hosting, dating apps) are excluded on purpose. While an
   adult page is in front the time is off the record, and adult pages never reach the history or Claude.
+- Ask YAPA's panel, reworked. A long request no longer spills out of the card or vanishes past
+  three lines: the prompt grows to six lines, then scrolls, and the conversation gives way to it.
+  Shift+Enter starts a new line, and Up and Down walk back through earlier requests. Your words
+  sit in a bubble, so the turns read as turns. Lists hang their bullets. A failed request has Try
+  again (in place of the failed one), every answer has Copy, and Ctrl+N starts over. Scrolled up
+  to read, new text no longer pulls you down: a fade and an arrow say there's more. Server
+  failures read plainly ("Claude ran into a problem on its side").
 - Your day has a calendar: click the date (or press <kbd>G</kbd>) to jump to any day; days with
   pomodoros and days at the computer are marked.
 - A timer event log (starts, pauses, stops, breaks) in `Yapa.db`, so breaks and abandoned pomodoros

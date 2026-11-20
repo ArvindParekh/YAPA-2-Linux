@@ -17,6 +17,19 @@ namespace YAPA.Avalonia.Assistant;
 /// (anything with a number in it the user may want to change, or that writes history).</param>
 public sealed record Suggestion(string Label, string Prompt, bool Send);
 
+/// <summary>
+/// One line of an answer: a paragraph, or a list item drawn with its bullet hanging, so
+/// a wrapped item lines up under its own text rather than under the bullet.
+/// </summary>
+public sealed partial class AnswerBlock : ObservableObject
+{
+    [ObservableProperty] private string _text = "";
+    [ObservableProperty] private bool _isBullet;
+
+    /// <summary>A blank line before it: a new paragraph, with room to breathe.</summary>
+    [ObservableProperty] private bool _startsParagraph;
+}
+
 /// <summary>One request and its answer.</summary>
 public sealed partial class Exchange : ObservableObject
 {
@@ -28,23 +41,77 @@ public sealed partial class Exchange : ObservableObject
     public string Question { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsWaiting))]
+    [NotifyPropertyChangedFor(nameof(IsWaiting), nameof(HasAnswer))]
     private string _answer = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsWaiting))]
+    [NotifyPropertyChangedFor(nameof(IsWaiting), nameof(CanCopy), nameof(CanRetry), nameof(HasFooter))]
     private bool _isPending = true;
+
+    public bool HasAnswer => Answer.Length > 0;
+
+    /// <summary>The answer, line by line, kept in step with <see cref="Answer"/> as it streams in.</summary>
+    public ObservableCollection<AnswerBlock> Blocks { get; } = [];
+
+    // Streaming changes the last line or adds one; the earlier ones are updated in place,
+    // not rebuilt, so the text already on screen doesn't flicker.
+    partial void OnAnswerChanged(string value)
+    {
+        var lines = new List<(string Text, bool Bullet, bool Paragraph)>();
+        var gap = false;
+        foreach (var raw in value.Split('\n'))
+        {
+            var line = raw.TrimEnd();
+            if (line.Length == 0)
+            {
+                gap = lines.Count > 0;
+                continue;
+            }
+            var bullet = line.StartsWith("• ", StringComparison.Ordinal);
+            lines.Add((bullet ? line[2..].TrimStart() : line, bullet, gap));
+            gap = false;
+        }
+        for (var i = 0; i < lines.Count; i++)
+        {
+            if (i == Blocks.Count) Blocks.Add(new AnswerBlock());
+            var (text, bullet, paragraph) = lines[i];
+            Blocks[i].Text = text;
+            Blocks[i].IsBullet = bullet;
+            // A list follows its lead-in closely; a paragraph after a paragraph gets a gap.
+            Blocks[i].StartsParagraph = i > 0 && (paragraph || !bullet && Blocks[i - 1].IsBullet);
+        }
+        while (Blocks.Count > lines.Count) Blocks.RemoveAt(Blocks.Count - 1);
+    }
+
+    /// <summary>Copied to the clipboard a moment ago: the button says so.</summary>
+    [ObservableProperty] private bool _copied;
+
+    public bool CanCopy => !IsPending && Answer.Length > 0 && !IsError;
+
+    /// <summary>It failed: the question can be sent again as it was.</summary>
+    public bool CanRetry => !IsPending && IsError && !AwaitsSignIn;
+
+    /// <summary>Anything under the answer: Undo, Undone, Copy, Try again.</summary>
+    public bool HasFooter => CanCopy || CanRetry || CanUndo || WasUndone;
 
     /// <summary>Held until the user signs in to Claude; it's sent then.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsWaiting))]
+    [NotifyPropertyChangedFor(nameof(IsWaiting), nameof(CanRetry))]
     private bool _awaitsSignIn;
 
     /// <summary>Asked, and not a word back yet: the dots show.</summary>
     public bool IsWaiting => IsPending && Answer.Length == 0 && !AwaitsSignIn;
-    [ObservableProperty] private bool _isError;
-    [ObservableProperty] private bool _canUndo;
-    [ObservableProperty] private bool _wasUndone;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCopy), nameof(CanRetry), nameof(HasFooter))]
+    private bool _isError;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFooter))]
+    private bool _canUndo;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFooter))]
+    private bool _wasUndone;
     [ObservableProperty] private bool _isLatest = true;
 
     /// <summary>What it changed, one line each ("Logged 3 pomodoros").</summary>
@@ -148,8 +215,11 @@ public sealed partial class AssistantViewModel : ObservableObject
     /// <summary>A piece of the answer arrived: the orb moves with it, like a voice.</summary>
     public event Action? Spoke;
 
-    /// <summary>The panel wants to scroll to the newest text.</summary>
+    /// <summary>The panel wants to scroll to the newest text (if the reader is following it).</summary>
     public event Action? ContentGrew;
+
+    /// <summary>A new question went in: the panel scrolls to it whatever was being read.</summary>
+    public event Action? Asked;
 
     public bool ShowSuggestions => !HasConversation && !IsUnavailable;
 
@@ -243,6 +313,7 @@ public sealed partial class AssistantViewModel : ObservableObject
         Mood = OrbMood.Thinking;
         Caption = "Thinking…";
         _outstanding++;
+        Asked?.Invoke();
         if (!_service.Ask(text))
         {
             _outstanding--;
@@ -250,6 +321,18 @@ public sealed partial class AssistantViewModel : ObservableObject
             return;
         }
         ContentGrew?.Invoke();
+    }
+
+    /// <summary>Sends a failed question again, as it was.</summary>
+    [RelayCommand]
+    private void Retry(Exchange exchange)
+    {
+        if (!exchange.CanRetry) return;
+        // The failed attempt makes way for the new one, rather than the question showing twice.
+        var wasLatest = ReferenceEquals(exchange, _current);
+        Exchanges.Remove(exchange);
+        if (wasLatest) _current = Exchanges.LastOrDefault();
+        Ask(exchange.Question);
     }
 
     [RelayCommand]
@@ -608,15 +691,27 @@ public sealed partial class AssistantViewModel : ObservableObject
             AskToSignIn("Sign in, then ask me again. What I'd already done is above.");
             return "I lost my Claude sign-in partway through.";
         }
-        if (t.Contains("ENOTFOUND", StringComparison.Ordinal) || t.Contains("ECONNREFUSED", StringComparison.Ordinal)
-            || t.Contains("network", StringComparison.OrdinalIgnoreCase) || t.Contains("fetch failed", StringComparison.OrdinalIgnoreCase))
-            return "I couldn't reach Claude. Check the connection and try again.";
-        if (t.Contains("overloaded", StringComparison.OrdinalIgnoreCase))
-            return "Claude is overloaded right now. Try again in a moment.";
+        if (KnownFailure(t) is { } known) return known;
         if (_toolsUnreachable)
             return "I couldn't reach the timer from Claude Code. Close me and try again.";
         return t.Length is > 0 and < 160 ? $"That didn't work: {t.Trim()}" : "That didn't work. Try again.";
     }
+
+    /// <summary>What a failure that isn't the user's doing means, in their words; null for anything else.</summary>
+    internal static string? KnownFailure(string text)
+    {
+        if (text.Contains("ENOTFOUND", StringComparison.Ordinal) || text.Contains("ECONNREFUSED", StringComparison.Ordinal)
+            || text.Contains("network", StringComparison.OrdinalIgnoreCase) || text.Contains("fetch failed", StringComparison.OrdinalIgnoreCase))
+            return "I couldn't reach Claude. Check the connection and try again.";
+        if (text.Contains("overloaded", StringComparison.OrdinalIgnoreCase))
+            return "Claude is overloaded right now. Try again in a moment.";
+        // Claude's own servers failed (a 5xx): nothing the user did, and usually gone on a retry.
+        if (ServerError.IsMatch(text))
+            return "Claude ran into a problem on its side. Try again in a moment.";
+        return null;
+    }
+
+    private static readonly Regex ServerError = new(@"\b5\d\d\b|internal server error|api error", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     // Models drift into markdown now and then; the panel is plain text.
     private static readonly Regex Emphasis = new(@"\*\*(.+?)\*\*|__(.+?)__", RegexOptions.Compiled);

@@ -877,6 +877,36 @@ public class ClaudeStreamTests
     }
 
     [TestMethod]
+    public void An_answer_is_laid_out_as_paragraphs_and_hanging_list_items_and_streams_in_place()
+    {
+        var x = new Exchange("Where did my time go?");
+        x.Answer = "Here's where it went:";
+        var lead = x.Blocks.Single();
+
+        x.Answer = "Here's where it went:\n• Mock Room: 2 h\n• NLP homework: 1 h 40";
+        Assert.AreSame(lead, x.Blocks[0], "lines already on screen are updated, not rebuilt");
+        CollectionAssert.AreEqual(new[] { "Here's where it went:", "Mock Room: 2 h", "NLP homework: 1 h 40" }, x.Blocks.Select(b => b.Text).ToList());
+        CollectionAssert.AreEqual(new[] { false, true, true }, x.Blocks.Select(b => b.IsBullet).ToList());
+        Assert.IsFalse(x.Blocks[1].StartsParagraph, "a list follows its lead-in closely");
+
+        x.Answer += "\n\nThat's 4 h 10 in all.";
+        Assert.IsTrue(x.Blocks[3].StartsParagraph);
+        Assert.IsFalse(x.Blocks[3].IsBullet);
+
+        x.Answer = "Short now.";
+        Assert.AreEqual(1, x.Blocks.Count);
+    }
+
+    [TestMethod]
+    public void Failures_that_arent_the_users_doing_are_said_plainly()
+    {
+        StringAssert.Contains(AssistantViewModel.KnownFailure("API Error: 500 Internal server error"), "on its side");
+        StringAssert.Contains(AssistantViewModel.KnownFailure("request to api.anthropic.com failed, reason: getaddrinfo ENOTFOUND"), "couldn't reach");
+        StringAssert.Contains(AssistantViewModel.KnownFailure("Overloaded"), "overloaded");
+        Assert.IsNull(AssistantViewModel.KnownFailure("Tool refused: pick a profile first"));
+    }
+
+    [TestMethod]
     public void Answers_are_kept_plain_text()
     {
         Assert.AreEqual("You did 5 today.\n• Monday: 3", AssistantViewModel.Tidy("## Today\nYou did **5** today.\n- Monday: `3`", final: true)

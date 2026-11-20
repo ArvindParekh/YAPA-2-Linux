@@ -86,6 +86,11 @@ Per-machine settings (music paths, window position) live in `localSettings.json`
   TextBox placeholder part is `PART_Placeholder`, not `PART_Watermark`.
 - Avalonia's `Color.ToString()` returns a name when one matches ("White"); the catalog writes
   colours as `#aarrggbb` so values compare. Looks (`TimerLooks`) store catalog-normalised values.
+- The panel's card is capped (`Card.MaxHeight`) and the conversation is its `*` row, so whatever else grows (the
+  prompt, up to six lines) takes height from the conversation. Never compute the conversation's height from a
+  fixed chrome height: that's how a long prompt pushed out of the card. Answers render as `AnswerBlock`s, updated
+  in place while streaming. To drive the panel end to end without the user's plan, use a fake `claude` that
+  speaks stream-json and calls the MCP tools from `--mcp-config` (answer `auth status` with `loggedIn: true`).
 - The orb's frames stop while its window is hidden and nothing restarts them on show: call
   `OrbControl.Resume()` whenever the panel opens.
 - The panel closes on outside clicks through `X11PointerWatch` (polled XQueryPointer): clicks on
