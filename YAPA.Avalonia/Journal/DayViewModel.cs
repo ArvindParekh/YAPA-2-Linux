@@ -406,6 +406,16 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
         _ = LoadAsync(write: true);
     }
 
+    /// <summary>Today, in the day view, whatever was being browsed (the hub stays open across days).</summary>
+    public void ShowToday() => OpenDay(_journal.Today);
+
+    /// <summary>This week, whatever week was being browsed.</summary>
+    public void ShowThisWeek()
+    {
+        IsWeek = true;
+        Week.Go(JournalService.WeekStart(_journal.Today));
+    }
+
     /// <summary>A day picked in the week: the day view, on it.</summary>
     public void OpenDay(DateOnly date)
     {

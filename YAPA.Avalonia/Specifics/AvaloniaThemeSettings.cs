@@ -12,10 +12,12 @@ public sealed class AvaloniaThemeSettings : IPluginSettings, INotifyPropertyChan
         _s = settings.GetSettingsForComponent("ThemeManager");
         // Before the redesign the classic timer was the default, and profiles from then hold it
         // as their choice whether or not anyone chose it. Moved to Studio once; a theme picked
-        // after that sticks.
-        if (!_s.Get(StudioIntroduced, false))
+        // since (which records the flag too) sticks. Nothing is written for a profile with no
+        // stored theme, so a settings file that failed to load is never saved over at launch.
+        var stored = _s.Get(nameof(ActiveTheme), "");
+        if (stored.Length > 0 && !_s.Get(StudioIntroduced, false))
         {
-            if (_s.Get(nameof(ActiveTheme), "") == YAPA.Avalonia.Services.AppNavigator.ClassicTheme)
+            if (stored == YAPA.Avalonia.Services.AppNavigator.ClassicTheme)
                 _s.Update(nameof(ActiveTheme), YAPA.Avalonia.Services.AppNavigator.StudioTheme);
             _s.Update(StudioIntroduced, true);
         }
@@ -32,6 +34,7 @@ public sealed class AvaloniaThemeSettings : IPluginSettings, INotifyPropertyChan
         {
             if (value == ActiveTheme) return;
             _s.Update(nameof(ActiveTheme), value);
+            _s.Update(StudioIntroduced, true);
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ActiveTheme)));
         }
     }

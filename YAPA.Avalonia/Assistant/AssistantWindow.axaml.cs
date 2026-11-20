@@ -106,7 +106,13 @@ public partial class AssistantWindow : Window
         };
         vm.PropertyChanged += OnViewModelChanged;
         // Suggestions change after the conversation does (a new one, say): once both have, list again.
-        vm.Suggestions.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(Refresh, DispatcherPriority.Background);
+        vm.Suggestions.CollectionChanged += (_, _) => RefreshSoon();
+        // The timer can move on while the bar is open (an interval ends): Pause becomes Start break.
+        if (Timer is { } timer)
+            timer.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(TimerViewModel.Phase) && IsShowing) RefreshSoon();
+            };
 
         Deactivated += OnDeactivated;
         // Typing always goes to the field, wherever focus is (after clicking Undo, say).
@@ -167,6 +173,7 @@ public partial class AssistantWindow : Window
         Activate();
         Card.Classes.Set("shown", true);
         _vm.Opened();
+        _listedFor = null; // a fresh opening starts at the top
         Refresh();
         Dispatcher.UIThread.Post(() => Prompt.Focus(), DispatcherPriority.Input);
         // Above the timer the card grows upwards, from its bottom edge: as the list narrowed to
@@ -307,6 +314,7 @@ public partial class AssistantWindow : Window
     /// </summary>
     private void Refresh()
     {
+        _refreshPosted = false;
         var input = _vm.Input ?? "";
         var palette = !_vm.HasConversation || Slashed;
         _rows.Clear();
@@ -329,17 +337,34 @@ public partial class AssistantWindow : Window
             }
         }
         _paletteShown = palette;
-        _selected = 0;
-        if (_rows.Count > 0) _rows[0].IsSelected = true;
+        // Same text, new rows (the timer moved on): the selection stays on the same action if it's
+        // still there. New text starts again from the best match.
+        var keep = input == _listedFor ? _rows.ToList().FindIndex(r => r.Title == _selectedTitle) : -1;
+        _selected = Math.Max(0, keep);
+        _listedFor = input;
+        if (_rows.Count > 0) _rows[_selected].IsSelected = true;
+        _selectedTitle = _rows.Count > 0 ? _rows[_selected].Title : null;
 
         ListScroller.IsVisible = palette;
-        ListScroller.Offset = default;
+        if (_selected == 0) ListScroller.Offset = default;
         Conversation.IsVisible = !palette;
         Body.IsVisible = palette ? _rows.Count > 0 : _vm.HasConversation;
         SendButton.IsVisible = !palette && !_vm.IsBusy;
         Prompt.PlaceholderText = _vm.HasConversation ? "Reply, or type / for actions"
             : _vm.ShowPrompt ? "Ask YAPA, or type a command…" : "Type a command…";
         UpdateHints();
+    }
+
+    private bool _refreshPosted;
+    private string? _listedFor;
+    private string? _selectedTitle;
+
+    /// <summary>One refresh for a burst of changes (suggestions arrive one item at a time).</summary>
+    private void RefreshSoon()
+    {
+        if (_refreshPosted) return;
+        _refreshPosted = true;
+        Dispatcher.UIThread.Post(Refresh, DispatcherPriority.Background);
     }
 
     private PaletteCommand AskTyped(string text)
@@ -356,6 +381,7 @@ public partial class AssistantWindow : Window
         if (_selected < _rows.Count) _rows[_selected].IsSelected = false;
         _selected = index;
         _rows[index].IsSelected = true;
+        _selectedTitle = _rows[index].Title;
         if (reveal) List.ContainerFromIndex(index)?.BringIntoView();
         UpdateHints();
     }
@@ -413,6 +439,13 @@ public partial class AssistantWindow : Window
             Keycap("esc");
             Label((_vm.Input ?? "").Length > 0 ? "Clear" : "Close", last: true);
         }
+        else if (Slashed)
+        {
+            // "/" and nothing matches: nothing to run, and Enter won't send it.
+            Label("No action by that name");
+            Keycap("esc");
+            Label("Clear", last: true);
+        }
         else if (_vm.HasConversation)
         {
             Keycap("↵");
@@ -438,7 +471,8 @@ public partial class AssistantWindow : Window
         {
             case Key.Enter or Key.Return when !e.KeyModifiers.HasFlag(KeyModifiers.Shift):
                 if (listed) Run(_rows[_selected]);
-                else if (_vm.HasConversation) Send();
+                // "/" that matches nothing is a typo, not a question: sending it would spend a request.
+                else if (_vm.HasConversation && !Slashed) Send();
                 e.Handled = true;
                 break;
             case Key.Down when listed:

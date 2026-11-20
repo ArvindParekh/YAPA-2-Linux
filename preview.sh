@@ -4,7 +4,8 @@
 #   ./preview.sh            build (Release) and open the preview
 #   ./preview.sh --reseed   start over from a fresh copy of your real settings and history
 #   ./preview.sh --stop     quit the preview
-#   ./preview.sh -- ARGS    pass arguments to it (--day, --stats, --settings, --ask, --toggle)
+#   ./preview.sh -- ARGS    pass arguments to it (--day, --stats, --settings, --ask, --toggle);
+#                           an open preview gets them straight away, without a rebuild
 #
 # The preview is its own YAPA: its own timer, settings and history, under .preview/ in this
 # folder (YAPA_HOME). The first run copies your settings and history in, so Your day and
@@ -29,7 +30,7 @@ while [[ $# -gt 0 ]]; do
         --reseed) RESEED=1 ;;
         --stop) STOP=1 ;;
         --) shift; PASS=("$@"); break ;;
-        -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
         *) echo "unknown option: $1 (see --help)" >&2; exit 2 ;;
     esac
     shift
@@ -55,6 +56,13 @@ stop_preview() {
 }
 
 if [[ $STOP == 1 ]]; then stop_preview; echo "Preview stopped."; exit 0; fi
+
+# Already open and given something to do (--day, --ask…): hand it over, as a second launch of
+# YAPA does, without rebuilding. Without arguments, it's rebuilt and reopened on the latest code.
+if [[ ${#PASS[@]} -gt 0 && -n $(preview_pids) && $RESEED == 0 ]]; then
+    YAPA_HOME="$HOME_DIR" "$APP/YAPA.Avalonia" "${PASS[@]}" >/dev/null 2>&1 || true
+    exit 0
+fi
 
 # ── dotnet ───────────────────────────────────────────────────────────────────
 DOTNET=dotnet
@@ -105,13 +113,8 @@ if [[ ! -d $HOME_DIR ]]; then
 fi
 
 # ── Run ──────────────────────────────────────────────────────────────────────
-if [[ -n $(preview_pids) ]]; then
-    # Already open: hand it the arguments, as a second launch of YAPA does.
-    YAPA_HOME="$HOME_DIR" "$APP/YAPA.Avalonia" "${PASS[@]}" >/dev/null 2>&1 || true
-else
-    echo "==> Opening the preview"
-    YAPA_HOME="$HOME_DIR" setsid "$APP/YAPA.Avalonia" "${PASS[@]}" > "$PREVIEW/app.log" 2>&1 < /dev/null &
-fi
+echo "==> Opening the preview"
+YAPA_HOME="$HOME_DIR" setsid "$APP/YAPA.Avalonia" "${PASS[@]}" > "$PREVIEW/app.log" 2>&1 < /dev/null &
 echo "The preview is running next to your installed YAPA. Its timer is the new one;"
 echo "double-click it or press / for the command bar, and Ctrl K inside the hub."
 echo "Quit it from its ⋯ menu, or: ./preview.sh --stop"

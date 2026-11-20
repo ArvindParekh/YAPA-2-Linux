@@ -27,13 +27,16 @@ public partial class StudioWindow : TimerWindowBase
         _leave.Tick += (_, _) =>
         {
             _leave.Stop();
-            Hovering = MenuButton.ContextMenu?.IsOpen == true;
+            Hovering = IsPointerOver || MenuButton.ContextMenu?.IsOpen == true;
         };
         ViewModel.PropertyChanged += OnTimerChanged;
+        // The card sits in a Viewbox, so its own bounds never change after the first layout: the
+        // window's size (the Size setting) and its scaling are what move the clickable area.
         Card.PropertyChanged += (_, e) =>
         {
             if (e.Property == BoundsProperty) UpdateInputRegion();
         };
+        ScalingChanged += (_, _) => PostInputRegion();
         RefreshState();
     }
 
@@ -123,7 +126,8 @@ public partial class StudioWindow : TimerWindowBase
                 break;
             case nameof(ViewModels.TimerViewModel.Phase) or nameof(ViewModels.TimerViewModel.IsOffRecord)
                 or nameof(ViewModels.TimerViewModel.CycleSuffix) or nameof(ViewModels.TimerViewModel.NoteSuffix)
-                or nameof(ViewModels.TimerViewModel.GoalForecastText) or nameof(ViewModels.TimerViewModel.HasGoalForecast):
+                or nameof(ViewModels.TimerViewModel.GoalForecastText) or nameof(ViewModels.TimerViewModel.HasGoalForecast)
+                or nameof(ViewModels.TimerViewModel.CounterText):
                 RefreshState();
                 break;
         }
@@ -140,7 +144,10 @@ public partial class StudioWindow : TimerWindowBase
         };
         if (this.TryFindResource(key, out var brush) && brush is IBrush b) StateBrush = b;
         // The classic timer's suffix reads " · Cycle 2"; here the cycle is the number alone, as the pomodoro's place in it.
-        CycleText = ViewModel.Phase is PomodoroPhase.NotStarted ? "" : ViewModel.Engine.Index + "/" + Math.Max(1, CycleLength);
+        // Left out when the counter at the right already is the place in the cycle.
+        var settings = EngineSettings;
+        CycleText = ViewModel.Phase is PomodoroPhase.NotStarted || settings.Counter == CounterEnum.PomodoroIndex ? ""
+            : ViewModel.Engine.Index + "/" + Math.Max(1, settings.PomodorosBeforeLongBreak);
         var note = ViewModel.NoteSuffix.TrimStart(' ', '·').Trim();
         // The count is already at the right ("3/12"), so the forecast needs only its time: "goal by 18:40".
         AsideText = note.Length > 0 ? note
@@ -150,7 +157,7 @@ public partial class StudioWindow : TimerWindowBase
         UpdateProgress();
     }
 
-    private int CycleLength => App.Bootstrapper!.Resolve<YAPA.Shared.Common.PomodoroEngineSettings>().PomodorosBeforeLongBreak;
+    private static YAPA.Shared.Common.PomodoroEngineSettings EngineSettings => App.Bootstrapper!.Resolve<YAPA.Shared.Common.PomodoroEngineSettings>();
 
     private void UpdateTime() => TimeDisplay = (ViewModel.IsOverrun ? "+" : "") + ViewModel.TimeText;
 
@@ -183,6 +190,15 @@ public partial class StudioWindow : TimerWindowBase
             (int)Math.Ceiling(Card.Bounds.Width * scale * s), (int)Math.Ceiling(Card.Bounds.Height * scale * s)));
     }
 
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == ClientSizeProperty) PostInputRegion();
+    }
+
+    /// <summary>After layout, when the card has its new place in the window.</summary>
+    private void PostInputRegion() => global::Avalonia.Threading.Dispatcher.UIThread.Post(UpdateInputRegion, global::Avalonia.Threading.DispatcherPriority.Background);
+
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
@@ -197,5 +213,16 @@ public partial class StudioWindow : TimerWindowBase
 
     private void OnMinimizeClick(object? sender, RoutedEventArgs e) => MinimizeOrHide();
 
-    private void OnMenuClick(object? sender, RoutedEventArgs e) => OpenActionsMenu(MenuButton);
+    private void OnMenuClick(object? sender, RoutedEventArgs e)
+    {
+        OpenActionsMenu(MenuButton);
+        // Hover was held while the menu was open; once it closes, let the buttons go if the pointer has.
+        if (MenuButton.ContextMenu is { } menu && !_watchingMenu)
+        {
+            _watchingMenu = true;
+            menu.Closed += (_, _) => { _leave.Stop(); _leave.Start(); };
+        }
+    }
+
+    private bool _watchingMenu;
 }

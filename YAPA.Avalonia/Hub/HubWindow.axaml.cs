@@ -84,13 +84,14 @@ public partial class HubWindow : Window, INotifyPropertyChanged, IFilePicker
         Day.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(DayViewModel.IsWeek) && SelectedLink?.Key is TodayKey or WeekKey)
-                SetLink(Links.First(l => l.Key == (Day.IsWeek ? WeekKey : TodayKey)));
+                SetLink(Links.First(l => l.Key == (Day.IsWeek ? WeekKey : TodayKey)), navigate: false);
             if (e.PropertyName is nameof(DayViewModel.AtToday) or nameof(DayViewModel.Date)) Changed(nameof(PageTitle));
         };
         Timer.PropertyChanged += OnTimerChanged;
         AddHandler(KeyDownEvent, OnTunnelKeyDown, RoutingStrategies.Tunnel);
         RefreshTimer();
-        SetLink(Links[0]);
+        // Selected, not loaded: the hub may be opening on Settings. Whoever shows the day loads it.
+        SetLink(Links[0], navigate: false);
     }
 
     public new event PropertyChangedEventHandler? PropertyChanged;
@@ -158,24 +159,25 @@ public partial class HubWindow : Window, INotifyPropertyChanged, IFilePicker
 
     // ── Going places ─────────────────────────────────────────────────────────
 
-    private void SetLink(HubLink link)
+    /// <param name="navigate">
+    /// Go there too: Today to today, Week to this week, Insights loaded. False when the page has
+    /// already moved and only the sidebar should follow (W in the journal, a day picked elsewhere).
+    /// </param>
+    private void SetLink(HubLink link, bool navigate = true)
     {
         _selectedLink = link;
         _selectedPage = null;
         Changed(nameof(SelectedLink));
         Changed(nameof(SelectedPage));
         ChangedPlace();
-        switch (link.Key)
+        if (navigate)
         {
-            case TodayKey when Day.IsWeek:
-                Day.ShowDayViewCommand.Execute(null);
-                break;
-            case WeekKey when !Day.IsWeek:
-                Day.ShowWeekCommand.Execute(null);
-                break;
-            case InsightsKey:
-                _ = Insights.LoadAsync();
-                break;
+            switch (link.Key)
+            {
+                case TodayKey: Day.ShowToday(); break;
+                case WeekKey: Day.ShowThisWeek(); break;
+                case InsightsKey: _ = Insights.LoadAsync(); break;
+            }
         }
         if (link.Key is TodayKey or WeekKey) FocusJournal();
     }
@@ -200,9 +202,12 @@ public partial class HubWindow : Window, INotifyPropertyChanged, IFilePicker
     /// <summary>Your day, on <paramref name="date"/> (today when null).</summary>
     public void ShowDay(DateOnly? date)
     {
-        SetLink(Links[0]);
-        if (date is { } d) Day.OpenDay(d);
-        else Day.Open();
+        if (date is { } d)
+        {
+            SetLink(Links[0], navigate: false);
+            Day.OpenDay(d);
+        }
+        else SetLink(Links[0]);
     }
 
     public void ShowInsights() => SetLink(Links[2]);
