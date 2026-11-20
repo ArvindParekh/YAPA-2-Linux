@@ -2,6 +2,9 @@ using System;
 using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+// The tests read /proc, talk to X11 and set Unix file modes: they run on Linux, like the app's reference desktop.
+[assembly: System.Runtime.Versioning.SupportedOSPlatform("linux")]
+
 namespace YAPA.Avalonia.Tests;
 
 [TestClass]

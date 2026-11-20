@@ -106,7 +106,7 @@ have, **Forget** it: any entry, or any stretch of time, from Your day or by aski
 did after 11 pm"). Its windows and write-ups are deleted, and that time is never read from your
 browser or Claude Code again. To keep what's next out, go **off the record** from the timer's menu
 for a while; a crossed-out eye on the timer shows it. Click the date (or press <kbd>G</kbd>) to go
-to any day. Settings → Journal turns each source off and edits both lists.
+to any day, or switch to Week (<kbd>W</kbd>) for the week written up from its days. Settings → Journal turns each source off and edits both lists.
 
 ### Global shortcut
 

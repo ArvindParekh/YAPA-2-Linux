@@ -11,8 +11,8 @@ namespace YAPA.Avalonia.Statistics;
 
 /// <summary>
 /// GitHub-style contribution grid: one column per week, one row per weekday.
-/// Drawn directly rather than as hundreds of child controls; tooltips are
-/// resolved from the pointer position.
+/// Drawn directly rather than as hundreds of child controls; tooltips and clicks are
+/// resolved from the pointer position. A click on a day asks for that day (Your day).
 /// </summary>
 public sealed class HeatmapControl : Control
 {
@@ -45,6 +45,23 @@ public sealed class HeatmapControl : Control
         set => SetValue(HeatmapProperty, value);
     }
 
+    /// <summary>A day (not in the future) was clicked.</summary>
+    public event Action<DateOnly>? DayClicked;
+
+    private static readonly IPen TodayRing = new Pen(new SolidColorBrush(Color.Parse("#FFFF6B57")), 1.5);
+
+    /// <summary>The day under <paramref name="p"/>, if there's one there and it isn't in the future.</summary>
+    private HeatmapCell? CellAt(Point p)
+    {
+        var map = Heatmap;
+        if (map == null || p.X < LabelColumn || p.Y < LabelRow) return null;
+        var w = (int)Math.Floor((p.X - LabelColumn) / (Cell + Gap));
+        var row = (int)Math.Floor((p.Y - LabelRow) / (Cell + Gap));
+        if (w < 0 || w >= map.Weeks.Count || row < 0 || row >= 7) return null;
+        var cell = map[w, row];
+        return cell.IsFuture ? null : cell;
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         var weeks = Heatmap?.Weeks.Count ?? 53;
@@ -62,6 +79,7 @@ public sealed class HeatmapControl : Control
         var label = new SolidColorBrush(dark ? Color.Parse("#A0A0A0") : Color.Parse("#606060"));
         var typeface = new Typeface(FontFamily.Default);
         var culture = CultureInfo.CurrentCulture;
+        var today = DateOnly.FromDateTime(DateTime.Now);
 
         // Weekday labels on alternate rows, like GitHub, to keep them legible.
         for (var row = 1; row < 7; row += 2)
@@ -96,7 +114,9 @@ public sealed class HeatmapControl : Control
                 IBrush brush = cell.IsFuture ? future
                     : cell.Level == 0 ? empty
                     : new SolidColorBrush(Ramp[Math.Clamp(cell.Level, 1, 4) - 1]);
-                context.DrawRectangle(brush, null, new RoundedRect(new Rect(x, LabelRow + row * (Cell + Gap), Cell, Cell), 2.5));
+                var rect = new Rect(x, LabelRow + row * (Cell + Gap), Cell, Cell);
+                context.DrawRectangle(brush, null, new RoundedRect(rect, 2.5));
+                if (cell.Date == today) context.DrawRectangle(null, TodayRing, new RoundedRect(rect.Inflate(1.5), 3.5));
             }
         }
     }
@@ -104,27 +124,30 @@ public sealed class HeatmapControl : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        var map = Heatmap;
-        if (map == null) return;
-
-        var p = e.GetPosition(this);
-        var w = (int)Math.Floor((p.X - LabelColumn) / (Cell + Gap));
-        var row = (int)Math.Floor((p.Y - LabelRow) / (Cell + Gap));
         string? tip = null;
-        if (w >= 0 && w < map.Weeks.Count && row >= 0 && row < 7 && p.X >= LabelColumn && p.Y >= LabelRow)
+        if (CellAt(e.GetPosition(this)) is { } cell)
         {
-            var cell = map[w, row];
-            if (!cell.IsFuture)
-            {
-                var count = cell.Count == 0 ? "No pomodoros" : cell.Count == 1 ? "1 pomodoro" : $"{cell.Count} pomodoros";
-                tip = $"{count} on {cell.Date.ToString("ddd, MMM d, yyyy", CultureInfo.CurrentCulture)}";
-            }
+            var count = cell.Count == 0 ? "No pomodoros" : cell.Count == 1 ? "1 pomodoro" : $"{cell.Count} pomodoros";
+            tip = $"{count} on {cell.Date.ToString("ddd, MMM d, yyyy", CultureInfo.CurrentCulture)}. Click to see it.";
         }
+        Cursor = tip != null ? HandCursor : null;
 
         if (!Equals(ToolTip.GetTip(this), tip))
         {
             ToolTip.SetTip(this, tip);
             ToolTip.SetIsOpen(this, tip != null);
+        }
+    }
+
+    private static readonly Cursor HandCursor = new(StandardCursorType.Hand);
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        if (e.InitialPressMouseButton == MouseButton.Left && CellAt(e.GetPosition(this)) is { } cell)
+        {
+            ToolTip.SetIsOpen(this, false);
+            DayClicked?.Invoke(cell.Date);
         }
     }
 

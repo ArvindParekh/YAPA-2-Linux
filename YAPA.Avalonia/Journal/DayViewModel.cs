@@ -340,9 +340,20 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
             _noticeTimer.Stop();
             Notice = "";
         };
+        Week = new WeekViewModel(journal, settings);
+        Week.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(WeekViewModel.Start))
+            {
+                OnPropertyChanged(nameof(Weekday));
+                OnPropertyChanged(nameof(DateCaption));
+                OnPropertyChanged(nameof(CanGoForward));
+                OnPropertyChanged(nameof(AtToday));
+            }
+        };
         // The pomodoro under way grows; today's view keeps up once a minute.
         _live = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
-        _live.Tick += (_, _) => { if (IsToday && !IsWriting) _ = LoadAsync(write: false); };
+        _live.Tick += (_, _) => { if (!IsWeek && IsToday && !IsWriting) _ = LoadAsync(write: false); };
         _live.Start();
     }
 
@@ -350,12 +361,55 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
     public ObservableCollection<ProjectChip> ProjectTotals { get; } = [];
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Weekday), nameof(DateText), nameof(IsToday), nameof(DateCaption))]
+    [NotifyPropertyChangedFor(nameof(Weekday), nameof(DateText), nameof(IsToday), nameof(DateCaption), nameof(AtToday))]
     private DateOnly _date;
 
-    public string Weekday => IsToday ? "Today" : Date == _journal.Today.AddDays(-1) ? "Yesterday" : Date.ToString("dddd", CultureInfo.CurrentCulture);
+    public string Weekday => IsWeek ? Week.Title
+        : IsToday ? "Today" : Date == _journal.Today.AddDays(-1) ? "Yesterday" : Date.ToString("dddd", CultureInfo.CurrentCulture);
     public string DateText => Date.ToString("dddd, d MMMM", CultureInfo.CurrentCulture);
-    public string DateCaption => IsToday || Date == _journal.Today.AddDays(-1) ? DateText : Date.ToString("d MMMM yyyy", CultureInfo.CurrentCulture);
+    public string DateCaption => IsWeek ? Week.Range
+        : IsToday || Date == _journal.Today.AddDays(-1) ? DateText : Date.ToString("d MMMM yyyy", CultureInfo.CurrentCulture);
+
+    // ── Week ─────────────────────────────────────────────────────────────────
+
+    /// <summary>Your week: the same window, a week at a time.</summary>
+    public WeekViewModel Week { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Weekday), nameof(DateCaption), nameof(CanGoBack), nameof(CanGoForward), nameof(IsDay), nameof(AtToday))]
+    private bool _isWeek;
+
+    public bool IsDay => !IsWeek;
+
+    public bool CanGoBack => IsWeek || HasPrevious;
+    public bool CanGoForward => IsWeek ? Week.CanNext : HasNext;
+
+    partial void OnHasPreviousChanged(bool value) => OnPropertyChanged(nameof(CanGoBack));
+    partial void OnHasNextChanged(bool value) => OnPropertyChanged(nameof(CanGoForward));
+
+    [RelayCommand]
+    private void ShowWeek()
+    {
+        if (IsWeek) return;
+        IsWeek = true;
+        Week.Go(JournalService.WeekStart(Date));
+    }
+
+    [RelayCommand]
+    private void ShowDayView()
+    {
+        if (!IsWeek) return;
+        IsWeek = false;
+        _ = LoadAsync(write: true);
+    }
+
+    /// <summary>A day picked in the week: the day view, on it.</summary>
+    public void OpenDay(DateOnly date)
+    {
+        IsWeek = false;
+        if (date == Date) _ = LoadAsync(write: true);
+        else Go(date);
+    }
     public bool IsToday => Date == _journal.Today;
 
     [ObservableProperty] private string _headline = "";
@@ -573,7 +627,7 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
     {
         if (day.IsFuture) return;
         CalendarDone?.Invoke();
-        Go(day.Date);
+        OpenDay(day.Date);
     }
 
     private int _monthGeneration;
@@ -627,18 +681,31 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void Previous()
     {
-        if (_journal.Neighbours(Date).Previous is { } p) Go(p);
+        if (IsWeek) Week.Go(Week.Start.AddDays(-7));
+        else if (_journal.Neighbours(Date).Previous is { } p) Go(p);
     }
 
     [RelayCommand]
     private void Next()
     {
+        if (IsWeek)
+        {
+            if (Week.CanNext) Week.Go(Week.Start.AddDays(7));
+            return;
+        }
         var next = _journal.Neighbours(Date).Next;
         Go(next is { } n && n <= _journal.Today ? n : _journal.Today);
     }
 
     [RelayCommand]
-    private void Today() => Go(_journal.Today);
+    private void Today()
+    {
+        if (IsWeek) Week.Go(JournalService.WeekStart(_journal.Today));
+        else Go(_journal.Today);
+    }
+
+    /// <summary>Back at this week or today: the Today button has nothing to do.</summary>
+    public bool AtToday => IsWeek ? Week.IsThisWeek : IsToday;
 
     private void Go(DateOnly date)
     {
@@ -713,6 +780,12 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
 
     private void OnDayChanged(DateOnly day)
     {
+        if (IsWeek)
+        {
+            // A day of the week shown changed (a pomodoro done, a write-up in): the week reads it again.
+            if (JournalService.WeekStart(day) == Week.Start) Dispatcher.UIThread.Post(() => { if (!Week.IsWriting) _ = Week.LoadAsync(write: false); });
+            return;
+        }
         if (day != Date) return;
         Dispatcher.UIThread.Post(() => { if (!IsWriting) _ = LoadAsync(write: false); });
     }
@@ -867,9 +940,10 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
         _ = Task.Run(() => _journal.SetTitle(date, entry.PomodoroId, title));
     }
 
-    /// <summary>The day as plain text: for a standup, a note, a message.</summary>
+    /// <summary>The day (or the week) as plain text: for a standup, a note, a message.</summary>
     public string AsText()
     {
+        if (IsWeek) return Week.AsText();
         if (_current is not { } day || day.Entries.Count == 0) return "";
         var text = new StringBuilder();
         text.Append(DateText);
@@ -905,6 +979,7 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
         _live.Stop();
         _noticeTimer.Stop();
         _loading?.Cancel();
+        Week.Cancel();
         _journal.DayChanged -= OnDayChanged;
         _journal.OffRecord.Changed -= OnOffRecordChanged;
     }

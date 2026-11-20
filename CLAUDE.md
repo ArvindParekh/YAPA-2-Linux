@@ -133,6 +133,11 @@ Per-machine settings (music paths, window position) live in `localSettings.json`
   mainstream sites out of it). Spans are capped at `LongestSpan` (12 h) so day lookups stay index range scans.
   A flyout button that closes its flyout must close it after the click (posted): closing first detaches the
   button, its inherited DataContext and so its Command, which then never runs.
+- Weeks: `JournalService.LoadWeek` reads each day with `Load` (up to today); `WeekPrompt` (Shared) builds one short
+  request from the days' write-ups and titles, and `JournalWeeks` keeps the answer under the request's fingerprint.
+  `WriteWeekAsync` writes stale past days first. `WeekStart` follows the locale's first day of the week.
+- Infinite style animations run even on hidden elements and keep a window rendering: give the animated element its
+  own `IsVisible` and select `[IsVisible=True]` in the animation's style (Your day sat at 18% of a core idle).
 - Claude Code transcripts are 1.5 GB and append-only: they're indexed per file (CacheDirectory/journal,
   0700) and read on from the saved offset; only top-level fields are read, with `Utf8JsonReader`, since
   nested content contains strings like `"timestamp":`. Typed prompts are `turnOrigin` human (or absent)

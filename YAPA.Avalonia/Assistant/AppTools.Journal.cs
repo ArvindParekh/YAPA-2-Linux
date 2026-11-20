@@ -33,6 +33,18 @@ public sealed partial class AppTools
 
         new AssistantTool
         {
+            Name = "get_week",
+            Description = "The user's week at a glance, for 'how did this week go?', 'what did I do last week?', a weekly review or status update: " +
+                          "pomodoros and focus per day with each day's headline, focus time by project across the week, and the week's own write-up " +
+                          "when it has been written (in Your day's week view). For what happened inside a day, use get_journal on that day. Read-only.",
+            Schema = Object(("date", Str("Any day in the week: 'today', 'yesterday', 'last week' or YYYY-MM-DD; this week when left out."), false)),
+            Activity = _ => "Reading your week",
+            OffUiThread = true,
+            Run = a => new ToolResult(DescribeWeek(journal, a.String("date"))),
+        },
+
+        new AssistantTool
+        {
             Name = "name_pomodoro",
             Description = "Gives a pomodoro in the journal a name of the user's own (\"the 2 pm one was the AWS lab\"), which replaces the written title; an empty title gives it back to the write-up. Find ids with get_journal.",
             Schema = Object(
@@ -164,6 +176,34 @@ public sealed partial class AppTools
         var t when DateOnly.TryParseExact(t, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) => d,
         _ => throw new ToolException("\"date\" is 'today', 'yesterday' or YYYY-MM-DD."),
     };
+
+    private static JsonObject DescribeWeek(JournalService journal, string? text)
+    {
+        var day = text?.Trim().ToLowerInvariant() == "last week" ? journal.Today.AddDays(-7) : Day(journal, text);
+        var week = journal.LoadWeek(JournalService.WeekStart(day));
+        var result = new JsonObject
+        {
+            ["week"] = $"{week.Start.ToString("yyyy-MM-dd (dddd)", CultureInfo.InvariantCulture)} to {week.Start.AddDays(6).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}",
+            ["pomodoros"] = week.Pomodoros,
+            ["focus_minutes"] = week.FocusMinutes,
+            ["days_with_pomodoros"] = week.ActiveDays,
+        };
+        if (week.Summary is { } s)
+        {
+            result["headline"] = s.Headline;
+            result["summary"] = s.Summary;
+            result["written_up"] = !week.Stale;
+        }
+        result["days"] = new JsonArray(week.Days.Select(d => (JsonNode)new JsonObject
+        {
+            ["date"] = d.Date.ToString("yyyy-MM-dd (dddd)", CultureInfo.InvariantCulture),
+            ["pomodoros"] = d.Count,
+            ["focus_minutes"] = d.Minutes,
+            ["headline"] = d.Summary?.Headline is { Length: > 0 } h ? h : null,
+        }).ToArray());
+        result["by_project"] = new JsonArray(week.Projects().Select(p => (JsonNode)new JsonObject { ["project"] = p.Name, ["focus_minutes"] = p.Minutes }).ToArray());
+        return result;
+    }
 
     private static JsonObject DescribeDay(JournalService journal, DateOnly date)
     {

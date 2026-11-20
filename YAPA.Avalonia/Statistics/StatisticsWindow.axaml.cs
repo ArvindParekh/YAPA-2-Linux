@@ -22,6 +22,20 @@ public partial class StatisticsWindow : Window
             bs.Resolve<YAPA.Shared.Common.PomodoroEngineSettings>());
         DataContext = _vm;
         _ = _vm.LoadAsync();
+        Heatmap.DayClicked += OpenDay;
+    }
+
+    /// <summary>A day picked here opens in Your day, where what was done in it is.</summary>
+    private static void OpenDay(DateOnly date) => App.Bootstrapper?.Resolve<YAPA.Avalonia.Services.AppNavigator>().ShowDay(date);
+
+    private void OnDayBarClick(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: DayBar bar }) OpenDay(bar.Date);
+    }
+
+    private void OnBestDayClick(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_vm.BestDay is { } day) OpenDay(day);
     }
 
     protected override void OnClosed(EventArgs e)

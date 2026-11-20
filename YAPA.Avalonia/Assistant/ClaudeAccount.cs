@@ -339,12 +339,7 @@ public sealed class ClaudeAccount
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         var temporary = _path + ".tmp";
-        using (var file = new FileStream(temporary, new FileStreamOptions
-               {
-                   Mode = FileMode.Create,
-                   Access = FileAccess.Write,
-                   UnixCreateMode = OperatingSystem.IsWindows() ? null : UnixFileMode.UserRead | UnixFileMode.UserWrite,
-               }))
+        using (var file = new FileStream(temporary, YAPA.Avalonia.Platform.OwnerOnlyFile.Create()))
         using (var writer = new StreamWriter(file))
         {
             writer.Write(new JsonObject { ["token"] = token.Value, ["createdUtc"] = token.CreatedUtc }.ToJsonString());

@@ -15,9 +15,11 @@ using YAPA.Shared.Statistics;
 
 namespace YAPA.Avalonia.Statistics;
 
-public sealed record StatCard(string Title, string Value, string Detail);
+/// <param name="Value">The number, large.</param>
+/// <param name="Unit">What it counts, small beside it ("pomodoros").</param>
+public sealed record StatCard(string Title, string Value, string Unit, string Detail);
 
-public sealed record DayBar(string Label, string Tooltip, int Count, double Fraction, bool IsToday);
+public sealed record DayBar(DateOnly Date, string Label, string Tooltip, int Count, double Fraction, bool IsToday);
 
 /// <param name="Label">Only every third hour is labelled; the rest are empty, or the axis is a wall of numbers.</param>
 public sealed record HourBar(string Label, string Tooltip, double Fraction, bool IsPeak);
@@ -54,7 +56,12 @@ public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] private Heatmap? _heatmap;
     [ObservableProperty] private string _heatmapSummary = "";
-    [ObservableProperty] private string _footer = "";
+    // The footer: "Best day: " then the day itself, which opens it, then the averages.
+    [ObservableProperty] private string _footerLead = "";
+    [ObservableProperty] private string _footerTail = "";
+    [ObservableProperty] private string _bestDayText = "";
+    [ObservableProperty] private bool _hasBestDay;
+    public DateOnly? BestDay { get; private set; }
     [ObservableProperty] private string _selectedProfile = AllProfiles;
     [ObservableProperty] private bool _hasMultipleProfiles;
     [ObservableProperty] private bool _isEmpty;
@@ -111,11 +118,11 @@ public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
         GoalText = outlook.WithoutLongBreaks.Length > 0 ? $"{outlook.Summary}, or {outlook.WithoutLongBreaks}" : outlook.Summary;
 
         Cards.Clear();
-        Cards.Add(new StatCard("Today", Count(r.TodayTotal.Count), Focus(r.TodayTotal.FocusMinutes)));
-        Cards.Add(new StatCard("This week", Count(r.ThisWeek.Count), Focus(r.ThisWeek.FocusMinutes)));
-        Cards.Add(new StatCard("Streak", Days(r.CurrentStreak.Length),
+        Cards.Add(new StatCard("Today", $"{r.TodayTotal.Count:N0}", Unit(r.TodayTotal.Count, "pomodoro"), Focus(r.TodayTotal.FocusMinutes)));
+        Cards.Add(new StatCard("This week", $"{r.ThisWeek.Count:N0}", Unit(r.ThisWeek.Count, "pomodoro"), Focus(r.ThisWeek.FocusMinutes)));
+        Cards.Add(new StatCard("Streak", $"{r.CurrentStreak.Length:N0}", Unit(r.CurrentStreak.Length, "day"),
             r.BestStreak.IsEmpty ? "No streaks yet" : $"Best: {Days(r.BestStreak.Length)}"));
-        Cards.Add(new StatCard("All time", Count(r.AllTime.Count), Focus(r.AllTime.FocusMinutes)));
+        Cards.Add(new StatCard("All time", $"{r.AllTime.Count:N0}", Unit(r.AllTime.Count, "pomodoro"), Focus(r.AllTime.FocusMinutes)));
 
         Bars.Clear();
         var first = r.Today.AddDays(-(BarDays - 1));
@@ -124,7 +131,8 @@ public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
         foreach (var d in days)
         {
             var label = d.Date == r.Today ? "Today" : d.Date.ToString("ddd d", CultureInfo.CurrentCulture);
-            Bars.Add(new DayBar(label, $"{d.Date:D}: {Count(d.Count)}, {Focus(d.FocusMinutes)}", d.Count, d.Count / (double)max, d.Date == r.Today));
+            Bars.Add(new DayBar(d.Date, label, $"{d.Date:D}: {Count(d.Count)}, {Focus(d.FocusMinutes)}. Click to see it.",
+                d.Count, d.Count / (double)max, d.Date == r.Today));
         }
 
         ApplyHours(r.HourOfDay);
@@ -133,9 +141,21 @@ public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
         var yearTotal = r.Heatmap.Weeks.SelectMany(w => w.Days).Where(c => !c.IsFuture).Sum(c => c.Count);
         HeatmapSummary = $"{Count(yearTotal)} in the last year";
 
-        Footer = r.BestDay is { } best
-            ? $"Best day: {best.Date:D} ({Count(best.Count)}) · Average on active days: {r.AverageCountPerActiveDay:0.#} pomodoros, {Focus((int)Math.Round(r.AverageMinutesPerActiveDay))}"
-            : "Complete a pomodoro to start your history.";
+        if (r.BestDay is { } best)
+        {
+            BestDay = best.Date;
+            HasBestDay = true;
+            FooterLead = "Best day: ";
+            BestDayText = $"{best.Date:D} ({Count(best.Count)})";
+            FooterTail = $"  ·  Average on active days: {r.AverageCountPerActiveDay:0.#} pomodoros, {Focus((int)Math.Round(r.AverageMinutesPerActiveDay))}";
+        }
+        else
+        {
+            BestDay = null;
+            HasBestDay = false;
+            FooterLead = "Complete a pomodoro to start your history.";
+            BestDayText = FooterTail = "";
+        }
     }
 
     private void ApplyHours(HourOfDay hours)
@@ -165,6 +185,7 @@ public sealed partial class StatisticsViewModel : ObservableObject, IDisposable
 
     private static string Count(int n) => n == 1 ? "1 pomodoro" : $"{n} pomodoros";
     private static string Days(int n) => n == 1 ? "1 day" : $"{n} days";
+    private static string Unit(int n, string one) => n == 1 ? one : one + "s";
 
     private static string Focus(int minutes)
     {

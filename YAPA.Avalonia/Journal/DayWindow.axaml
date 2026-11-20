@@ -279,6 +279,79 @@
             <Setter Property="Foreground" Value="#FF16161A" />
         </Style>
 
+        <!-- Day | Week: two halves of one pill, the one shown filled. -->
+        <Style Selector="Border.segments">
+            <Setter Property="Background" Value="#0FFFFFFF" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="3" />
+        </Style>
+        <Style Selector="Button.segment">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="12,4,12,5" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.segment:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#0AFFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+        </Style>
+        <Style Selector="Button.segment.on">
+            <Setter Property="Background" Value="#1FFFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+            <Setter Property="FontWeight" Value="Medium" />
+        </Style>
+        <Style Selector="Button.segment.on:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1FFFFFFF" />
+        </Style>
+
+        <!-- A day in the week: the whole row opens it. -->
+        <Style Selector="Button.weekRow">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="18,13,14,13" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="ItemsControl.entries ContentPresenter:nth-child(n+2) > Button.weekRow">
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+        </Style>
+        <Style Selector="Button.weekRow:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#08FFFFFF" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
+        </Style>
+        <Style Selector="Button.weekRow.empty TextBlock.title">
+            <Setter Property="Foreground" Value="{DynamicResource InkFaint}" />
+            <Setter Property="FontWeight" Value="Normal" />
+        </Style>
+        <Style Selector="Button.weekRow.future">
+            <Setter Property="Opacity" Value="0.4" />
+            <Setter Property="Cursor" Value="Arrow" />
+        </Style>
+        <Style Selector="Button.weekRow.future:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.weekRow.today TextBlock.time">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="ProgressBar.dayFocus">
+            <Setter Property="Height" Value="5" />
+            <Setter Property="MinHeight" Value="5" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Background" Value="#10FFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="TextBlock.count">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+            <Setter Property="FontFeatures" Value="+tnum" />
+        </Style>
         <!-- The date, which opens the calendar. -->
         <Style Selector="Button.dateButton">
             <Setter Property="Background" Value="Transparent" />
@@ -352,6 +425,9 @@
             <Setter Property="Width" Value="7" />
             <Setter Property="Height" Value="7" />
             <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <!-- Only while it shows: a hidden one animating keeps the renderer busy all the time. -->
+        <Style Selector="Ellipse.pulse[IsVisible=True]">
             <Style.Animations>
                 <Animation Duration="0:0:1.2" IterationCount="INFINITE">
                     <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
@@ -434,16 +510,24 @@
                 </StackPanel>
             </Button>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                <Button Classes="ghost icon" Command="{Binding PreviousCommand}" IsEnabled="{Binding HasPrevious}"
-                        ToolTip.Tip="The day before" AutomationProperties.Name="Previous day">
+                <!-- A day, or the week around it (W). -->
+                <Border Classes="segments" Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Classes="segment" Classes.on="{Binding IsDay}" Content="Day" Command="{Binding ShowDayViewCommand}" />
+                        <Button Classes="segment" Classes.on="{Binding IsWeek}" Content="Week" Command="{Binding ShowWeekCommand}" />
+                    </StackPanel>
+                </Border>
+                <Button Classes="ghost icon" Command="{Binding PreviousCommand}" IsEnabled="{Binding CanGoBack}"
+                        ToolTip.Tip="Before" AutomationProperties.Name="Previous">
                     <Path Classes="icon" Data="M 15 5 L 8 12 L 15 19" />
                 </Button>
-                <Button Classes="ghost" Content="Today" Command="{Binding TodayCommand}" IsVisible="{Binding !IsToday}" />
-                <Button Classes="ghost icon" Command="{Binding NextCommand}" IsEnabled="{Binding HasNext}"
-                        ToolTip.Tip="The day after" AutomationProperties.Name="Next day">
+                <Button Classes="ghost" Content="Today" Command="{Binding TodayCommand}" IsVisible="{Binding !AtToday}" />
+                <Button Classes="ghost icon" Command="{Binding NextCommand}" IsEnabled="{Binding CanGoForward}"
+                        ToolTip.Tip="After" AutomationProperties.Name="Next">
                     <Path Classes="icon" Data="M 9 5 L 16 12 L 9 19" />
                 </Button>
-                <Button x:Name="ForgetButton" Classes="ghost" Margin="8,0,0,0" ToolTip.Tip="Forget a stretch of time, or keep what's next off the record">
+                <Button x:Name="ForgetButton" Classes="ghost" Margin="8,0,0,0" IsVisible="{Binding IsDay}"
+                        ToolTip.Tip="Forget a stretch of time, or keep what's next off the record">
                     <Button.Flyout>
                         <Flyout Placement="BottomEdgeAlignedRight" FlyoutPresenterClasses="day" Opening="OnForgetOpening">
                             <StackPanel Width="350" Spacing="12">
@@ -498,7 +582,8 @@
         </Grid>
 
         <ScrollViewer Grid.Row="1" x:Name="Scroller" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="36,2,36,44" MaxWidth="800">
+            <Panel>
+            <StackPanel Margin="36,2,36,44" MaxWidth="800" IsVisible="{Binding IsDay}">
 
                 <Border Classes="banner" IsVisible="{Binding IsOffRecord}">
                     <Grid ColumnDefinitions="Auto,*,Auto">
@@ -514,12 +599,12 @@
                     </Grid>
                 </Border>
                 <StackPanel Orientation="Horizontal" Spacing="10" Margin="2,0,0,14" IsVisible="{Binding IsForgetting}">
-                    <Ellipse Classes="pulse" VerticalAlignment="Center" />
+                    <Ellipse Classes="pulse" VerticalAlignment="Center" IsVisible="{Binding IsForgetting}" />
                     <TextBlock Classes="stats" Text="Forgetting…" VerticalAlignment="Center" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Spacing="10" Margin="2,10,0,0" IsVisible="{Binding IsLoading}">
-                    <Ellipse Classes="pulse" VerticalAlignment="Center" />
+                    <Ellipse Classes="pulse" VerticalAlignment="Center" IsVisible="{Binding IsLoading}" />
                     <TextBlock Classes="stats" Text="Reading your day…" VerticalAlignment="Center" />
                 </StackPanel>
 
@@ -709,6 +794,90 @@
                                Text="{Binding PrivacyNote}" />
                 </StackPanel>
             </StackPanel>
+
+            <!-- Your week: the days, the projects across them, and the week in a few lines. -->
+            <Panel IsVisible="{Binding IsWeek}">
+            <StackPanel Margin="36,2,36,44" MaxWidth="800" DataContext="{Binding Week}" x:DataType="j:WeekViewModel">
+                <StackPanel Orientation="Horizontal" Spacing="10" Margin="2,10,0,0" IsVisible="{Binding IsLoading}">
+                    <Ellipse Classes="pulse" VerticalAlignment="Center" IsVisible="{Binding IsLoading}" />
+                    <TextBlock Classes="stats" Text="Reading your week…" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <Border Classes="hero">
+                    <Border.IsVisible>
+                        <MultiBinding Converter="{x:Static BoolConverters.And}">
+                            <Binding Path="!IsEmpty" />
+                            <Binding Path="!IsLoading" />
+                        </MultiBinding>
+                    </Border.IsVisible>
+                    <StackPanel Spacing="10">
+                        <TextBlock Classes="headline" Text="{Binding Headline}" />
+                        <TextBlock Classes="summary" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" />
+                        <TextBlock Classes="stats" Text="{Binding Stats}" Margin="0,6,0,0" />
+                        <ItemsControl ItemsSource="{Binding Projects}" Margin="0,4,0,-6">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="j:ProjectChip">
+                                    <Border Classes="chip">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <Ellipse Width="7" Height="7" Fill="{Binding Color}" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding Name}" />
+                                            <TextBlock Classes="faint" Text="{Binding Time}" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Border IsVisible="{Binding HasStatus}" Background="#0CFFFFFF" CornerRadius="10" Padding="12,8" Margin="0,6,0,0">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <Ellipse Classes="pulse" IsVisible="{Binding IsWriting}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                <TextBlock Grid.Column="1" Classes="stats" Text="{Binding Status}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0">
+                                    <Button Content="Sign in" Command="{Binding SignInCommand}" IsVisible="{Binding ShowSignIn}" />
+                                    <Button Content="Try again" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="hero" IsVisible="{Binding IsEmpty}" Padding="26,30">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="headline" Text="Nothing on record this week." />
+                        <TextBlock Classes="summary" Text="No pomodoros, and nothing from your conversations, commits, browsing or windows." />
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Classes="sessionLabel off" Text="THE DAYS" Margin="2,30,0,12" IsVisible="{Binding !IsLoading}" />
+                <Border Classes="card" IsVisible="{Binding !IsLoading}">
+                    <ItemsControl Classes="entries" ItemsSource="{Binding Days}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="j:WeekDayRow">
+                                <Button Classes="weekRow" Classes.today="{Binding IsToday}" Classes.empty="{Binding IsEmpty}" Classes.future="{Binding IsFuture}"
+                                        Click="OnWeekDayClick" AutomationProperties.Name="{Binding DateText}">
+                                    <Grid ColumnDefinitions="78,150,*,Auto">
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Classes="time" Text="{Binding Weekday}" />
+                                            <TextBlock Classes="length" Text="{Binding DateText}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="5" Margin="0,0,22,0">
+                                            <ProgressBar Classes="dayFocus" Minimum="0" Maximum="1" Value="{Binding Fraction}" IsVisible="{Binding !IsFuture}" />
+                                            <TextBlock Classes="length" Text="{Binding Focus}" Margin="0" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Classes="title" Classes.blank="{Binding !IsWritten}" Text="{Binding Headline}"
+                                                   VerticalAlignment="Center" MaxLines="2" TextTrimming="CharacterEllipsis" Cursor="Hand" />
+                                        <TextBlock Grid.Column="3" Classes="count" Text="{Binding Count}" VerticalAlignment="Center" Margin="14,0,4,0" />
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+            </StackPanel>
+            </Panel>
+            </Panel>
         </ScrollViewer>
     </Grid>
 </Window>

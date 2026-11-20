@@ -91,6 +91,17 @@ A ground-up revival of the Linux port.
   again (in place of the failed one), every answer has Copy, and Ctrl+N starts over. Scrolled up
   to read, new text no longer pulls you down: a fade and an arrow say there's more. Server
   failures read plainly ("Claude ran into a problem on its side").
+- **Your week.** Your day has a Day | Week switch (or W): the week's days with their focus and
+  headlines, focus by project across the week, and the week written up in a few lines from the
+  days' own write-ups (one short request; days not yet written up are written first). A day row
+  opens that day; the arrows and Today step by week; Copy gives the week as text for a review or
+  a status update. Ask YAPA reads it too ("how did last week go?"). Forgetting time drops the
+  week's write-up with the day's.
+- Statistics, redrawn in the app's look, and connected: click a day in the year's grid, a bar in
+  the last two weeks, or the best day, and it opens in Your day. The cards lead with the number.
+- An idle window no longer keeps the renderer busy: hidden "waiting" and "writing" dots stopped
+  animating out of sight (Your day open went from 18% of a core to 1%, on software rendering),
+  and Ask YAPA's orb rests after a minute alone, waking with the next keystroke or answer.
 - Your day: a pomodoro that's paused says so (it read "under way"), and keeps the start it
   really had instead of drifting later with every paused minute. A glance at a window (under
   half a minute) no longer makes an empty "Nothing on record" stretch. A failed write-up says

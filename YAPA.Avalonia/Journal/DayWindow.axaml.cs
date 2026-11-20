@@ -52,11 +52,21 @@ public partial class DayWindow : Window
             case Key.Right: _model.NextCommand.Execute(null); e.Handled = true; break;
             case Key.T: _model.TodayCommand.Execute(null); e.Handled = true; break;
             case Key.G: DateButton.Flyout?.ShowAt(DateButton); e.Handled = true; break;
+            case Key.W:
+                if (_model.IsWeek) _model.ShowDayViewCommand.Execute(null);
+                else _model.ShowWeekCommand.Execute(null);
+                e.Handled = true;
+                break;
             case Key.Escape: Close(); e.Handled = true; break;
         }
     }
 
     private void OnCalendarOpening(object? sender, EventArgs e) => _model.PrepareCalendar();
+
+    private void OnWeekDayClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: WeekDayRow row } && !row.IsEmpty) _model.OpenDay(row.Date);
+    }
 
     private void OnForgetOpening(object? sender, EventArgs e) => _model.PrepareForgetRange();
 

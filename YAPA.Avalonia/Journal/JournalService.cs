@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,6 +59,39 @@ public sealed record JournalDay(DateOnly Date, IReadOnlyList<JournalEntry> Entri
 
 /// <summary>Why a write-up didn't happen.</summary>
 public sealed record JournalProblem(string Message, bool SignedOut);
+
+/// <summary>A week of the journal: its days (up to today), and its own write-up.</summary>
+/// <param name="Summary">The week written up; null until it is (or without summaries).</param>
+/// <param name="Stale">The write-up isn't for the days as they are now (or there isn't one).</param>
+/// <param name="Request">What a write-up would be asked from: its fingerprint says whether the stored one still holds.</param>
+public sealed record JournalWeek(DateOnly Start, IReadOnlyList<JournalDay> Days, WeekSummary? Summary, bool Stale, string Request)
+{
+    public int Pomodoros => Days.Sum(d => d.Count);
+    public int FocusMinutes => Days.Sum(d => d.Minutes);
+    public int ActiveDays => Days.Count(d => d.Count > 0);
+    public bool IsEmpty => Days.All(d => d.Entries.Count == 0);
+
+    /// <summary>Focus time per project across the week, most first: each pomodoro's minutes shared among its projects.</summary>
+    public IReadOnlyList<(string Name, int Minutes)> Projects()
+    {
+        // Per project, and per spelling of it: the spelling used for the most time names it.
+        var totals = new Dictionary<string, Dictionary<string, double>>();
+        foreach (var e in Days.SelectMany(d => d.Entries).Where(e => !e.InProgress && !e.OffTimer && !e.OffRecord))
+        {
+            var projects = e.Projects.DistinctBy(ProjectColors.Key).ToList();
+            foreach (var p in projects)
+            {
+                var spellings = totals.TryGetValue(ProjectColors.Key(p), out var found) ? found : totals[ProjectColors.Key(p)] = [];
+                spellings[p] = spellings.GetValueOrDefault(p) + (double)e.Block.Minutes / projects.Count;
+            }
+        }
+        return totals.Values
+            .Select(v => (Name: v.MaxBy(x => x.Value).Key, Minutes: (int)Math.Round(v.Values.Sum())))
+            .Where(t => t.Minutes > 0)
+            .OrderByDescending(t => t.Minutes)
+            .ToList();
+    }
+}
 
 /// <summary>What forgetting a stretch of time did.</summary>
 /// <param name="Entries">Pomodoros and stretches off the timer it reached into.</param>
@@ -465,6 +499,71 @@ public sealed class JournalService : IDisposable
 
     public string? UserTitle(int pomodoroId) => _store.Titles([pomodoroId]).GetValueOrDefault(pomodoroId);
 
+    // ── Weeks ────────────────────────────────────────────────────────────────
+
+    /// <summary>The first day of <paramref name="day"/>'s week, as the user's locale counts weeks.</summary>
+    public static DateOnly WeekStart(DateOnly day)
+    {
+        var first = CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek;
+        return day.AddDays(-(((int)day.DayOfWeek - (int)first + 7) % 7));
+    }
+
+    /// <summary>The week from <paramref name="start"/>: each day up to today, read as Your day reads it. Off the UI thread.</summary>
+    public JournalWeek LoadWeek(DateOnly start)
+    {
+        var today = Today;
+        var days = Enumerable.Range(0, 7).Select(start.AddDays).Where(d => d <= today).Select(Load).ToList();
+        var request = WeekPrompt.Build(start, days.Where(d => d.Entries.Count > 0).Select(Digest).ToList());
+        var stored = _store.Week(start);
+        var stale = days.Any(d => d.Entries.Any(e => !e.InProgress && !e.OffRecord))
+                    && (stored == null || stored.Value.Fingerprint != WeekPrompt.Fingerprint(request));
+        return new JournalWeek(start, days, stored?.Summary, stale, request);
+    }
+
+    /// <summary>A day as the week's write-up sees it: what's done and on the record, by its written title or the evidence's.</summary>
+    private static WeekDay Digest(JournalDay day) => new(
+        day.Date, day.Count, day.Minutes,
+        day.Summary?.Headline ?? "", day.Summary?.Summary ?? "",
+        day.Summary?.Sessions.Select(s => s.Title).Where(t => t.Length > 0).ToList() ?? [],
+        day.Entries.Where(e => !e.InProgress && !e.OffRecord && e.Title.Length > 0)
+            .Select(e => new WeekEntry(e.Title, e.Projects, e.Block.Minutes, e.OffTimer)).ToList());
+
+    /// <summary>
+    /// Writes the week up, when it isn't for the days as they are. Days not yet written up are
+    /// written first (each its own request), so the week stands on their write-ups rather than
+    /// on bare evidence; <paramref name="progress"/> hears which.
+    /// </summary>
+    public async Task<(JournalWeek Week, JournalProblem? Problem)> WriteWeekAsync(DateOnly start, Action<DateOnly>? progress = null,
+        CancellationToken cancel = default)
+    {
+        var week = await Task.Run(() => LoadWeek(start), cancel);
+        if (!week.Stale || !_settings.Summaries) return (week, null);
+
+        foreach (var day in week.Days.Where(d => d.Stale && d.Date < Today))
+        {
+            progress?.Invoke(day.Date);
+            var (_, problem) = await WriteAsync(day.Date, cancel);
+            if (problem != null) return (week, problem);
+        }
+
+        await _writing.WaitAsync(cancel);
+        try
+        {
+            week = await Task.Run(() => LoadWeek(start), cancel);
+            if (!week.Stale) return (week, null);
+            var result = await ClaudeOneShot.AskAsync(WeekPrompt.System, week.Request, WeekPrompt.Schema, "sonnet", _account, cancel);
+            if (WeekPrompt.Parse(result.Answer) is not { } summary)
+                return (week, new JournalProblem(result.Error ?? "Claude's answer didn't make sense", result.SignedOut));
+            _store.SaveWeek(start, summary, WeekPrompt.Fingerprint(week.Request));
+            Trace.WriteLine($"[journal] wrote up the week of {start:yyyy-MM-dd}");
+            return (week with { Summary = summary, Stale = false }, null);
+        }
+        finally
+        {
+            _writing.Release();
+        }
+    }
+
     // ── Forgetting ───────────────────────────────────────────────────────────
 
     /// <summary>Ask YAPA conversations that could have seen [fromUtc, …]: those still going on at or after it.</summary>
@@ -496,6 +595,8 @@ public sealed class JournalService : IDisposable
         _offRecord.Forget(fromUtc, toUtc);
         _store.DeleteSpans(fromUtc, toUtc);
         for (var day = first; day <= last; day = day.AddDays(1)) ForgetWriteUps(day, fromUtc, toUtc);
+        // The week's write-up could mention it too: it's written again from the days as they now are.
+        for (var week = WeekStart(first); week <= last; week = week.AddDays(7)) _store.RemoveWeek(week);
 
         _claude.Scrub(fromUtc, toUtc);
         var deleted = conversations && _memory != null ? _memory.ForgetSince(fromUtc) : 0;

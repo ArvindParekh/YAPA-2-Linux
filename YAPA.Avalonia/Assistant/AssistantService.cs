@@ -123,12 +123,7 @@ public sealed class AssistantService : IDisposable
         _server = McpServer.Start(_toolbox);
         // The token is a secret: readable by the user only, and gone when the conversation is.
         _configPath = Path.Combine(directory, $"mcp-{Environment.ProcessId}.json");
-        using (var file = new FileStream(_configPath, new FileStreamOptions
-               {
-                   Mode = FileMode.Create,
-                   Access = FileAccess.Write,
-                   UnixCreateMode = OperatingSystem.IsWindows() ? null : UnixFileMode.UserRead | UnixFileMode.UserWrite,
-               }))
+        using (var file = new FileStream(_configPath, YAPA.Avalonia.Platform.OwnerOnlyFile.Create()))
         using (var writer = new StreamWriter(file))
         {
             writer.Write(_server.ClientConfig());

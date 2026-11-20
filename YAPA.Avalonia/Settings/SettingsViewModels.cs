@@ -438,6 +438,7 @@ public sealed partial class AboutPageViewModel : SettingsPageViewModel
         new("← →", "The day before, the day after"),
         new("T", "Today"),
         new("G", "Go to any day"),
+        new("W", "The week, or back to the day"),
         new("Esc", "Close"),
     ];
 

@@ -96,9 +96,18 @@ public sealed class OrbControl : Control
     /// <summary>Busy: smooth. Idle: the slow drift reads the same at half the rate. Untouched for a while: a quiet breath.</summary>
     private double FrameInterval(double now)
     {
-        if (Mood is OrbMood.Thinking or OrbMood.Acting or OrbMood.Speaking || _impulse > 0.05 || _ring < 1) return 1.0 / 60;
+        if (Busy) return 1.0 / 60;
         return now - _lastStirred > 20 ? 1.0 / 15 : 1.0 / 30;
     }
+
+    private bool Busy => Mood is OrbMood.Thinking or OrbMood.Acting or OrbMood.Speaking || _impulse > 0.05 || _ring < 1;
+
+    /// <summary>
+    /// Left alone this long, the orb rests: one last frame, and no more until something stirs it.
+    /// A panel left open costs nothing then (at 15 frames a second, software rendering spent a
+    /// seventh of a core on a drift nobody was watching).
+    /// </summary>
+    private const double RestAfter = 60;
 
     public OrbControl()
     {
@@ -111,6 +120,7 @@ public sealed class OrbControl : Control
     {
         _impulse = Math.Min(1.0, _impulse + amount);
         _lastStirred = _clock.Elapsed.TotalSeconds;
+        StartAnimating();
     }
 
     /// <summary>A ripple and a lift: something was done.</summary>
@@ -119,13 +129,18 @@ public sealed class OrbControl : Control
         _lastStirred = _clock.Elapsed.TotalSeconds;
         _ring = 0;
         _impulse = Math.Min(1.0, _impulse + 0.5);
+        StartAnimating();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
         if (change.Property == IsVisibleProperty) StartAnimating();
-        if (change.Property == MoodProperty) _lastStirred = _clock.Elapsed.TotalSeconds;
+        if (change.Property == MoodProperty || change.Property == PaletteProperty)
+        {
+            _lastStirred = _clock.Elapsed.TotalSeconds;
+            StartAnimating();
+        }
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -138,7 +153,11 @@ public sealed class OrbControl : Control
     /// Starts the motion again after the window was hidden: hiding a window stops the frames,
     /// and showing it again changes nothing the orb itself can see.
     /// </summary>
-    public void Resume() => StartAnimating();
+    public void Resume()
+    {
+        _lastStirred = _clock.Elapsed.TotalSeconds;
+        StartAnimating();
+    }
 
     private void StartAnimating()
     {
@@ -214,6 +233,13 @@ public sealed class OrbControl : Control
 
         // Frames cost CPU wherever the GPU doesn't draw them: only as many as the motion needs.
         InvalidateVisual();
+        if (!Busy && now - _lastStirred > RestAfter)
+        {
+            // This frame stays on screen, mid-breath; the next stir picks the motion up from here.
+            _frames!.Stop();
+            _animating = false;
+            return;
+        }
         var interval = TimeSpan.FromSeconds(FrameInterval(now));
         if (_frames!.Interval != interval) _frames.Interval = interval;
     }

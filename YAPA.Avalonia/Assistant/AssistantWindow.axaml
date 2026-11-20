@@ -357,12 +357,16 @@
             <Setter Property="Background" Value="#D9FFFFFF" />
         </Style>
 
-        <!-- "…" while an answer is on its way. -->
+        <!-- "…" while an answer is on its way. The animations run only while a dot shows: there are
+             three in every exchange, and hidden ones animating kept the renderer busy (28% of a core
+             with the panel idle, on software rendering). -->
         <Style Selector="Ellipse.dot">
             <Setter Property="Width" Value="5" />
             <Setter Property="Height" Value="5" />
             <Setter Property="Fill" Value="#B0FFFFFF" />
             <Setter Property="Margin" Value="0,0,4,0" />
+                    </Style>
+        <Style Selector="Ellipse.dot[IsVisible=True]">
             <Style.Animations>
                 <Animation Duration="0:0:1.2" IterationCount="Infinite">
                     <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
@@ -372,7 +376,7 @@
                 </Animation>
             </Style.Animations>
         </Style>
-        <Style Selector="Ellipse.dot.second">
+        <Style Selector="Ellipse.dot.second[IsVisible=True]">
             <Style.Animations>
                 <Animation Duration="0:0:1.2" IterationCount="Infinite" Delay="0:0:0.15">
                     <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
@@ -382,7 +386,7 @@
                 </Animation>
             </Style.Animations>
         </Style>
-        <Style Selector="Ellipse.dot.third">
+        <Style Selector="Ellipse.dot.third[IsVisible=True]">
             <Style.Animations>
                 <Animation Duration="0:0:1.2" IterationCount="Infinite" Delay="0:0:0.3">
                     <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
@@ -478,9 +482,9 @@
                                     </Border>
                                     <StackPanel Orientation="Horizontal" Margin="0,6,0,4"
                                                 IsVisible="{Binding IsWaiting}">
-                                        <Ellipse Classes="dot" />
-                                        <Ellipse Classes="dot second" />
-                                        <Ellipse Classes="dot third" />
+                                        <Ellipse Classes="dot" IsVisible="{Binding IsWaiting}" />
+                                        <Ellipse Classes="dot second" IsVisible="{Binding IsWaiting}" />
+                                        <Ellipse Classes="dot third" IsVisible="{Binding IsWaiting}" />
                                     </StackPanel>
                                     <ItemsControl Classes="answer" Classes.error="{Binding IsError}" ItemsSource="{Binding Blocks}"
                                                   IsVisible="{Binding HasAnswer}">

@@ -250,3 +250,43 @@ public class JournalPromptTests
         Assert.IsNull(JournalPrompt.Parse(JsonNode.Parse("""{"nonsense":true}""")));
     }
 }
+
+[TestClass]
+public class WeekPromptTests
+{
+    private static readonly DateOnly Monday = new(2026, 11, 16);
+
+    [TestMethod]
+    public void A_week_is_built_from_what_its_days_already_say()
+    {
+        var days = new[]
+        {
+            new WeekDay(Monday.AddDays(1), 2, 100, "", "", [],
+                [new WeekEntry("Fixed the token sk-ant-abcdefghijklmnopqrstuvwxyz in config", ["YAPA"], 50, false)]),
+            new WeekDay(Monday, 6, 300, "Mock Room interview app built out", "About 4 h on Mock Room.", ["Mock Room app"],
+            [
+                new WeekEntry("Added the answer key", ["Mock Room"], 50, false),
+                new WeekEntry("Watched videos on YouTube", [], 40, true),
+            ]),
+        };
+
+        var request = WeekPrompt.Build(Monday, days);
+
+        StringAssert.Contains(request, "8 pomodoros, 6 h 40 min of focus, on 2 days.");
+        Assert.IsTrue(request.IndexOf("Monday 16 November", StringComparison.Ordinal) < request.IndexOf("Tuesday 17 November", StringComparison.Ordinal), "in order");
+        StringAssert.Contains(request, "Headline: Mock Room interview app built out");
+        StringAssert.Contains(request, "- Watched videos on YouTube · 40 min · off the timer");
+        StringAssert.Contains(request, "- Added the answer key [Mock Room] · 50 min");
+        Assert.IsFalse(request.Contains("sk-ant-abcdefghij"), "a key in a title stays on this computer");
+        Assert.AreEqual(WeekPrompt.Fingerprint(request), WeekPrompt.Fingerprint(WeekPrompt.Build(Monday, days)), "the same week, the same fingerprint");
+    }
+
+    [TestMethod]
+    public void The_answer_is_a_headline_and_a_summary()
+    {
+        var week = WeekPrompt.Parse(JsonNode.Parse("""{"headline":"Mostly **Mock Room**.","summary":"About 9 h on it."}"""));
+        Assert.AreEqual(new WeekSummary("Mostly Mock Room", "About 9 h on it."), week);
+        Assert.IsNull(WeekPrompt.Parse(JsonNode.Parse("""{"headline":"","summary":""}""")));
+        Assert.IsNull(WeekPrompt.Parse(JsonNode.Parse("[]")));
+    }
+}

@@ -502,6 +502,23 @@ public class AssistantExtraToolTests
     }
 
     [TestMethod]
+    public void The_week_is_there_to_ask_about()
+    {
+        using var rig = new AssistantRig(withJournal: true);
+        rig.History.Add(new PomodoroEntity { DateTime = rig.Clock.UtcNow.AddHours(-2), Count = 1, DurationMin = 50, ProfileName = "Pomodoro" });
+
+        var week = rig.Ok("get_week");
+
+        Assert.AreEqual(1, week["pomodoros"]!.GetValue<int>());
+        Assert.AreEqual(50, week["focus_minutes"]!.GetValue<int>());
+        var today = DateOnly.FromDateTime(rig.LocalNow);
+        Assert.AreEqual(Enumerable.Range(0, 7).Count(i => YAPA.Avalonia.Journal.JournalService.WeekStart(today).AddDays(i) <= today),
+            week["days"]!.AsArray().Count, "the days so far");
+        Assert.IsTrue(rig.Ok("get_week", """{"date": "last week"}""")["week"]!.GetValue<string>().StartsWith(
+            YAPA.Avalonia.Journal.JournalService.WeekStart(today).AddDays(-7).ToString("yyyy-MM-dd")));
+    }
+
+    [TestMethod]
     public void Forgetting_takes_exact_times_refuses_nonsense_and_cant_be_undone()
     {
         using var rig = new AssistantRig(withJournal: true);

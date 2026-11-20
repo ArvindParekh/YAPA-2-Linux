@@ -3,45 +3,134 @@
         xmlns:s="using:YAPA.Avalonia.Statistics"
         x:Class="YAPA.Avalonia.Windows.StatisticsWindow"
         x:DataType="s:StatisticsViewModel"
-        Title="YAPA 2 · Statistics"
-        Width="860" Height="600" MinWidth="720" MinHeight="480"
-        WindowStartupLocation="CenterScreen">
+        Title="Statistics · YAPA"
+        Width="920" Height="780" MinWidth="720" MinHeight="520"
+        WindowStartupLocation="CenterScreen"
+        RequestedThemeVariant="Dark"
+        Background="{DynamicResource WindowSurface}"
+        FontFamily="{StaticResource UiFont}">
 
+    <!-- Settings' look (dark cards, hairlines, one tomato accent), so the app's windows read as one. -->
     <Window.Styles>
-        <Style Selector="Border.card">
-            <Setter Property="Background" Value="#14808080" />
-            <Setter Property="BorderBrush" Value="#22808080" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="16,12" />
+        <StyleInclude Source="avares://YAPA.Avalonia/Settings/SettingsStyles.axaml" />
+
+        <Style Selector="TextBlock.title">
+            <Setter Property="FontSize" Value="28" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+            <Setter Property="LetterSpacing" Value="-0.4" />
         </Style>
-        <Style Selector="TextBlock.caption">
+        <Style Selector="TextBlock.subtitle">
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+            <Setter Property="Margin" Value="1,3,0,0" />
+        </Style>
+        <Style Selector="Border.stat">
+            <Setter Property="Background" Value="{DynamicResource CardSurface}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="16,13,16,14" />
+        </Style>
+        <Style Selector="TextBlock.statTitle">
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+        </Style>
+        <Style Selector="TextBlock.statValue">
+            <Setter Property="FontSize" Value="26" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+            <Setter Property="LetterSpacing" Value="-0.5" />
+            <Setter Property="FontFeatures" Value="+tnum" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style Selector="Run.unit">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+        </Style>
+        <Style Selector="TextBlock.statDetail">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         </Style>
         <Style Selector="TextBlock.section">
-            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontSize" Value="15" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+        </Style>
+        <Style Selector="TextBlock.aside">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.axis">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Foreground" Value="{DynamicResource InkFaint}" />
+            <Setter Property="FontFeatures" Value="+tnum" />
+        </Style>
+        <Style Selector="TextBlock.axis.today">
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Border.panel">
+            <Setter Property="Background" Value="{DynamicResource CardSurface}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="20,16,20,16" />
+        </Style>
+
+        <!-- A day's bar: the whole column is the target, and it lights up under the pointer. -->
+        <Style Selector="Button.dayBar">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="2,0" />
+        </Style>
+        <Style Selector="Button.dayBar:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#0CFFFFFF" />
+        </Style>
+        <Style Selector="Button.dayBar:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF" />
+        </Style>
+
+        <Style Selector="Button.textLink">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+            <Setter Property="FontSize" Value="12.5" />
+        </Style>
+        <Style Selector="Button.textLink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
         </Style>
     </Window.Styles>
 
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="24,20" Spacing="20">
+        <StackPanel Margin="36,28,36,36" MaxWidth="900" Spacing="20">
 
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel>
-                    <TextBlock Text="Statistics" FontSize="24" FontWeight="SemiBold" />
-                    <TextBlock Classes="caption" Text="{Binding GoalText}" IsVisible="{Binding HasGoal}" Margin="0,2,0,0" />
+                    <TextBlock Classes="title" Text="Statistics" />
+                    <TextBlock Classes="subtitle" Text="{Binding GoalText}" IsVisible="{Binding HasGoal}" />
                 </StackPanel>
                 <ComboBox Grid.Column="1" VerticalAlignment="Center" MinWidth="180"
                           ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
                           IsVisible="{Binding HasMultipleProfiles}" />
             </Grid>
 
-            <ProgressBar Minimum="0" Maximum="1" Value="{Binding GoalProgress}" Height="6"
-                         CornerRadius="3" Foreground="Tomato" IsVisible="{Binding HasGoal}"
-                         ToolTip.Tip="Daily goal (change it in Settings → General)" />
+            <ProgressBar Minimum="0" Maximum="1" Value="{Binding GoalProgress}" Height="5" MinHeight="5"
+                         CornerRadius="3" Foreground="{DynamicResource AccentBrush}" Background="#14FFFFFF"
+                         IsVisible="{Binding HasGoal}" Margin="0,-8,0,0"
+                         ToolTip.Tip="Today against your daily goal (Settings → General)" />
 
             <ItemsControl ItemsSource="{Binding Cards}">
                 <ItemsControl.ItemsPanel>
@@ -49,57 +138,63 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="s:StatCard">
-                        <Border Classes="card" Margin="0,0,12,0">
-                            <StackPanel Spacing="4">
-                                <TextBlock Classes="caption" Text="{Binding Title}" />
-                                <TextBlock Text="{Binding Value}" FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Classes="caption" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+                        <Border Classes="stat" Margin="0,0,12,0">
+                            <StackPanel Spacing="3">
+                                <TextBlock Classes="statTitle" Text="{Binding Title}" />
+                                <TextBlock Classes="statValue">
+                                    <Run Text="{Binding Value}" /><Run Text=" " /><Run Classes="unit" Text="{Binding Unit}" />
+                                </TextBlock>
+                                <TextBlock Classes="statDetail" Text="{Binding Detail}" />
                             </StackPanel>
                         </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <Border Classes="card">
-                <StackPanel>
+            <Border Classes="panel">
+                <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Classes="section" Text="Year in pomodoros" />
-                        <TextBlock Grid.Column="1" Classes="caption" Text="{Binding HeatmapSummary}" />
+                        <TextBlock Grid.Column="1" Classes="aside" Text="{Binding HeatmapSummary}" />
                     </Grid>
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                        <s:HeatmapControl Heatmap="{Binding Heatmap}" HorizontalAlignment="Left" />
+                        <s:HeatmapControl x:Name="Heatmap" Heatmap="{Binding Heatmap}" HorizontalAlignment="Left" />
                     </ScrollViewer>
+                    <TextBlock Classes="aside" Text="Click a day to see what you did in it." />
                 </StackPanel>
             </Border>
 
-            <Border Classes="card">
-                <StackPanel>
+            <Border Classes="panel">
+                <StackPanel Spacing="10">
                     <TextBlock Classes="section" Text="Last two weeks" />
-                    <ItemsControl ItemsSource="{Binding Bars}" Height="150">
+                    <ItemsControl ItemsSource="{Binding Bars}" Height="168">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="s:DayBar">
-                                <Grid RowDefinitions="Auto,*,Auto" Margin="3,0" ToolTip.Tip="{Binding Tooltip}" Background="Transparent">
-                                    <TextBlock Classes="caption" Text="{Binding Count}" HorizontalAlignment="Center" />
-                                    <s:BarFill Grid.Row="1" Fraction="{Binding Fraction}" Highlight="{Binding IsToday}" Margin="4,4" />
-                                    <TextBlock Grid.Row="2" Classes="caption" Text="{Binding Label}" FontSize="10"
-                                               HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                </Grid>
+                                <Button Classes="dayBar" Click="OnDayBarClick" ToolTip.Tip="{Binding Tooltip}"
+                                        AutomationProperties.Name="{Binding Tooltip}">
+                                    <Grid RowDefinitions="Auto,*,Auto" Margin="0,6,0,6">
+                                        <TextBlock Classes="axis" Classes.today="{Binding IsToday}" Text="{Binding Count}" HorizontalAlignment="Center" />
+                                        <s:BarFill Grid.Row="1" Fraction="{Binding Fraction}" Highlight="{Binding IsToday}" Margin="6,5" />
+                                        <TextBlock Grid.Row="2" Classes="axis" Classes.today="{Binding IsToday}" Text="{Binding Label}"
+                                                   HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                </Button>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </StackPanel>
             </Border>
 
-            <Border Classes="card" IsVisible="{Binding HasHours}">
-                <StackPanel>
+            <Border Classes="panel" IsVisible="{Binding HasHours}">
+                <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Classes="section" Text="When you focus" />
-                        <TextBlock Grid.Column="1" Classes="caption" Text="{Binding HourSummary}" />
+                        <TextBlock Grid.Column="1" Classes="aside" Text="{Binding HourSummary}" />
                     </Grid>
-                    <ItemsControl ItemsSource="{Binding HourBars}" Height="110">
+                    <ItemsControl ItemsSource="{Binding HourBars}" Height="116">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
@@ -108,8 +203,8 @@
                                 <Grid RowDefinitions="*,Auto" ToolTip.Tip="{Binding Tooltip}" Background="Transparent">
                                     <s:BarFill Fraction="{Binding Fraction}" Highlight="{Binding IsPeak}" Margin="2,0" />
                                     <!-- Left-aligned and unclipped: the mark sits at the start of its hour, like an axis tick. -->
-                                    <TextBlock Grid.Row="1" Classes="caption" Text="{Binding Label}" FontSize="10"
-                                               HorizontalAlignment="Left" Margin="2,4,0,0" ClipToBounds="False" />
+                                    <TextBlock Grid.Row="1" Classes="axis" Text="{Binding Label}"
+                                               HorizontalAlignment="Left" Margin="2,5,0,0" ClipToBounds="False" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -117,7 +212,12 @@
                 </StackPanel>
             </Border>
 
-            <TextBlock Classes="caption" Text="{Binding Footer}" TextWrapping="Wrap" />
+            <WrapPanel Margin="4,0">
+                <TextBlock Classes="note" Text="{Binding FooterLead}" VerticalAlignment="Center" />
+                <Button Classes="textLink" Content="{Binding BestDayText}" IsVisible="{Binding HasBestDay}" Click="OnBestDayClick"
+                        VerticalAlignment="Center" />
+                <TextBlock Classes="note" Text="{Binding FooterTail}" VerticalAlignment="Center" />
+            </WrapPanel>
         </StackPanel>
     </ScrollViewer>
 </Window>

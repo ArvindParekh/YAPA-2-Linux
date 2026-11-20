@@ -43,6 +43,8 @@ public sealed class JournalStore : IDisposable
             "PomodoroId" INTEGER NOT NULL PRIMARY KEY, "Title" TEXT NOT NULL, "EditedUtc" TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS "JournalDays" (
             "Day" TEXT NOT NULL PRIMARY KEY, "Summary" TEXT NOT NULL, "Fingerprints" TEXT NOT NULL, "WrittenUtc" TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS "JournalWeeks" (
+            "Start" TEXT NOT NULL PRIMARY KEY, "Headline" TEXT NOT NULL, "Summary" TEXT NOT NULL, "Fingerprint" TEXT NOT NULL, "WrittenUtc" TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS "OffRecord" (
             "Id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
             "StartUtc" TEXT NOT NULL, "EndUtc" TEXT NOT NULL, "Kind" TEXT NOT NULL, "CreatedUtc" TEXT NOT NULL);
@@ -254,6 +256,30 @@ public sealed class JournalStore : IDisposable
             ("$at", Format(DateTime.UtcNow)));
     }
 
+    // ── Weeks ────────────────────────────────────────────────────────────────
+
+    /// <summary>A week's write-up as kept, with the fingerprint of the days it was written from.</summary>
+    public (WeekSummary Summary, string Fingerprint)? Week(DateOnly start)
+    {
+        (WeekSummary, string)? result = null;
+        Query("""SELECT "Headline", "Summary", "Fingerprint" FROM "JournalWeeks" WHERE "Start" = $start;""",
+            r => result = (new WeekSummary(r.GetString(0), r.GetString(1)), r.GetString(2)),
+            ("$start", start.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
+        return result;
+    }
+
+    public void SaveWeek(DateOnly start, WeekSummary summary, string fingerprint)
+        => Execute("""
+            INSERT INTO "JournalWeeks" ("Start", "Headline", "Summary", "Fingerprint", "WrittenUtc") VALUES ($start, $headline, $summary, $print, $at)
+            ON CONFLICT ("Start") DO UPDATE SET "Headline" = excluded."Headline", "Summary" = excluded."Summary",
+                "Fingerprint" = excluded."Fingerprint", "WrittenUtc" = excluded."WrittenUtc";
+            """,
+            ("$start", start.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)), ("$headline", summary.Headline), ("$summary", summary.Summary),
+            ("$print", fingerprint), ("$at", Format(DateTime.UtcNow)));
+
+    public void RemoveWeek(DateOnly start)
+        => Execute("""DELETE FROM "JournalWeeks" WHERE "Start" = $start;""", ("$start", start.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
+
     /// <summary>
     /// Everything the journal recorded or wrote. The pomodoros themselves stay, and so does the
     /// time off the record: the browsers and Claude Code still have what happened in it, and
@@ -261,7 +287,7 @@ public sealed class JournalStore : IDisposable
     /// </summary>
     public void Forget()
     {
-        Execute("""DELETE FROM "ActivitySpans"; DELETE FROM "JournalDays"; DELETE FROM "JournalTitles";""");
+        Execute("""DELETE FROM "ActivitySpans"; DELETE FROM "JournalDays"; DELETE FROM "JournalTitles"; DELETE FROM "JournalWeeks";""");
     }
 
     private static JsonObject WriteSummary(DaySummary s) => new()

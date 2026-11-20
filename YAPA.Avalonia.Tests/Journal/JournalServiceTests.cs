@@ -63,6 +63,9 @@ public class JournalServiceTests
         var answer = signedOut
             ? """print(json.dumps({"type": "result", "is_error": True, "result": "Failed to authenticate: OAuth session expired and could not be refreshed"}))"""
             : """
+              if prompt.startswith("# The week of"):
+                  print(json.dumps({"type": "result", "is_error": False, "structured_output": {"headline": "A week", "summary": "Days happened."}}))
+                  sys.exit(0)
               ids = [int(m) for m in re.findall(r"^## (?:Pomodoro|Off the timer) (-?\d+) .*?(?<!\(kept\))$", prompt, re.M)]
               print(json.dumps({"type": "result", "is_error": False, "structured_output": {
                   "pomodoros": [{"id": i, "title": f"Wrote {i}", "detail": "", "projects": ["YAPA"]} for i in ids],
@@ -321,6 +324,38 @@ public class JournalServiceTests
         Assert.AreEqual(1, outcome.Conversations);
         Assert.AreEqual("Morning?", memory.Conversations(DateTime.MinValue).Single().Exchanges.Single().Question, "earlier ones stay");
         Assert.IsTrue(heard!.WithConversations, "the one on screen is told to go too");
+    }
+
+    [TestMethod]
+    public async Task A_week_is_written_from_its_days_after_the_unwritten_ones_are()
+    {
+        var start = JournalService.WeekStart(Day);
+        Pomodoro(Local(10, 0));
+        Window(9, 15, 9, 40, "Zen", "Canvas — Zen Browser");
+        // A day earlier in the week, never opened: written up first, so the week stands on it.
+        var earlier = Day.AddDays(-1) >= start ? Day.AddDays(-1) : Day;
+        Pomodoro(TimeZoneInfo.ConvertTimeToUtc(earlier.ToDateTime(new TimeOnly(15, 0)), Zone));
+
+        var week = _journal.LoadWeek(start);
+        Assert.AreEqual(Enumerable.Range(0, 7).Select(start.AddDays).Count(d => d <= Day), week.Days.Count, "the days up to today, none after");
+        Assert.AreEqual(2, week.Pomodoros);
+        Assert.IsTrue(week.Stale);
+
+        var written = new System.Collections.Generic.List<DateOnly>();
+        var (done, problem) = await _journal.WriteWeekAsync(start, written.Add);
+        Assert.IsNull(problem);
+        Assert.AreEqual("A week", done.Summary!.Headline);
+        if (earlier != Day) CollectionAssert.Contains(written, earlier, "the unwritten day went first");
+        var request = File.ReadAllText(_calls).Split("=====").Single(c => c.TrimStart().StartsWith("# The week of"));
+        StringAssert.Contains(request, "Headline: A day", "built on the days' write-ups");
+
+        var calls = Calls;
+        Assert.IsFalse(_journal.LoadWeek(start).Stale, "kept: opened again, nothing is asked");
+        await _journal.WriteWeekAsync(start);
+        Assert.AreEqual(calls, Calls);
+
+        _journal.Forget(Local(9, 0), Local(9, 50), conversations: false);
+        Assert.IsNull(_journal.LoadWeek(start).Summary, "forgetting drops the week's lines too: they could mention it");
     }
 
     [TestMethod]
