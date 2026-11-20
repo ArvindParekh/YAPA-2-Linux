@@ -169,6 +169,10 @@ public partial class AssistantWindow : Window
         _vm.Opened();
         Refresh();
         Dispatcher.UIThread.Post(() => Prompt.Focus(), DispatcherPriority.Input);
+        // Above the timer the card grows upwards, from its bottom edge: as the list narrowed to
+        // what's typed, the field would move down under the caret. It keeps its opening height.
+        if (Card.VerticalAlignment == VerticalAlignment.Bottom)
+            Dispatcher.UIThread.Post(() => Card.MinHeight = Card.Bounds.Height, DispatcherPriority.Background);
     }
 
     /// <summary>Fades the card out, then hides the window.</summary>
@@ -225,6 +229,7 @@ public partial class AssistantWindow : Window
         Height = cardMax + 2 * Gutter;
         // The body's row takes what the rest leaves, so the field can grow without pushing out of the card.
         Card.MaxHeight = cardMax;
+        Card.MinHeight = 0;
         Card.VerticalAlignment = above ? VerticalAlignment.Bottom : VerticalAlignment.Top;
         Card.Classes.Set("above", above);
         Position = new PixelPoint(cardAt.X - Px(Gutter), cardAt.Y - Px(Gutter));
@@ -417,8 +422,9 @@ public partial class AssistantWindow : Window
             Keycap("ctrl", "N");
             Label("New", last: true);
         }
-        // One line beside the keys; a message that matters (Claude Code missing) gets the room it needs.
-        var wrap = Hints.Children.Count == 0 || _vm.IsUnavailable;
+        // One line beside the keys; a message that matters (Claude Code missing) gets the foot to itself.
+        if (_vm.IsUnavailable) Hints.Children.Clear();
+        var wrap = Hints.Children.Count == 0;
         CaptionText.TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap;
         CaptionText.TextTrimming = wrap ? TextTrimming.None : TextTrimming.CharacterEllipsis;
     }
