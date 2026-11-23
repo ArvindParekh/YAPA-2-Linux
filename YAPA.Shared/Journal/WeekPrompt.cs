@@ -33,13 +33,14 @@ public static class WeekPrompt
     private const int EntriesPerDay = 12;
 
     public const string System = """
-        You write the week's entry in a work journal. You get each day of the week as its journal has it: the pomodoros (focused work intervals) and focus time, the day's own headline and summary when it has been written, the sessions, and the things done, each with its projects and minutes. Entries marked "off the timer" were at the computer outside a pomodoro: there, but not focus time.
+        You write the week's entry in a short work journal, for a glance. You get each day as its journal has it: pomodoros (focused work intervals) and focus time, the day's headline and summary when written, the sessions, and the things done with their projects and minutes. Entries marked "off the timer" were at the computer outside a pomodoro: there, but not focus time.
 
         Write
-        - Headline: at most 12 words, the shape of the week (what it was mostly about).
-        - Summary: 3 to 5 sentences, at most 110 words. Where the focus time went, by project with rough hours; what moved forward or got done, by name; which days carried the week and which were light. Mention time off the timer only when there was a lot of it, plainly.
-        - Only what the days say. "Worked on" unless a day says it was finished. Use the projects' own names, the same way the days spell them.
-        - Plain and factual: no praise, no judgement, no advice, no markdown. Never refer to the user by a pronoun or as "the user": write like a log.
+        - Headline: at most 8 words, what the week was mostly about.
+        - Summary: two short sentences, at most 40 words: what the week went to, and what got done, by name. No hour counts or day-by-day lists: the page shows those.
+        - Everyday words, no jargon, no tool, file or site names unless they are the work itself. Use the projects' names as the days spell them.
+        - Only what the days say: "Worked on" unless a day says it was finished.
+        - No praise, no judgement, no advice, no markdown. Never "the user" or a pronoun: write like a log.
         """;
 
     public static string Schema => """
@@ -76,7 +77,7 @@ public static class WeekPrompt
 
     /// <summary>A short, stable fingerprint of the request: the week is rewritten only when what it's built from changes.</summary>
     public static string Fingerprint(string request)
-        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request)))[..16].ToLowerInvariant();
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JournalPrompt.Style + "\n" + request)))[..16].ToLowerInvariant();
 
     /// <summary>The answer, from Claude Code's structured output; null when it isn't one.</summary>
     public static WeekSummary? Parse(JsonNode? answer)

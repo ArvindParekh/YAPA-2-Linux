@@ -212,6 +212,27 @@ public class JournalPromptTests
     }
 
     [TestMethod]
+    public void Names_already_in_use_go_in_the_request_so_projects_keep_one_name()
+    {
+        var zone = TimeZoneInfo.CreateCustomTimeZone("EST", TimeSpan.FromHours(-5), "EST", "EST");
+        var blocks = new[] { new PromptBlock(new WorkBlock(1, Start, Start.AddMinutes(50), 50, 1), 1, BlockEvidence(), null, null) };
+
+        StringAssert.Contains(JournalPrompt.Build(new DateOnly(2026, 11, 18), blocks, zone, knownProjects: ["Interview prep", "Langpair"]),
+            "Names already in use: Interview prep, Langpair.");
+        Assert.IsFalse(JournalPrompt.Build(new DateOnly(2026, 11, 18), blocks, zone).Contains("Names already in use"), "nothing to say without any");
+    }
+
+    [TestMethod]
+    public void The_style_is_part_of_the_fingerprint_so_a_new_style_rewrites_each_day_once()
+    {
+        var e = BlockEvidence();
+        var plain = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(JournalPrompt.Describe(e, t => t.ToString("O", System.Globalization.CultureInfo.InvariantCulture)))))[..16].ToLowerInvariant();
+        Assert.AreNotEqual(plain, JournalPrompt.Fingerprint(e));
+        Assert.AreEqual(JournalPrompt.Fingerprint(e), JournalPrompt.Fingerprint(e), "and stable within a style");
+    }
+
+    [TestMethod]
     public void Time_off_the_timer_goes_in_the_request_as_itself()
     {
         var zone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");

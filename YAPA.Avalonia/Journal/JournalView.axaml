@@ -21,152 +21,150 @@
             <Setter Property="Margin" Value="1,2,0,0" />
         </Style>
 
-        <!-- The day at the top. -->
+        <!-- The day (or week) at a glance: a headline, a line or two, three numbers, the timeline, a few projects. -->
         <Style Selector="Border.hero">
             <Setter Property="Background" Value="{StaticResource Surface}" />
             <Setter Property="BorderBrush" Value="{StaticResource LineStrong}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="14" />
-            <Setter Property="Padding" Value="24,22,24,20" />
+            <Setter Property="Padding" Value="26,24,26,22" />
         </Style>
         <Style Selector="TextBlock.headline">
-            <Setter Property="FontSize" Value="21" />
+            <Setter Property="FontSize" Value="22" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="LineHeight" Value="28" />
-            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+            <Setter Property="LineHeight" Value="29" />
+            <Setter Property="LetterSpacing" Value="-0.3" />
+            <Setter Property="Foreground" Value="{StaticResource Text1}" />
             <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="LetterSpacing" Value="-0.2" />
         </Style>
         <Style Selector="TextBlock.summary">
-            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontSize" Value="14.5" />
             <Setter Property="LineHeight" Value="22" />
             <Setter Property="Foreground" Value="{StaticResource Text2}" />
             <Setter Property="TextWrapping" Value="Wrap" />
+            <!-- A paragraph from before the plainer write-ups still fits the card. -->
+            <Setter Property="MaxLines" Value="3" />
+            <Setter Property="TextTrimming" Value="WordEllipsis" />
+        </Style>
+        <Style Selector="TextBlock.bigNumber">
+            <Setter Property="FontSize" Value="26" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="LetterSpacing" Value="-0.6" />
+            <Setter Property="FontFeatures" Value="+tnum" />
+            <Setter Property="Foreground" Value="{StaticResource Text1}" />
+        </Style>
+        <Style Selector="TextBlock.bigLabel">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{StaticResource Text3}" />
+            <Setter Property="Margin" Value="1,1,0,0" />
         </Style>
         <Style Selector="TextBlock.stats">
             <Setter Property="FontSize" Value="12.5" />
-            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
+            <Setter Property="Foreground" Value="{StaticResource Text3}" />
+        </Style>
+        <Style Selector="TextBlock.legend">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{StaticResource Text2}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.legend.faint">
+            <Setter Property="Foreground" Value="{StaticResource Text3}" />
         </Style>
 
-        <!-- Project chips: a dot in the project's colour. -->
+        <!-- What you did: one line each, under the part of the day it was in. -->
+        <Style Selector="TextBlock.partLabel">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource Text1}" />
+        </Style>
+        <Style Selector="TextBlock.partMeta">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{StaticResource Text3}" />
+            <Setter Property="FontFeatures" Value="+tnum" />
+        </Style>
+        <Style Selector="Border.row">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Margin" Value="-12,0" />
+        </Style>
+        <Style Selector="Border.row.expandable">
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.row:pointerover">
+            <Setter Property="Background" Value="{StaticResource FillSubtle}" />
+        </Style>
+        <Style Selector="Border.row.open">
+            <Setter Property="Background" Value="{StaticResource FillSubtle}" />
+        </Style>
+        <Style Selector="TextBlock.rowTime">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontFeatures" Value="+tnum" />
+            <Setter Property="Foreground" Value="{StaticResource Text3}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.rowTitle">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{StaticResource Text1}" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.row.open TextBlock.rowTitle">
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <!-- Time at the computer that wasn't a pomodoro: there, quieter. -->
+        <Style Selector="Border.row.off TextBlock.rowTitle">
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Foreground" Value="{StaticResource Text2}" />
+        </Style>
+        <Style Selector="TextBlock.rowTitle.blank">
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Foreground" Value="{StaticResource Text3}" />
+        </Style>
+        <Style Selector="Border.row.offRecord TextBlock.rowTitle">
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Foreground" Value="{StaticResource Text3}" />
+            <Setter Property="FontStyle" Value="Italic" />
+        </Style>
+        <Style Selector="TextBlock.rowMeta">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{StaticResource Text3}" />
+            <Setter Property="FontFeatures" Value="+tnum" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.mark">
+            <Setter Property="Width" Value="3" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="CornerRadius" Value="2" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.detail">
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="LineHeight" Value="20" />
+            <Setter Property="Foreground" Value="{StaticResource Text2}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
         <Style Selector="Border.chip">
-            <Setter Property="Background" Value="#10FFFFFF" />
+            <Setter Property="Background" Value="{StaticResource FillHover}" />
             <Setter Property="CornerRadius" Value="11" />
             <Setter Property="Padding" Value="9,3,10,4" />
             <Setter Property="Margin" Value="0,0,6,6" />
         </Style>
         <Style Selector="Border.chip TextBlock">
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="{StaticResource Text1}" />
+            <Setter Property="Foreground" Value="{StaticResource Text2}" />
             <Setter Property="VerticalAlignment" Value="Center" />
-        </Style>
-        <Style Selector="Border.chip TextBlock.faint">
-            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
-        </Style>
-        <Style Selector="Border.badge">
-            <Setter Property="BorderBrush" Value="{StaticResource LineStrong}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="11" />
-            <Setter Property="Padding" Value="8,2,8,3" />
-            <Setter Property="Margin" Value="0,0,6,6" />
-        </Style>
-        <Style Selector="Border.badge TextBlock">
-            <Setter Property="FontSize" Value="11.5" />
-            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
-        </Style>
-
-        <!-- Sessions. -->
-        <Style Selector="TextBlock.sessionLabel">
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="LetterSpacing" Value="1.2" />
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-        </Style>
-        <Style Selector="TextBlock.sessionLabel.off">
-            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
-        </Style>
-        <Style Selector="TextBlock.sessionRange">
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
-        </Style>
-        <Style Selector="TextBlock.sessionTitle">
-            <Setter Property="FontSize" Value="17" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
-            <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="Margin" Value="0,6,0,0" />
-        </Style>
-        <Style Selector="TextBlock.sessionSummary">
-            <Setter Property="FontSize" Value="13.5" />
-            <Setter Property="LineHeight" Value="20" />
-            <Setter Property="Foreground" Value="{StaticResource Text2}" />
-            <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="Margin" Value="0,4,0,0" />
-        </Style>
-
-        <!-- Pomodoros. -->
-        <Style Selector="Border.entry">
-            <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Padding" Value="18,14,12,12" />
-        </Style>
-        <Style Selector="ItemsControl.entries ContentPresenter:nth-child(n+2) > Border.entry">
-            <Setter Property="BorderThickness" Value="0,1,0,0" />
-        </Style>
-        <Style Selector="Border.entry:pointerover">
-            <Setter Property="Background" Value="#06FFFFFF" />
-        </Style>
-        <Style Selector="TextBlock.time">
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="Medium" />
-            <Setter Property="Foreground" Value="{StaticResource Text1}" />
-            <Setter Property="FontFeatures" Value="+tnum" />
-        </Style>
-        <Style Selector="TextBlock.length">
-            <Setter Property="FontSize" Value="11.5" />
-            <Setter Property="Foreground" Value="{DynamicResource InkFaint}" />
-            <Setter Property="Margin" Value="0,2,0,0" />
-        </Style>
-        <Style Selector="TextBlock.title">
-            <Setter Property="FontSize" Value="14.5" />
-            <Setter Property="FontWeight" Value="Medium" />
-            <Setter Property="LineHeight" Value="20" />
-            <Setter Property="Foreground" Value="{DynamicResource Ink}" />
-            <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="Cursor" Value="Ibeam" />
-        </Style>
-        <Style Selector="TextBlock.title.blank">
-            <Setter Property="Foreground" Value="{DynamicResource InkFaint}" />
-            <Setter Property="FontStyle" Value="Italic" />
-            <Setter Property="FontWeight" Value="Normal" />
-        </Style>
-        <!-- Time off the timer: there, quieter than the pomodoros. -->
-        <Style Selector="Border.entry.off TextBlock.title">
-            <Setter Property="FontWeight" Value="Normal" />
-            <Setter Property="Foreground" Value="{StaticResource Text2}" />
-        </Style>
-        <Style Selector="Border.entry.off TextBlock.time">
-            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
-            <Setter Property="FontWeight" Value="Normal" />
-        </Style>
-        <!-- A pomodoro off the record: there, and nothing more. -->
-        <Style Selector="Border.entry.offRecord TextBlock.title">
-            <Setter Property="Foreground" Value="{DynamicResource InkFaint}" />
-            <Setter Property="FontStyle" Value="Italic" />
-            <Setter Property="FontWeight" Value="Normal" />
-            <Setter Property="Cursor" Value="Arrow" />
-        </Style>
-        <Style Selector="TextBlock.detail">
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="LineHeight" Value="19" />
-            <Setter Property="Foreground" Value="{StaticResource Text2}" />
-            <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
         <Style Selector="Button.reveal">
             <Setter Property="Opacity" Value="0" />
         </Style>
-        <Style Selector="Border.entry:pointerover Button.reveal">
+        <Style Selector="Border.row:pointerover Button.reveal">
             <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="Border.row:pointerover TextBlock.length">
+            <Setter Property="Opacity" Value="0" />
         </Style>
         <Style Selector="Border.now TextBlock">
             <Setter Property="Foreground" Value="{StaticResource Focus}" />
@@ -175,14 +173,32 @@
             <Setter Property="Background" Value="{StaticResource FocusSoft}" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="6,1,6,2" />
-            <Setter Property="HorizontalAlignment" Value="Left" />
-            <Setter Property="Margin" Value="0,5,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="10,0,0,0" />
         </Style>
         <Style Selector="Border.now.held">
             <Setter Property="Background" Value="{StaticResource HoldSoft}" />
         </Style>
         <Style Selector="Border.now.held TextBlock">
             <Setter Property="Foreground" Value="{StaticResource Hold}" />
+        </Style>
+        <Style Selector="TextBlock.note">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{StaticResource Text3}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.textLink">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{StaticResource Text2}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.textLink:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource Text1}" />
         </Style>
 
         <!-- What happened, when an entry is opened. -->
@@ -307,50 +323,50 @@
             <Setter Property="Background" Value="#1FFFFFFF" />
         </Style>
 
-        <!-- A day in the week: the whole row opens it. -->
+        <!-- A day in the week: one line, the whole row opens it. -->
         <Style Selector="Button.weekRow">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="Padding" Value="18,13,14,13" />
-            <Setter Property="CornerRadius" Value="0" />
-            <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
+            <Setter Property="Padding" Value="12,0,12,0" />
+            <Setter Property="MinHeight" Value="46" />
+            <Setter Property="Margin" Value="-12,0" />
+            <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
-        <Style Selector="ItemsControl.entries ContentPresenter:nth-child(n+2) > Button.weekRow">
-            <Setter Property="BorderThickness" Value="0,1,0,0" />
-        </Style>
         <Style Selector="Button.weekRow:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#08FFFFFF" />
-            <Setter Property="BorderBrush" Value="{DynamicResource Hairline}" />
+            <Setter Property="Background" Value="{StaticResource FillSubtle}" />
         </Style>
-        <Style Selector="Button.weekRow.empty TextBlock.title">
-            <Setter Property="Foreground" Value="{DynamicResource InkFaint}" />
+        <Style Selector="Button.weekRow TextBlock.rowTitle">
             <Setter Property="FontWeight" Value="Normal" />
         </Style>
+        <Style Selector="Button.weekRow.empty TextBlock.rowTitle">
+            <Setter Property="Foreground" Value="{StaticResource Text3}" />
+        </Style>
         <Style Selector="Button.weekRow.future">
-            <Setter Property="Opacity" Value="0.4" />
+            <Setter Property="Opacity" Value="0.35" />
             <Setter Property="Cursor" Value="Arrow" />
         </Style>
         <Style Selector="Button.weekRow.future:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
         </Style>
-        <Style Selector="Button.weekRow.today TextBlock.time">
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        <Style Selector="TextBlock.weekdayName">
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{StaticResource Text1}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.weekRow.today TextBlock.weekdayName">
+            <Setter Property="Foreground" Value="{StaticResource Focus}" />
         </Style>
         <Style Selector="ProgressBar.dayFocus">
-            <Setter Property="Height" Value="5" />
-            <Setter Property="MinHeight" Value="5" />
+            <Setter Property="Height" Value="4" />
+            <Setter Property="MinHeight" Value="4" />
             <Setter Property="MinWidth" Value="0" />
-            <Setter Property="CornerRadius" Value="3" />
-            <Setter Property="Background" Value="#10FFFFFF" />
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-        </Style>
-        <Style Selector="TextBlock.count">
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="Medium" />
-            <Setter Property="Foreground" Value="{DynamicResource InkMuted}" />
-            <Setter Property="FontFeatures" Value="+tnum" />
+            <Setter Property="CornerRadius" Value="2" />
+            <Setter Property="Background" Value="{StaticResource FillHover}" />
+            <Setter Property="Foreground" Value="{StaticResource Focus}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <!-- The date, which opens the calendar. -->
         <Style Selector="Button.dateButton">
@@ -583,7 +599,7 @@
 
         <ScrollViewer Grid.Row="1" x:Name="Scroller" HorizontalScrollBarVisibility="Disabled">
             <Panel>
-            <StackPanel Margin="36,2,36,44" MaxWidth="800" IsVisible="{Binding IsDay}">
+            <StackPanel Margin="36,2,36,48" MaxWidth="760" IsVisible="{Binding IsDay}">
 
                 <Border Classes="banner" IsVisible="{Binding IsOffRecord}">
                     <Grid ColumnDefinitions="Auto,*,Auto">
@@ -608,15 +624,15 @@
                     <TextBlock Classes="stats" Text="Reading your day…" VerticalAlignment="Center" />
                 </StackPanel>
 
-                <!-- A day with nothing on record. -->
-                <Border Classes="hero" IsVisible="{Binding IsEmpty}" Padding="26,30">
-                    <StackPanel Spacing="6">
-                        <TextBlock Classes="headline" Text="Nothing on record for this day." />
-                        <TextBlock Classes="summary" Text="No pomodoros, and nothing from your conversations, commits, browsing or windows. Once there is, this page puts it together on its own." />
+                <!-- A day with nothing in it. -->
+                <Border Classes="hero" IsVisible="{Binding IsEmpty}" Padding="26,28">
+                    <StackPanel Spacing="8">
+                        <TextBlock Classes="headline" Text="Nothing here yet" />
+                        <TextBlock Classes="summary" Text="No pomodoros and no activity on this day. Once there is, this page fills itself in." />
                     </StackPanel>
                 </Border>
 
-                <!-- The day in a few lines. -->
+                <!-- The day at a glance. -->
                 <Border Classes="hero">
                     <Border.IsVisible>
                         <MultiBinding Converter="{x:Static BoolConverters.And}">
@@ -624,180 +640,158 @@
                             <Binding Path="!IsLoading" />
                         </MultiBinding>
                     </Border.IsVisible>
-                    <StackPanel Spacing="10">
+                    <StackPanel>
                         <TextBlock Classes="headline" Text="{Binding Headline}" />
-                        <TextBlock Classes="summary" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" />
-                        <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
-                            <TextBlock Classes="stats" Text="{Binding Stats}" />
-                            <TextBlock Grid.Column="1" Classes="stats" Text="{Binding Span}" FontFeatures="+tnum" />
-                        </Grid>
-                        <j:DayRibbon x:Name="Ribbon" Blocks="{Binding Ribbon}" Start="{Binding RibbonStartLocal}" End="{Binding RibbonEndLocal}" />
-                        <ItemsControl ItemsSource="{Binding ProjectTotals}" Margin="0,4,0,-6">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="j:ProjectChip">
-                                    <Border Classes="chip">
-                                        <StackPanel Orientation="Horizontal" Spacing="7">
-                                            <Ellipse Width="7" Height="7" Fill="{Binding Color}" VerticalAlignment="Center" />
-                                            <TextBlock Text="{Binding Name}" />
-                                            <TextBlock Classes="faint" Text="{Binding Time}" />
+                        <TextBlock Classes="summary" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" Margin="0,8,0,0" />
+
+                        <StackPanel Orientation="Horizontal" Spacing="44" Margin="0,22,0,0">
+                            <StackPanel IsVisible="{Binding HasFocus}">
+                                <TextBlock Classes="bigNumber" Text="{Binding FocusText}" />
+                                <TextBlock Classes="bigLabel" Text="focused" />
+                            </StackPanel>
+                            <StackPanel IsVisible="{Binding HasFocus}">
+                                <TextBlock Classes="bigNumber" Text="{Binding PomodoroText}" />
+                                <TextBlock Classes="bigLabel" Text="{Binding PomodoroLabel}" />
+                            </StackPanel>
+                            <StackPanel IsVisible="{Binding HasUntimed}">
+                                <TextBlock Classes="bigNumber" Text="{Binding UntimedText}" Foreground="{StaticResource Text2}" />
+                                <TextBlock Classes="bigLabel" Text="at the computer, not timed" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <j:DayRibbon x:Name="Ribbon" Blocks="{Binding Ribbon}" Start="{Binding RibbonStartLocal}" End="{Binding RibbonEndLocal}" Margin="0,22,0,0" />
+
+                        <ItemsControl ItemsSource="{Binding ProjectTotals}" Margin="0,10,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="j:ProjectChip">
+                                        <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,4,20,0">
+                                            <Ellipse Width="7" Height="7" Fill="{Binding Color}" VerticalAlignment="Center" IsVisible="{Binding !IsMore}" />
+                                            <TextBlock Classes="legend" Classes.faint="{Binding IsMore}" Text="{Binding Name}" />
+                                            <TextBlock Classes="legend faint" Text="{Binding Time}" IsVisible="{Binding !IsMore}" />
                                         </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <Border IsVisible="{Binding HasStatus}" Background="#0CFFFFFF" CornerRadius="10" Padding="12,8" Margin="0,6,0,0">
-                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                <Ellipse Classes="pulse" IsVisible="{Binding IsWriting}" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                <TextBlock Grid.Column="1" Classes="stats" Text="{Binding Status}" TextWrapping="Wrap" VerticalAlignment="Center" />
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0">
-                                    <Button Content="Sign in" Command="{Binding SignInCommand}" IsVisible="{Binding ShowSignIn}" />
-                                    <Button Content="Try again" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding HasStatus}" Margin="0,18,0,0">
+                            <Ellipse Classes="pulse" IsVisible="{Binding IsWriting}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <TextBlock Grid.Column="1" Classes="stats" Text="{Binding Status}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0">
+                                <Button Content="Sign in" Command="{Binding SignInCommand}" IsVisible="{Binding ShowSignIn}" />
+                                <Button Content="Try again" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" />
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
                 </Border>
 
-                <!-- Sessions, and the pomodoros in each. -->
-                <ItemsControl ItemsSource="{Binding Sessions}">
+                <!-- What you did, one line each, in the part of the day it was in. -->
+                <ItemsControl ItemsSource="{Binding Parts}" Margin="0,8,0,0">
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="j:SessionViewModel">
-                            <StackPanel Margin="2,34,2,0">
-                                <Grid ColumnDefinitions="Auto,*">
-                                    <TextBlock Classes="sessionLabel" Classes.off="{Binding IsOffTimer}" Text="{Binding Label}" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="1" Classes="sessionRange" Text="{Binding Range}" Margin="12,0,0,0" VerticalAlignment="Center" />
-                                </Grid>
-                                <TextBlock Classes="sessionTitle" Text="{Binding Title}" IsVisible="{Binding HasTitle}" />
-                                <TextBlock Classes="sessionSummary" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" />
-                                <Border Classes="card" Margin="-2,14,-2,0">
-                                    <ItemsControl Classes="entries" ItemsSource="{Binding Entries}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="j:EntryViewModel">
-                                                <Border Classes="entry" Classes.off="{Binding IsOffTimer}" Classes.offRecord="{Binding IsOffRecord}">
-                                                    <Grid ColumnDefinitions="62,18,*,Auto">
-                                                        <StackPanel Margin="0,1,0,0">
-                                                            <TextBlock Classes="time" Text="{Binding Start}" />
-                                                            <TextBlock Classes="length" Text="{Binding Length}" />
-                                                        </StackPanel>
-                                                        <Border Grid.Column="1" Width="3" CornerRadius="2" Background="{Binding Color}"
-                                                                HorizontalAlignment="Left" Margin="0,3,0,3" />
-
-                                                        <StackPanel Grid.Column="2" Spacing="5">
-                                                            <TextBlock Classes="title" Classes.blank="{Binding IsBlank}" Text="{Binding ShownTitle}"
-                                                                       IsVisible="{Binding !IsEditing}" DoubleTapped="OnTitleDoubleTapped"
-                                                                       ToolTip.Tip="Double-click to name it yourself" />
-                                                            <TextBox Text="{Binding EditText}" IsVisible="{Binding IsEditing}" KeyDown="OnEditKeyDown"
-                                                                     LostFocus="OnEditLostFocus" PlaceholderText="What was it? Leave empty to let the write-up name it"
-                                                                     FontSize="14" Margin="-10,-6,0,-2" />
-                                                            <TextBlock Classes="detail" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" />
-                                                            <Border Classes="now" Classes.held="{Binding IsHeld}" IsVisible="{Binding InProgress}">
-                                                                <TextBlock Text="{Binding NowLabel}" FontSize="10.5" FontWeight="SemiBold" LetterSpacing="0.8" />
-                                                            </Border>
-                                                            <WrapPanel IsVisible="{Binding HasChips}" Margin="0,4,0,-6">
-                                                                <ItemsControl ItemsSource="{Binding Projects}">
-                                                                    <ItemsControl.ItemsPanel>
-                                                                        <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
-                                                                    </ItemsControl.ItemsPanel>
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate x:DataType="j:ProjectChip">
-                                                                            <Border Classes="chip">
-                                                                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                                    <Ellipse Width="6" Height="6" Fill="{Binding Color}" VerticalAlignment="Center" />
-                                                                                    <TextBlock Text="{Binding Name}" />
-                                                                                </StackPanel>
-                                                                            </Border>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
-                                                                <ItemsControl ItemsSource="{Binding Badges}">
-                                                                    <ItemsControl.ItemsPanel>
-                                                                        <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
-                                                                    </ItemsControl.ItemsPanel>
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate x:DataType="x:String">
-                                                                            <Border Classes="badge"><TextBlock Text="{Binding}" /></Border>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
-                                                            </WrapPanel>
-
-                                                            <ItemsControl ItemsSource="{Binding Evidence}" IsVisible="{Binding IsExpanded}" Margin="0,10,0,2">
-                                                                <ItemsControl.ItemTemplate>
-                                                                    <DataTemplate x:DataType="j:EvidenceGroup">
-                                                                        <StackPanel Margin="0,0,0,12" Spacing="4">
-                                                                            <TextBlock Classes="evHead" Text="{Binding Heading}" />
-                                                                            <ItemsControl ItemsSource="{Binding Lines}">
-                                                                                <ItemsControl.ItemTemplate>
-                                                                                    <DataTemplate x:DataType="j:EvidenceLine">
-                                                                                        <Grid ColumnDefinitions="48,*" Margin="0,1">
-                                                                                            <TextBlock Classes="evTime" Text="{Binding Time}" />
-                                                                                            <TextBlock Grid.Column="1" Classes="evText" Classes.quote="{Binding Quote}" Text="{Binding Text}" />
-                                                                                        </Grid>
-                                                                                    </DataTemplate>
-                                                                                </ItemsControl.ItemTemplate>
-                                                                            </ItemsControl>
+                        <DataTemplate x:DataType="j:DayPart">
+                            <StackPanel Margin="0,28,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,6">
+                                    <TextBlock Classes="partLabel" Text="{Binding Label}" VerticalAlignment="Center" />
+                                    <TextBlock Classes="partMeta" Text="{Binding Range}" VerticalAlignment="Center" />
+                                    <TextBlock Classes="partMeta" Text="·" IsVisible="{Binding HasFocus}" VerticalAlignment="Center" />
+                                    <TextBlock Classes="partMeta" Text="{Binding Focus}" IsVisible="{Binding HasFocus}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <ItemsControl ItemsSource="{Binding Entries}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="j:EntryViewModel">
+                                            <Border Classes="row" Classes.off="{Binding IsOffTimer}" Classes.offRecord="{Binding IsOffRecord}"
+                                                    Classes.open="{Binding IsExpanded}" Classes.expandable="{Binding CanExpand}" Tapped="OnRowTapped">
+                                                <Grid ColumnDefinitions="54,16,*,Auto,74" RowDefinitions="Auto,Auto">
+                                                    <TextBlock Classes="rowTime" Text="{Binding Start}" VerticalAlignment="Top" Margin="0,12,0,0" />
+                                                    <Border Grid.Column="1" Classes="mark" Background="{Binding Color}" VerticalAlignment="Top" Margin="0,12,0,0" />
+                                                    <Panel Grid.Column="2" Margin="0,11,0,11">
+                                                        <TextBlock Classes="rowTitle" Classes.blank="{Binding IsBlank}" Text="{Binding ShownTitle}"
+                                                                   IsVisible="{Binding !IsEditing}" DoubleTapped="OnTitleDoubleTapped"
+                                                                   ToolTip.Tip="Double-click to name it yourself" />
+                                                        <TextBox Text="{Binding EditText}" IsVisible="{Binding IsEditing}" KeyDown="OnEditKeyDown"
+                                                                 LostFocus="OnEditLostFocus" PlaceholderText="What was it? Leave empty to let the write-up name it"
+                                                                 FontSize="14" Margin="-10,-7,0,-7" />
+                                                    </Panel>
+                                                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Top" Margin="16,11,0,0">
+                                                        <Border Classes="now" Classes.held="{Binding IsHeld}" IsVisible="{Binding InProgress}" Margin="0,0,10,0">
+                                                            <TextBlock Text="{Binding NowLabel}" FontSize="10.5" FontWeight="SemiBold" LetterSpacing="0.8" />
+                                                        </Border>
+                                                        <TextBlock Classes="rowMeta" Text="{Binding Project}" IsVisible="{Binding HasProject}"
+                                                                   MaxWidth="170" TextTrimming="CharacterEllipsis" Margin="0,1,0,0" />
+                                                    </StackPanel>
+                                                    <!-- The length, and on hover the row's own buttons in its place. -->
+                                                    <TextBlock Grid.Column="4" Classes="rowMeta length" Text="{Binding Length}" HorizontalAlignment="Right"
+                                                               VerticalAlignment="Top" Margin="0,12,0,0" />
+                                                    <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,7,-6,0">
+                                                        <Button Classes="ghost icon reveal" Command="{Binding EditCommand}" IsVisible="{Binding CanRename}"
+                                                                ToolTip.Tip="Name it yourself" AutomationProperties.Name="Rename">
+                                                            <Path Classes="icon" Width="13" Height="13" Data="M 4 20 L 4.8 16.2 L 15.8 5.2 A 2 2 0 0 1 18.8 8.2 L 7.8 19.2 Z M 13.8 7.2 L 16.8 10.2" />
+                                                        </Button>
+                                                        <Button Classes="ghost icon reveal" IsVisible="{Binding CanForget}"
+                                                                ToolTip.Tip="Forget this" AutomationProperties.Name="Forget">
+                                                            <Button.Flyout>
+                                                                <Flyout Placement="BottomEdgeAlignedRight" FlyoutPresenterClasses="day" Opening="OnEntryForgetOpening">
+                                                                    <StackPanel Width="310" Spacing="10">
+                                                                        <TextBlock Classes="flyTitle" Text="{Binding ForgetQuestion}" />
+                                                                        <TextBlock Classes="flyNote" Text="{Binding ForgetNote}" />
+                                                                        <CheckBox IsChecked="{Binding ForgetConversations}" IsVisible="{Binding HasConversations}">
+                                                                            <TextBlock Classes="flyNote" Text="{Binding ConversationsText}" />
+                                                                        </CheckBox>
+                                                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,4,0,0">
+                                                                            <Button Classes="ghost" Content="Cancel" Click="OnFlyoutDone" />
+                                                                            <Button Classes="danger" Content="Forget" Command="{Binding ForgetCommand}" Click="OnFlyoutDone" />
                                                                         </StackPanel>
-                                                                    </DataTemplate>
-                                                                </ItemsControl.ItemTemplate>
-                                                            </ItemsControl>
-                                                        </StackPanel>
+                                                                    </StackPanel>
+                                                                </Flyout>
+                                                            </Button.Flyout>
+                                                            <Path Classes="icon" Width="13" Height="13" Data="M 4.5 7 L 19.5 7 M 9.5 7 L 9.5 4.5 L 14.5 4.5 L 14.5 7 M 6.5 7 L 7.4 19.5 L 16.6 19.5 L 17.5 7 M 10.2 10.5 L 10.4 16 M 13.8 10.5 L 13.6 16" />
+                                                        </Button>
+                                                    </StackPanel>
 
-                                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Top" Margin="8,-4,0,0">
-                                                            <Button Classes="ghost icon reveal" IsVisible="{Binding CanForget}"
-                                                                    ToolTip.Tip="Forget this" AutomationProperties.Name="Forget">
-                                                                <Button.Flyout>
-                                                                    <Flyout Placement="BottomEdgeAlignedRight" FlyoutPresenterClasses="day" Opening="OnEntryForgetOpening">
-                                                                        <StackPanel Width="310" Spacing="10">
-                                                                            <TextBlock Classes="flyTitle" Text="{Binding ForgetQuestion}" />
-                                                                            <TextBlock Classes="flyNote" Text="{Binding ForgetNote}" />
-                                                                            <CheckBox IsChecked="{Binding ForgetConversations}" IsVisible="{Binding HasConversations}">
-                                                                                <TextBlock Classes="flyNote" Text="{Binding ConversationsText}" />
-                                                                            </CheckBox>
-                                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,4,0,0">
-                                                                                <Button Classes="ghost" Content="Cancel" Click="OnFlyoutDone" />
-                                                                                <Button Classes="danger" Content="Forget" Command="{Binding ForgetCommand}" Click="OnFlyoutDone" />
-                                                                            </StackPanel>
-                                                                        </StackPanel>
-                                                                    </Flyout>
-                                                                </Button.Flyout>
-                                                                <Path Classes="icon" Width="13" Height="13" Data="M 4.5 7 L 19.5 7 M 9.5 7 L 9.5 4.5 L 14.5 4.5 L 14.5 7 M 6.5 7 L 7.4 19.5 L 16.6 19.5 L 17.5 7 M 10.2 10.5 L 10.4 16 M 13.8 10.5 L 13.6 16" />
-                                                            </Button>
-                                                            <Button Classes="ghost icon reveal" Command="{Binding EditCommand}" IsVisible="{Binding CanRename}"
-                                                                    ToolTip.Tip="Name it yourself" AutomationProperties.Name="Rename">
-                                                                <Path Classes="icon" Width="13" Height="13" Data="M 4 20 L 4.8 16.2 L 15.8 5.2 A 2 2 0 0 1 18.8 8.2 L 7.8 19.2 Z M 13.8 7.2 L 16.8 10.2" />
-                                                            </Button>
-                                                            <Button Classes="ghost icon" Command="{Binding ToggleExpandedCommand}" IsVisible="{Binding HasEvidence}"
-                                                                    ToolTip.Tip="What happened" AutomationProperties.Name="Show what happened">
-                                                                <Panel>
-                                                                    <Path Classes="icon" Width="13" Height="13" Data="M 6 9 L 12 15 L 18 9" IsVisible="{Binding !IsExpanded}" />
-                                                                    <Path Classes="icon" Width="13" Height="13" Data="M 6 15 L 12 9 L 18 15" IsVisible="{Binding IsExpanded}" />
-                                                                </Panel>
-                                                            </Button>
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </Border>
+                                                    <!-- Opened: the one detail worth remembering, then what was recorded. -->
+                                                    <StackPanel Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="4" Spacing="10" Margin="0,-4,0,16" IsVisible="{Binding IsExpanded}">
+                                                        <TextBlock Classes="detail" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" />
+                                                        <ItemsControl ItemsSource="{Binding Evidence}" Margin="0,4,0,0">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="j:EvidenceGroup">
+                                                                    <StackPanel Margin="0,0,0,12" Spacing="4">
+                                                                        <TextBlock Classes="evHead" Text="{Binding Heading}" />
+                                                                        <ItemsControl ItemsSource="{Binding Lines}">
+                                                                            <ItemsControl.ItemTemplate>
+                                                                                <DataTemplate x:DataType="j:EvidenceLine">
+                                                                                    <Grid ColumnDefinitions="Auto,*" Margin="0,1">
+                                                                                        <TextBlock Classes="evTime" Text="{Binding Time}" MinWidth="48" IsVisible="{Binding HasTime}" />
+                                                                                        <TextBlock Grid.Column="1" Classes="evText" Classes.quote="{Binding Quote}" Text="{Binding Text}" />
+                                                                                    </Grid>
+                                                                                </DataTemplate>
+                                                                            </ItemsControl.ItemTemplate>
+                                                                        </ItemsControl>
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <StackPanel Margin="4,26,4,0" Spacing="4" IsVisible="{Binding !IsEmpty}">
-                    <TextBlock Classes="note" Text="{Binding Sources}" />
-                    <TextBlock Classes="note" Foreground="{DynamicResource InkFaint}"
-                               Text="{Binding PrivacyNote}" />
-                </StackPanel>
+                <Grid ColumnDefinitions="*,Auto" Margin="0,40,0,0" IsVisible="{Binding !IsEmpty}">
+                    <TextBlock Classes="note" Text="Written from your activity on this computer. Grey rows are time outside a pomodoro." />
+                    <Button Grid.Column="1" Classes="textLink" Content="What's read" Click="OnWhatsReadClick" Margin="12,0,-4,0" />
+                </Grid>
             </StackPanel>
 
-            <!-- Your week: the days, the projects across them, and the week in a few lines. -->
+            <!-- Your week: the week at a glance, then its days, one line each. -->
             <Panel IsVisible="{Binding IsWeek}">
-            <StackPanel Margin="36,2,36,44" MaxWidth="800" DataContext="{Binding Week}" x:DataType="j:WeekViewModel">
+            <StackPanel Margin="36,2,36,48" MaxWidth="760" DataContext="{Binding Week}" x:DataType="j:WeekViewModel">
                 <StackPanel Orientation="Horizontal" Spacing="10" Margin="2,10,0,0" IsVisible="{Binding IsLoading}">
                     <Ellipse Classes="pulse" VerticalAlignment="Center" IsVisible="{Binding IsLoading}" />
                     <TextBlock Classes="stats" Text="Reading your week…" VerticalAlignment="Center" />
@@ -810,71 +804,75 @@
                             <Binding Path="!IsLoading" />
                         </MultiBinding>
                     </Border.IsVisible>
-                    <StackPanel Spacing="10">
+                    <StackPanel>
                         <TextBlock Classes="headline" Text="{Binding Headline}" />
-                        <TextBlock Classes="summary" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" />
-                        <TextBlock Classes="stats" Text="{Binding Stats}" Margin="0,6,0,0" />
-                        <ItemsControl ItemsSource="{Binding Projects}" Margin="0,4,0,-6">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="j:ProjectChip">
-                                    <Border Classes="chip">
-                                        <StackPanel Orientation="Horizontal" Spacing="7">
-                                            <Ellipse Width="7" Height="7" Fill="{Binding Color}" VerticalAlignment="Center" />
-                                            <TextBlock Text="{Binding Name}" />
-                                            <TextBlock Classes="faint" Text="{Binding Time}" />
+                        <TextBlock Classes="summary" Text="{Binding Summary}" IsVisible="{Binding HasSummary}" Margin="0,8,0,0" />
+                        <StackPanel Orientation="Horizontal" Spacing="44" Margin="0,22,0,0">
+                            <StackPanel>
+                                <TextBlock Classes="bigNumber" Text="{Binding FocusText}" />
+                                <TextBlock Classes="bigLabel" Text="focused" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Classes="bigNumber" Text="{Binding PomodoroText}" />
+                                <TextBlock Classes="bigLabel" Text="{Binding PomodoroLabel}" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Classes="bigNumber" Text="{Binding DaysText}" />
+                                <TextBlock Classes="bigLabel" Text="{Binding DaysLabel}" />
+                            </StackPanel>
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding Projects}" Margin="0,18,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="j:ProjectChip">
+                                        <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,4,20,0">
+                                            <Ellipse Width="7" Height="7" Fill="{Binding Color}" VerticalAlignment="Center" IsVisible="{Binding !IsMore}" />
+                                            <TextBlock Classes="legend" Classes.faint="{Binding IsMore}" Text="{Binding Name}" />
+                                            <TextBlock Classes="legend faint" Text="{Binding Time}" IsVisible="{Binding !IsMore}" />
                                         </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <Border IsVisible="{Binding HasStatus}" Background="#0CFFFFFF" CornerRadius="10" Padding="12,8" Margin="0,6,0,0">
-                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                <Ellipse Classes="pulse" IsVisible="{Binding IsWriting}" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                <TextBlock Grid.Column="1" Classes="stats" Text="{Binding Status}" TextWrapping="Wrap" VerticalAlignment="Center" />
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0">
-                                    <Button Content="Sign in" Command="{Binding SignInCommand}" IsVisible="{Binding ShowSignIn}" />
-                                    <Button Content="Try again" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding HasStatus}" Margin="0,18,0,0">
+                            <Ellipse Classes="pulse" IsVisible="{Binding IsWriting}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <TextBlock Grid.Column="1" Classes="stats" Text="{Binding Status}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="10,0,0,0">
+                                <Button Content="Sign in" Command="{Binding SignInCommand}" IsVisible="{Binding ShowSignIn}" />
+                                <Button Content="Try again" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" />
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
                 </Border>
 
-                <Border Classes="hero" IsVisible="{Binding IsEmpty}" Padding="26,30">
-                    <StackPanel Spacing="6">
-                        <TextBlock Classes="headline" Text="Nothing on record this week." />
-                        <TextBlock Classes="summary" Text="No pomodoros, and nothing from your conversations, commits, browsing or windows." />
+                <Border Classes="hero" IsVisible="{Binding IsEmpty}" Padding="26,28">
+                    <StackPanel Spacing="8">
+                        <TextBlock Classes="headline" Text="Nothing here yet" />
+                        <TextBlock Classes="summary" Text="No pomodoros and no activity this week." />
                     </StackPanel>
                 </Border>
 
-                <TextBlock Classes="sessionLabel off" Text="THE DAYS" Margin="2,30,0,12" IsVisible="{Binding !IsLoading}" />
-                <Border Classes="card" IsVisible="{Binding !IsLoading}">
-                    <ItemsControl Classes="entries" ItemsSource="{Binding Days}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="j:WeekDayRow">
-                                <Button Classes="weekRow" Classes.today="{Binding IsToday}" Classes.empty="{Binding IsEmpty}" Classes.future="{Binding IsFuture}"
-                                        Click="OnWeekDayClick" AutomationProperties.Name="{Binding DateText}">
-                                    <Grid ColumnDefinitions="78,150,*,Auto">
-                                        <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Classes="time" Text="{Binding Weekday}" />
-                                            <TextBlock Classes="length" Text="{Binding DateText}" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="5" Margin="0,0,22,0">
-                                            <ProgressBar Classes="dayFocus" Minimum="0" Maximum="1" Value="{Binding Fraction}" IsVisible="{Binding !IsFuture}" />
-                                            <TextBlock Classes="length" Text="{Binding Focus}" Margin="0" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="2" Classes="title" Classes.blank="{Binding !IsWritten}" Text="{Binding Headline}"
-                                                   VerticalAlignment="Center" MaxLines="2" TextTrimming="CharacterEllipsis" Cursor="Hand" />
-                                        <TextBlock Grid.Column="3" Classes="count" Text="{Binding Count}" VerticalAlignment="Center" Margin="14,0,4,0" />
-                                    </Grid>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </Border>
+                <TextBlock Classes="partLabel" Text="Days" Margin="0,34,0,8" IsVisible="{Binding !IsLoading}" />
+                <ItemsControl ItemsSource="{Binding Days}" IsVisible="{Binding !IsLoading}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="j:WeekDayRow">
+                            <Button Classes="weekRow" Classes.today="{Binding IsToday}" Classes.empty="{Binding IsEmpty}" Classes.future="{Binding IsFuture}"
+                                    Click="OnWeekDayClick" AutomationProperties.Name="{Binding DateText}">
+                                <Grid ColumnDefinitions="118,96,*,Auto">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Classes="weekdayName" Text="{Binding Weekday}" />
+                                        <TextBlock Classes="rowMeta" Text="{Binding DateText}" />
+                                    </StackPanel>
+                                    <ProgressBar Grid.Column="1" Classes="dayFocus" Minimum="0" Maximum="1" Value="{Binding Fraction}"
+                                                 IsVisible="{Binding !IsFuture}" Margin="0,0,22,0" />
+                                    <TextBlock Grid.Column="2" Classes="rowTitle" Classes.blank="{Binding !IsWritten}" Text="{Binding Headline}" />
+                                    <TextBlock Grid.Column="3" Classes="rowMeta" Text="{Binding Focus}" Margin="16,0,0,0" />
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
             </Panel>
             </Panel>

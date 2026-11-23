@@ -39,6 +39,9 @@ public sealed partial class WeekViewModel : ObservableObject
     public ObservableCollection<WeekDayRow> Days { get; } = [];
     public ObservableCollection<ProjectChip> Projects { get; } = [];
 
+    /// <summary>A week has more projects, with longer names, than a day: one fewer, so the legend stays one line.</summary>
+    private const int LegendSize = DayViewModel.LegendSize - 1;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Title), nameof(Range), nameof(IsThisWeek), nameof(CanNext))]
     private DateOnly _start;
@@ -72,6 +75,15 @@ public sealed partial class WeekViewModel : ObservableObject
     [ObservableProperty] private bool _showSignIn;
     [ObservableProperty] private bool _canRetry;
 
+    // The week in three numbers, large: focus, pomodoros, days with any.
+    [ObservableProperty] private string _focusText = "";
+    [ObservableProperty] private string _pomodoroText = "";
+    [ObservableProperty] private string _pomodoroLabel = "pomodoros";
+    [ObservableProperty] private string _daysText = "";
+    [ObservableProperty] private string _daysLabel = "days with focus";
+
+
+
     public bool HasSummary => Summary.Length > 0;
     partial void OnSummaryChanged(string value) => OnPropertyChanged(nameof(HasSummary));
 
@@ -86,7 +98,7 @@ public sealed partial class WeekViewModel : ObservableObject
             Start = start;
             Days.Clear();
             Projects.Clear();
-            Headline = Summary = Stats = Status = "";
+            Headline = Summary = Stats = Status = FocusText = PomodoroText = DaysText = "";
             _current = null;
         }
         _ = LoadAsync(write: true);
@@ -122,7 +134,7 @@ public sealed partial class WeekViewModel : ObservableObject
             Show(written);
             if (problem != null)
             {
-                Status = problem.SignedOut ? "Signed out of Claude, so this is the week without its write-up." : DayViewModel.ProblemText(problem.Message);
+                Status = problem.SignedOut ? "Signed out of Claude, so there's no write-up yet." : DayViewModel.ProblemText(problem.Message);
                 ShowSignIn = problem.SignedOut;
                 CanRetry = !problem.SignedOut;
             }
@@ -163,8 +175,14 @@ public sealed partial class WeekViewModel : ObservableObject
         var totals = week.Projects();
         var colors = ProjectColors.ForDay(totals.Select(t => t.Name));
         Projects.Clear();
-        foreach (var (name, minutes) in totals.Take(8))
-            Projects.Add(new ProjectChip(name, new SolidColorBrush(colors(name)), DayViewModel.Duration(minutes)));
+        foreach (var (name, minutes) in totals.Take(LegendSize))
+            Projects.Add(new ProjectChip(ProjectColors.Display(name), new SolidColorBrush(colors(name)), DayViewModel.Duration(minutes)));
+        if (totals.Count > LegendSize) Projects.Add(ProjectChip.More(totals.Count - LegendSize));
+        FocusText = DayViewModel.Duration(week.FocusMinutes);
+        PomodoroText = week.Pomodoros.ToString(CultureInfo.CurrentCulture);
+        PomodoroLabel = week.Pomodoros == 1 ? "pomodoro" : "pomodoros";
+        DaysText = week.ActiveDays.ToString(CultureInfo.CurrentCulture);
+        DaysLabel = week.ActiveDays == 1 ? "day with focus" : "days with focus";
 
         var parts = new List<string>();
         if (week.Pomodoros > 0)
@@ -193,7 +211,7 @@ public sealed partial class WeekViewModel : ObservableObject
                 continue;
             }
             var headline = day.Summary?.Headline is { Length: > 0 } written ? written
-                : day.Entries.Count == 0 ? "Nothing on record"
+                : day.Entries.Count == 0 ? "Nothing recorded"
                 : day.Count == 0 ? "No pomodoros"
                 : "Not written up yet";
             Days.Add(new WeekDayRow(date, weekday, date.ToString("d MMM", culture),
@@ -205,9 +223,14 @@ public sealed partial class WeekViewModel : ObservableObject
 
     private static string FallbackHeadline(JournalWeek week, IReadOnlyList<(string Name, int Minutes)> totals)
     {
-        if (week.IsEmpty) return "Nothing on record this week";
-        var top = totals.Take(3).Select(t => t.Name).ToList();
-        return top.Count > 0 ? string.Join(", ", top) : $"{week.Pomodoros} pomodoro{(week.Pomodoros == 1 ? "" : "s")}";
+        if (week.IsEmpty) return "Nothing recorded this week";
+        var top = totals.Take(3).Select(t => ProjectColors.Display(t.Name)).ToList();
+        return top.Count switch
+        {
+            0 => $"{week.Pomodoros} pomodoro{(week.Pomodoros == 1 ? "" : "s")}",
+            1 => top[0],
+            _ => string.Join(", ", top.Take(top.Count - 1)) + " and " + top[^1],
+        };
     }
 
     /// <summary>The week as plain text: for a weekly review, a status update, a message.</summary>
@@ -226,7 +249,7 @@ public sealed partial class WeekViewModel : ObservableObject
             if (d.Count.Length > 0) text.Append(" (").Append(d.Count).Append(", ").Append(d.Focus).Append(')');
             text.Append(": ").Append(d.Headline).Append('\n');
         }
-        if (Projects.Count > 0) text.Append("\nBy project: ").Append(string.Join(", ", Projects.Select(p => $"{p.Name} {p.Time}"))).Append('\n');
+        if (Projects.Count > 0) text.Append("\nBy project: ").Append(string.Join(", ", Projects.Where(p => !p.IsMore).Select(p => $"{p.Name} {p.Time}"))).Append('\n');
         return text.ToString();
     }
 }

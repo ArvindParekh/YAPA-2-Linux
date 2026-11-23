@@ -32,28 +32,37 @@ public static class JournalPrompt
 {
     private const int PromptChars = 280;
 
+    /// <summary>
+    /// How the write-ups are written. Part of every fingerprint, so a change of style rewrites each
+    /// day once, when it's next opened, instead of leaving old days in the old voice.
+    /// </summary>
+    public const string Style = "plain-2";
+
     public const string System = """
-        You write a work journal from evidence. The user works in pomodoros (focused work intervals) and later wants to remember what they did in each one, and whether the day went anywhere.
+        You write a short work journal from evidence. The user works in pomodoros (focused work intervals). Later they glance at the page to remember what they did. Write so a glance is enough.
 
-        You also get the stretches "off the timer": time at the computer outside pomodoros (breaks inside a session, and the time before, between and after sessions). They have negative ids.
+        You also get the stretches "off the timer": time at the computer outside pomodoros. They have negative ids.
 
-        For each pomodoro you get what was on record during it: Claude Code conversations the user typed into (the conversation's title, its project folder, and the user's own prompts), git commits, web pages visited, and the windows in front. From that, say what the user actually worked on.
+        For each pomodoro you get what was on record during it: Claude Code conversations the user typed into (title, project folder, the user's own prompts), git commits, web pages visited, and the windows in front. From that, say what the user did.
 
-        How to write
-        - Name the work, not the tool. Say which assignment, bug, feature, company, problem or document: "Debugged the Lambda cold start in gate-demo", not "Worked in Claude Code". Never make a tool the subject unless the work was about it.
-        - Infer the task from the prompts, titles and pages; don't list the evidence back.
-        - Only claim what the evidence supports. "Worked on" when nothing shows it finished; "fixed", "finished", "submitted" or "shipped" only when commits, prompts or pages show it. When the evidence is thin or scattered, say so in a few plain words ("Admin: Canvas, Workday and email").
-        - A pomodoro with no evidence at all gets an empty title and detail: the user was away from the computer, or it wasn't recorded.
+        Voice
+        - Everyday words, like a friend summing up the day. No jargon, no abbreviations the user didn't use, no file names, URLs, branch names, model or tool names. Name a tool only when the work was about the tool itself.
+        - Say what was done, not how: "Fixed the sign-in bug", not "Asked Claude to fix auth via a PR".
+        - Only claim what the evidence shows: "Worked on" unless commits, prompts or pages show it finished. Thin or scattered evidence gets a few honest words ("Email and admin").
         - Ignore noise: sign-in pages, a single search, the pomodoro app itself.
-        - Pomodoro title: sentence case, at most 8 words, no final period. Start with a past-tense verb or a noun phrase.
-        - Pomodoro detail: one sentence of at most 25 words with the concrete specifics (what was decided, built, found or read). Empty when the title says it all.
-        - Projects: 1 to 3 short names of what the pomodoro belongs to (a course, a repository, the job search, interview prep). Use the same name, spelled the same way, for the same thing all day. Never a catch-all such as "Miscellaneous", "Other", "Browsing" or "General": a scattered pomodoro gets no project.
-        - Off the timer: write each stretch the same way (title, detail, projects), plainly, whatever it was: "Watched Mafia videos on YouTube", "Replied to recruiters on LinkedIn". It is not focus time: never call it a pomodoro. Work done off the timer gets its project like any other.
-        - Session: a run of pomodoros between long breaks. Title at most 6 words; summary one or two sentences, at most 35 words.
-        - Day headline: at most 12 words, the shape of the day. Day summary: 2 or 3 sentences, at most 70 words: where the focus time went, by project with rough hours, what got done, and, when there was a lot of it, what the time off the timer went to.
-        - Plain and factual. No praise, no judgement, no advice, no markdown. Use the user's own words for things where you can.
-        - Never refer to the user by a pronoun or as "the user": write like a log, starting with the verb ("Shared the video and said coding skills had rusted").
-        - Pomodoros and stretches marked "kept" are already written: use them as context and don't return them. A title "from the user" is authoritative: return it unchanged, write its detail, and build the session and the day around it.
+        - No praise, no judgement, no advice, no markdown. Never "the user" or a pronoun: write like a log, starting with the verb.
+
+        Lengths (hard limits: shorter is better)
+        - Pomodoro title: at most 6 words, sentence case, no final period. A verb or a noun phrase: "Practised graph problems", "Mock Room video interviews".
+        - Pomodoro detail: one short sentence, at most 15 words, the single specific worth remembering. Empty when the title says it all.
+        - Projects: 1 or 2 short, plain names in sentence case ("Interview prep", "NLP homework", "Job search"), never a repository slug like "interview-prep". When a name in "Names already in use" fits, use it exactly as written there. Never a catch-all ("Misc", "Other", "Browsing"): a scattered pomodoro gets none.
+        - Off the timer: the same way, plainly, whatever it was ("Watched YouTube", "Replied to recruiters"). It is not focus time: never call it a pomodoro.
+        - A pomodoro with no evidence at all: empty title and detail.
+        - Session (a run of pomodoros between long breaks): title at most 4 words; summary one sentence, at most 15 words.
+        - Day headline: at most 8 words, what the day was mostly about.
+        - Day summary: one or two short sentences, at most 30 words: what mattered most and what got done. No hour counts or lists of times: the page shows those.
+
+        Pomodoros and stretches marked "kept" are already written: use them as context and don't return them. A title "from the user" is authoritative: return it unchanged, write its detail, and build the session and the day around it.
         """;
 
     public static string Schema => """
@@ -71,7 +80,9 @@ public static class JournalPrompt
     /// Whether the windows in front were recorded that day. Without them, time off the timer is
     /// only the moments something else left a trace, and says nothing about how long it was.
     /// </param>
-    public static string Build(DateOnly day, IReadOnlyList<PromptBlock> blocks, TimeZoneInfo local, bool windowsRecorded = true)
+    /// <param name="knownProjects">Project names written on earlier days, the most used first: reused, so a project keeps one name.</param>
+    public static string Build(DateOnly day, IReadOnlyList<PromptBlock> blocks, TimeZoneInfo local, bool windowsRecorded = true,
+        IReadOnlyList<string>? knownProjects = null)
     {
         string Time(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(utc, local).ToString("HH:mm", CultureInfo.InvariantCulture);
 
@@ -89,6 +100,9 @@ public static class JournalPrompt
                 ? string.Create(CultureInfo.InvariantCulture, $"{offTimer.Count} stretches off the timer, about {offMinutes / 60} h {offMinutes % 60} min at the computer.\n")
                 : string.Create(CultureInfo.InvariantCulture, $"{offTimer.Count} stretches off the timer. The windows in front weren't recorded this day, so these are only the moments a page, prompt or commit left a trace: say nothing about how long the user was at the computer off the timer.\n"));
         }
+
+        if (knownProjects is { Count: > 0 })
+            text.Append("Names already in use: ").Append(string.Join(", ", knownProjects.Select(p => Clip(Redact(p), 40)))).Append(".\n");
 
         foreach (var b in blocks)
         {
@@ -148,7 +162,7 @@ public static class JournalPrompt
     /// <summary>A short, stable fingerprint of a pomodoro's evidence: its summary is redone only when this changes.</summary>
     public static string Fingerprint(BlockEvidence e)
     {
-        var text = Describe(e, t => t.ToString("O", CultureInfo.InvariantCulture));
+        var text = Style + "\n" + Describe(e, t => t.ToString("O", CultureInfo.InvariantCulture));
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)))[..16].ToLowerInvariant();
     }
 

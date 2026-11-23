@@ -444,7 +444,7 @@ public sealed class JournalService : IDisposable
             var blocks = day.Writable
                 .Select(e => new PromptBlock(e.Block, e.Session, e.Evidence, e.Summary, e.UserTitle))
                 .ToList();
-            var request = JournalPrompt.Build(date, blocks, _zone, day.WindowsRecorded);
+            var request = JournalPrompt.Build(date, blocks, _zone, day.WindowsRecorded, RecentProjects(date));
             var watch = Stopwatch.StartNew();
             var result = await ClaudeOneShot.AskAsync(JournalPrompt.System, request, JournalPrompt.Schema, "sonnet", _account, cancel);
             if (result.Answer == null || JournalPrompt.Parse(result.Answer) is not { } answer)
@@ -471,6 +471,31 @@ public sealed class JournalService : IDisposable
         {
             _writing.Release();
         }
+    }
+
+    /// <summary>
+    /// Project names from the two weeks before <paramref name="date"/>, the most used first, each
+    /// in its most used spelling: the write-up reuses them, so "Interview prep" doesn't become
+    /// "interview-prep" one day and "Interviews" the next.
+    /// </summary>
+    internal IReadOnlyList<string> RecentProjects(DateOnly date)
+    {
+        var spellings = new Dictionary<string, Dictionary<string, int>>();
+        for (var d = date.AddDays(-14); d < date; d = d.AddDays(1))
+        {
+            if (_store.Day(d) is not { } stored) continue;
+            foreach (var name in stored.Summary.Pomodoros.SelectMany(p => p.Projects))
+            {
+                var key = ProjectColors.Key(name);
+                var forKey = spellings.TryGetValue(key, out var found) ? found : spellings[key] = [];
+                forKey[name] = forKey.GetValueOrDefault(name) + 1;
+            }
+        }
+        return spellings.Values
+            .OrderByDescending(v => v.Values.Sum())
+            .Select(v => v.MaxBy(x => x.Value).Key)
+            .Take(24)
+            .ToList();
     }
 
     /// <summary>The user named a pomodoro; blank gives it back to the write-up.</summary>

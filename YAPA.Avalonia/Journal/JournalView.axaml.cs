@@ -112,6 +112,17 @@ public partial class JournalView : UserControl
         _copied.Start();
     }
 
+    /// <summary>A row opens and closes with a click anywhere on it, except its own buttons and the rename box.</summary>
+    private void OnRowTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is not Control { DataContext: EntryViewModel entry } || entry.IsEditing) return;
+        if (e.Source is Visual source && source.FindAncestorOfType<Button>(includeSelf: true) != null) return;
+        entry.ToggleExpandedCommand.Execute(null);
+    }
+
+    private void OnWhatsReadClick(object? sender, RoutedEventArgs e)
+        => App.Bootstrapper?.Resolve<YAPA.Avalonia.Services.AppNavigator>().ShowSettings(YAPA.Avalonia.Services.SettingsPage.Journal);
+
     private void OnTitleDoubleTapped(object? sender, TappedEventArgs e)
     {
         if (sender is not Control { DataContext: EntryViewModel entry } title) return;
@@ -157,7 +168,7 @@ public partial class JournalView : UserControl
         Dispatcher.UIThread.Post(() =>
         {
             var target = Scroller.GetVisualDescendants().OfType<Border>()
-                .FirstOrDefault(b => b.Classes.Contains("entry") && ReferenceEquals(b.DataContext, entry));
+                .FirstOrDefault(b => b.Classes.Contains("row") && ReferenceEquals(b.DataContext, entry));
             if (target == null) return;
             var top = target.TranslatePoint(new Point(0, 0), (Visual)Scroller.Content!);
             if (top is { } p) Scroller.Offset = new Vector(0, Math.Max(0, p.Y - 80));

@@ -27,6 +27,19 @@ public static class ProjectColors
 
     public static readonly Color None = Color.Parse("#FF4A4A55");
 
+    /// <summary>
+    /// How a project reads on the page: a repository's slug ("interview-prep", "langpair") becomes
+    /// words ("Interview prep", "Langpair"). Names with capitals were written that way on purpose
+    /// ("YAPA-2", "NEU Cloud") and stay as they are.
+    /// </summary>
+    public static string Display(string project)
+    {
+        var name = project.Trim();
+        if (name.Length == 0 || name.Any(char.IsUpper)) return name;
+        name = System.Text.RegularExpressions.Regex.Replace(name, @"[\s_\-]+", " ").Trim();
+        return name.Length == 0 ? project : char.ToUpper(name[0], CultureInfo.CurrentCulture) + name[1..];
+    }
+
     /// <summary>"interview-prep", "Interview prep" and "interview_prep" are one project.</summary>
     public static string Key(string project) => System.Text.RegularExpressions.Regex.Replace(project.ToLowerInvariant(), @"[\s_\-]+", " ").Trim();
 
@@ -60,13 +73,21 @@ public static class ProjectColors
     }
 }
 
-public sealed record ProjectChip(string Name, IBrush Color, string Time);
+/// <param name="IsMore">The legend's last item: how many more projects there were, no dot.</param>
+public sealed record ProjectChip(string Name, IBrush Color, string Time, bool IsMore = false)
+{
+    /// <summary>"+2 more", after the biggest few.</summary>
+    public static ProjectChip More(int count) => new($"+{count} more", Brushes.Transparent, "", IsMore: true);
+}
 
 /// <summary>A heading and its lines, in an entry's "what happened" section.</summary>
 public sealed record EvidenceGroup(string Heading, IReadOnlyList<EvidenceLine> Lines);
 
 /// <param name="Quote">Words the user typed: shown as a quote.</param>
-public sealed record EvidenceLine(string Time, string Text, bool Quote = false);
+public sealed record EvidenceLine(string Time, string Text, bool Quote = false)
+{
+    public bool HasTime => Time.Length > 0;
+}
 
 /// <summary>One pomodoro in the Day window, or one stretch off the timer.</summary>
 public sealed partial class EntryViewModel : ObservableObject
@@ -80,13 +101,12 @@ public sealed partial class EntryViewModel : ObservableObject
         string Time(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(utc, zone).ToString(ClockFormat.Is24Hour ? "HH:mm" : "h:mm", CultureInfo.CurrentCulture);
         Start = Time(entry.Block.StartUtc);
         Range = $"{Start} – {Time(entry.Block.EndUtc)}";
-        Length = entry.OffTimer ? (entry.Block.Minutes < 3 ? "a moment" : $"~{entry.Block.Minutes} min")
-            : entry.InProgress ? $"{entry.Block.Minutes} min in" : $"{entry.Block.Minutes} min";
+        Length = entry.OffTimer ? (entry.Block.Minutes < 3 ? "a moment" : "~" + DayViewModel.Duration(entry.Block.Minutes))
+            : entry.InProgress ? $"{DayViewModel.Duration(entry.Block.Minutes)} in" : DayViewModel.Duration(entry.Block.Minutes);
         var color = entry.OffRecord ? ProjectColors.None : colors(entry.Projects.FirstOrDefault());
         // Off the timer, the rail is a quieter version of the project's colour: it wasn't focus.
         Color = new SolidColorBrush(entry.OffTimer ? global::Avalonia.Media.Color.FromArgb(0x55, color.R, color.G, color.B) : color);
-        Projects = entry.Projects.DistinctBy(ProjectColors.Key).Select(p => new ProjectChip(p, new SolidColorBrush(colors(p)), "")).ToList();
-        Badges = BuildBadges(entry.Evidence);
+        Projects = entry.Projects.DistinctBy(ProjectColors.Key).Select(p => new ProjectChip(ProjectColors.Display(p), new SolidColorBrush(colors(p)), "")).ToList();
         Evidence = BuildEvidence(entry.Evidence, Time);
         _title = entry.Title;
     }
@@ -98,13 +118,21 @@ public sealed partial class EntryViewModel : ObservableObject
     public string Length { get; }
     public IBrush Color { get; }
     public IReadOnlyList<ProjectChip> Projects { get; }
-    public IReadOnlyList<string> Badges { get; }
     public IReadOnlyList<EvidenceGroup> Evidence { get; }
 
     public string Detail => Entry.Detail;
     public bool HasDetail => Detail.Length > 0 && !IsEditing;
-    public bool HasChips => Projects.Count > 0 || Badges.Count > 0;
     public bool HasEvidence => Evidence.Count > 0;
+
+    /// <summary>What it belongs to, at the row's end: one project, or two.</summary>
+    public string Project => string.Join(", ", Projects.Take(2).Select(p => p.Name));
+    public bool HasProject => Project.Length > 0;
+
+    /// <summary>There's more to see when opened: the detail, or what was recorded.</summary>
+    public bool CanExpand => HasDetail || HasEvidence;
+
+    /// <summary>Time off the timer that left nothing worth a line: not shown.</summary>
+    public bool IsQuiet => IsOffTimer && !InProgress && Title.Length == 0;
     public bool InProgress => Entry.InProgress;
     public bool IsOffTimer => Entry.OffTimer;
 
@@ -152,7 +180,7 @@ public sealed partial class EntryViewModel : ObservableObject
     private string _title;
 
     public string ShownTitle => IsOffRecord ? "Off the record" : Title.Length > 0 ? Title
-        : InProgress ? (Entry.Paused ? "Paused" : "Under way") : "Nothing on record";
+        : InProgress ? (Entry.Paused ? "Paused" : "Under way") : "Nothing recorded";
 
     [ObservableProperty] private bool _isExpanded;
 
@@ -163,7 +191,10 @@ public sealed partial class EntryViewModel : ObservableObject
     [ObservableProperty] private string _editText = "";
 
     [RelayCommand]
-    private void ToggleExpanded() => IsExpanded = !IsExpanded;
+    private void ToggleExpanded()
+    {
+        if (CanExpand) IsExpanded = !IsExpanded;
+    }
 
     [RelayCommand]
     private void Edit()
@@ -188,16 +219,6 @@ public sealed partial class EntryViewModel : ObservableObject
         _day.Rename(this, text.Length > 0 ? text : null);
     }
 
-    private static IReadOnlyList<string> BuildBadges(BlockEvidence e)
-    {
-        var badges = new List<string>();
-        if (e.Commits.Count > 0) badges.Add(e.Commits.Count == 1 ? "1 commit" : $"{e.Commits.Count} commits");
-        var prompts = e.Sessions.Sum(s => s.Prompts.Count);
-        if (e.Sessions.Count > 0) badges.Add(prompts > 0 ? $"{prompts} prompt{(prompts == 1 ? "" : "s")}" : "Claude Code");
-        foreach (var site in e.Sites.Take(2)) badges.Add(site.Site);
-        return badges;
-    }
-
     private static IReadOnlyList<EvidenceGroup> BuildEvidence(BlockEvidence e, Func<DateTime, string> time)
     {
         var groups = new List<EvidenceGroup>();
@@ -214,56 +235,44 @@ public sealed partial class EntryViewModel : ObservableObject
         if (e.Sites.Count > 0)
             groups.Add(new EvidenceGroup("Pages", e.Sites.Select(s => new EvidenceLine("", $"{s.Site}  —  {string.Join("  ·  ", s.Titles)}")).ToList()));
         if (e.Apps.Count > 0)
-            groups.Add(new EvidenceGroup("In front", e.Apps.Select(a => new EvidenceLine($"{a.Minutes} min",
+            groups.Add(new EvidenceGroup("Windows open", e.Apps.Select(a => new EvidenceLine($"{a.Minutes} min",
                 a.Titles.Count > 0 ? $"{a.App}  —  {string.Join("  ·  ", a.Titles)}" : a.App)).ToList()));
         return groups;
     }
 }
 
-public sealed class SessionViewModel
+/// <summary>
+/// A part of the day (morning, afternoon, evening) with everything in it, pomodoros and the time
+/// between, in order. Plainer than sessions, which needed explaining and repeated their rows.
+/// </summary>
+public sealed class DayPart
 {
-    public SessionViewModel(WorkSession session, SessionSummary? summary, IReadOnlyList<EntryViewModel> entries, TimeZoneInfo zone)
+    public DayPart(string label, IReadOnlyList<EntryViewModel> entries, TimeZoneInfo zone)
     {
         string Time(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(utc, zone).ToString(ClockFormat.Is24Hour ? "HH:mm" : "h:mm", CultureInfo.CurrentCulture);
-        var done = entries.Count(e => !e.InProgress && !e.IsOffTimer);
-        var running = entries.Any(e => e.InProgress && !e.IsOffTimer);
-        var state = entries.Any(e => e.InProgress && e.Entry.Paused) ? "paused" : "under way";
-        var count = (done, running) switch
-        {
-            (0, true) => state,
-            (_, true) => $"{done} pomodoro{(done == 1 ? "" : "s")} and one {state}",
-            _ => $"{done} pomodoro{(done == 1 ? "" : "s")}",
-        };
-        Label = $"SESSION {session.Number}";
-        Range = $"{Time(session.StartUtc)} – {(running ? "now" : Time(session.EndUtc))}  ·  {count}  ·  {DayViewModel.Duration(session.Minutes)}";
-        Title = summary?.Title is { Length: > 0 } t ? t : "";
-        Summary = summary?.Summary ?? "";
+        Label = label;
         Entries = entries;
+        var last = entries[^1];
+        var focused = entries.Where(e => !e.IsOffTimer && !e.InProgress).Sum(e => e.Entry.Block.Minutes);
+        Range = $"{Time(entries[0].Entry.Block.StartUtc)} – {(last.InProgress ? "now" : Time(last.Entry.Block.EndUtc))}";
+        Focus = focused > 0 ? DayViewModel.Duration(focused) + " focused" : "";
     }
 
-    /// <summary>Time at the computer between sessions (or before the first, after the last).</summary>
-    public SessionViewModel(IReadOnlyList<EntryViewModel> offTimer, TimeZoneInfo zone, bool measured)
-    {
-        string Time(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(utc, zone).ToString(ClockFormat.Is24Hour ? "HH:mm" : "h:mm", CultureInfo.CurrentCulture);
-        var first = offTimer[0].Entry.Block;
-        var last = offTimer[^1];
-        IsOffTimer = true;
-        Label = "OFF THE TIMER";
-        Range = $"{Time(first.StartUtc)} – {(last.InProgress ? "now" : Time(last.Entry.Block.EndUtc))}";
-        // Without the windows recorded, the stretches are moments that left a trace, not a length.
-        if (measured) Range += $"  ·  about {DayViewModel.Duration(offTimer.Sum(e => e.Entry.Block.Minutes))} at the computer";
-        Title = Summary = "";
-        Entries = offTimer;
-    }
-
-    public bool IsOffTimer { get; }
     public string Label { get; }
     public string Range { get; }
-    public string Title { get; }
-    public string Summary { get; }
-    public bool HasTitle => Title.Length > 0;
-    public bool HasSummary => Summary.Length > 0;
+    public string Focus { get; }
+    public bool HasFocus => Focus.Length > 0;
     public IReadOnlyList<EntryViewModel> Entries { get; }
+
+    /// <summary>The part of the day a local time falls in.</summary>
+    public static string For(DateTime local) => local.Hour switch
+    {
+        < 5 => "Late night",
+        < 12 => "Morning",
+        < 17 => "Afternoon",
+        < 21 => "Evening",
+        _ => "Night",
+    };
 }
 
 /// <summary>A day in the calendar: its number, and a dot when anything happened on it.</summary>
@@ -360,7 +369,7 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
         _live.Start();
     }
 
-    public ObservableCollection<SessionViewModel> Sessions { get; } = [];
+    public ObservableCollection<DayPart> Parts { get; } = [];
     public ObservableCollection<ProjectChip> ProjectTotals { get; } = [];
 
     [ObservableProperty]
@@ -441,6 +450,20 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _hasPrevious;
     [ObservableProperty] private bool _hasNext;
     [ObservableProperty] private string _sources = "";
+
+    // The day in three numbers, large: focus, pomodoros, and time at the computer that wasn't timed.
+    [ObservableProperty] private string _focusText = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasFocus))]
+    private string _pomodoroText = "";
+    public bool HasFocus => PomodoroText is { Length: > 0 } and not "0";
+    [ObservableProperty] private string _pomodoroLabel = "pomodoros";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUntimed))]
+    private string _untimedText = "";
+    public bool HasUntimed => UntimedText.Length > 0;
+
+
 
     /// <summary>What's read and what isn't, in the footer: it follows the settings.</summary>
     public string PrivacyNote
@@ -724,9 +747,9 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
     {
         if (date == Date || date > _journal.Today) return;
         Date = date;
-        Sessions.Clear();
+        Parts.Clear();
         ProjectTotals.Clear();
-        Headline = Summary = Stats = Span = Status = "";
+        Headline = Summary = Stats = Span = Status = FocusText = PomodoroText = UntimedText = "";
         Ribbon = [];
         _ = LoadAsync(write: true);
     }
@@ -768,7 +791,7 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
             if (problem != null)
             {
                 Status = problem.SignedOut
-                    ? "Signed out of Claude, so this is the evidence without the write-up."
+                    ? "Signed out of Claude, so there's no write-up yet."
                     : ProblemText(problem.Message);
                 ShowSignIn = problem.SignedOut;
                 CanRetry = !problem.SignedOut;
@@ -811,12 +834,12 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
         HasNext = !IsToday;
         IsEmpty = day.Entries.Count == 0;
 
-        var expanded = Sessions.SelectMany(s => s.Entries).Where(e => e.IsExpanded).Select(e => e.PomodoroId).ToHashSet();
+        var expanded = Parts.SelectMany(s => s.Entries).Where(e => e.IsExpanded).Select(e => e.PomodoroId).ToHashSet();
         var totals = Totals(day).ToList();
         _colors = ProjectColors.ForDay(totals.Select(t => t.Name).Concat(day.Entries.SelectMany(e => e.Projects)));
         var entries = day.Entries.Select(e => new EntryViewModel(this, e, _zone, _colors) { IsExpanded = expanded.Contains(e.Block.PomodoroId) }).ToList();
-        Sessions.Clear();
-        foreach (var group in Groups(day, entries)) Sessions.Add(group);
+        Parts.Clear();
+        foreach (var part in PartsOf(entries)) Parts.Add(part);
 
         var done = day.Count;
         var parts = new List<string>();
@@ -824,10 +847,13 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
         {
             parts.Add($"{done} pomodoro{(done == 1 ? "" : "s")}");
             parts.Add($"{Duration(day.Minutes)} focused");
-            parts.Add($"{day.Sessions.Count} session{(day.Sessions.Count == 1 ? "" : "s")}");
         }
-        if (day.OffTimerMinutes > 0 && day.WindowsRecorded) parts.Add($"{Duration(day.OffTimerMinutes)} off the timer");
+        if (day.OffTimerMinutes > 0 && day.WindowsRecorded) parts.Add($"{Duration(day.OffTimerMinutes)} not timed");
         Stats = string.Join("  ·  ", parts);
+        FocusText = Duration(day.Minutes);
+        PomodoroText = done.ToString(CultureInfo.CurrentCulture);
+        PomodoroLabel = done == 1 ? "pomodoro" : "pomodoros";
+        UntimedText = day.OffTimerMinutes > 0 && day.WindowsRecorded ? Duration(day.OffTimerMinutes) : "";
         if (day.Entries.Count > 0)
         {
             string T(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(utc, _zone).ToString(ClockFormat.Is24Hour ? "HH:mm" : "h:mm tt", CultureInfo.CurrentCulture);
@@ -855,38 +881,29 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
 
     private static string FallbackHeadline(JournalDay day)
     {
-        var projects = Totals(day).Take(3).Select(p => p.Name).ToList();
-        return projects.Count > 0 ? string.Join(", ", projects)
+        var projects = Totals(day).Take(3).Select(p => ProjectColors.Display(p.Name)).ToList();
+        return projects.Count > 0 ? Join(projects)
             : day.Count > 0 ? $"{day.Count} pomodoro{(day.Count == 1 ? "" : "s")}"
-            : "No pomodoros, but you were at the computer";
+            : "No pomodoros";
     }
 
-    /// <summary>
-    /// The day in order: each session with its pomodoros and the breaks inside it, and between
-    /// them the time off the timer, one group per run of it.
-    /// </summary>
-    private IEnumerable<SessionViewModel> Groups(JournalDay day, IReadOnlyList<EntryViewModel> entries)
+    /// <summary>The day in order, in its parts; time between pomodoros that left nothing worth a line is left out.</summary>
+    private IEnumerable<DayPart> PartsOf(IReadOnlyList<EntryViewModel> entries)
     {
-        var offRun = new List<EntryViewModel>();
-        var shown = new HashSet<int>();
-        foreach (var entry in entries)
+        string? label = null;
+        var run = new List<EntryViewModel>();
+        foreach (var entry in entries.Where(e => !e.IsQuiet))
         {
-            if (entry.Entry.Session == 0)
+            var part = DayPart.For(TimeZoneInfo.ConvertTimeFromUtc(entry.Entry.Block.StartUtc, _zone));
+            if (part != label && run.Count > 0)
             {
-                offRun.Add(entry);
-                continue;
+                yield return new DayPart(label!, run, _zone);
+                run = [];
             }
-            if (offRun.Count > 0)
-            {
-                yield return new SessionViewModel(offRun, _zone, day.WindowsRecorded);
-                offRun = [];
-            }
-            var number = entry.Entry.Session;
-            if (!shown.Add(number)) continue;
-            var session = day.Sessions.First(s => s.Number == number);
-            yield return new SessionViewModel(session, day.SessionSummary(number), entries.Where(e => e.Entry.Session == number).ToList(), _zone);
+            label = part;
+            run.Add(entry);
         }
-        if (offRun.Count > 0) yield return new SessionViewModel(offRun, _zone, day.WindowsRecorded);
+        if (run.Count > 0) yield return new DayPart(label!, run, _zone);
     }
 
     private void BuildRibbon(JournalDay day)
@@ -911,12 +928,17 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
         }).ToList();
     }
 
+    /// <summary>The biggest few; the rest is a count, and their rows say what they were.</summary>
     private void BuildTotals(JournalDay day)
     {
         ProjectTotals.Clear();
-        foreach (var (name, minutes) in Totals(day).Take(6))
-            ProjectTotals.Add(new ProjectChip(name, new SolidColorBrush(_colors(name)), Duration(minutes)));
+        var totals = Totals(day).ToList();
+        foreach (var (name, minutes) in totals.Take(LegendSize))
+            ProjectTotals.Add(new ProjectChip(ProjectColors.Display(name), new SolidColorBrush(_colors(name)), Duration(minutes)));
+        if (totals.Count > LegendSize) ProjectTotals.Add(ProjectChip.More(totals.Count - LegendSize));
     }
+
+    internal const int LegendSize = 4;
 
     /// <summary>Time per project: a pomodoro's minutes shared among its projects.</summary>
     private static IEnumerable<(string Name, int Minutes)> Totals(JournalDay day)
@@ -941,7 +963,7 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
 
     public void RevealPomodoro(int pomodoroId)
     {
-        var entry = Sessions.SelectMany(s => s.Entries).FirstOrDefault(e => e.PomodoroId == pomodoroId);
+        var entry = Parts.SelectMany(s => s.Entries).FirstOrDefault(e => e.PomodoroId == pomodoroId);
         if (entry == null) return;
         entry.IsExpanded = true;
         Reveal?.Invoke(entry);
@@ -964,13 +986,12 @@ public sealed partial class DayViewModel : ObservableObject, IDisposable
         text.Append('\n');
         if (Headline.Length > 0) text.Append(Headline).Append('\n');
         if (Summary.Length > 0) text.Append('\n').Append(Summary).Append('\n');
-        foreach (var session in Sessions)
+        foreach (var part in Parts)
         {
-            text.Append('\n').Append(session.Label[0]).Append(session.Label[1..].ToLowerInvariant()).Append(session.HasTitle ? ": " + session.Title : "")
-                .Append(" (").Append(session.Range.Split("  ·  ")[0]).Append(")\n");
-            foreach (var e in session.Entries.Where(e => !e.IsBlank))
+            text.Append('\n').Append(part.Label).Append(" (").Append(part.Range).Append(")\n");
+            foreach (var e in part.Entries.Where(e => !e.IsBlank))
             {
-                text.Append(e.IsOffTimer && !session.IsOffTimer ? "  ◦ break " : "• ").Append(e.Start).Append("  ").Append(e.Title);
+                text.Append(e.IsOffTimer ? "  ◦ " : "• ").Append(e.Start).Append("  ").Append(e.Title);
                 if (e.Detail.Length > 0) text.Append(" — ").Append(e.Detail);
                 text.Append('\n');
             }

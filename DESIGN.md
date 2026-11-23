@@ -90,6 +90,17 @@ mark. Under it is a list that depends on what you've typed:
 Esc clears what's typed, then closes. The foot shows what the orb is doing and the keys
 that work right now. It opens beside the timer, or over the hub when called from there.
 
+**Your day and the week** (`Journal/JournalView`). Built for a glance. The day opens on
+a card with a headline of a few words, one or two plain sentences, three big numbers
+(focused, pomodoros, time at the computer that wasn't timed), the timeline and the top
+few projects. Under it, everything done that day is one line each: time, title, project
+and length. Lines are grouped by part of the day (Morning, Afternoon, Evening), and time
+outside a pomodoro is a quieter grey line. A line opens to its one detail and what was
+recorded. The week is the same card over one line per day. The write-ups follow the same
+rules (`JournalPrompt.System`): everyday words, titles of at most 6 words, no tool or site
+names, and project names reused from earlier days. `JournalPrompt.Style` is part of every
+fingerprint, so a change of style rewrites each day once, when it's next opened.
+
 ## Decisions worth knowing
 
 - **Existing profiles move to Studio once.** The classic timer used to be the default, so
