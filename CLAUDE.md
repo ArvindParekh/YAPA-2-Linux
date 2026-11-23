@@ -93,6 +93,9 @@ Per-machine settings (music paths, window position) live in `localSettings.json`
   speaks stream-json and calls the MCP tools from `--mcp-config` (answer `auth status` with `loggedIn: true`).
 - The orb's frames stop while its window is hidden and nothing restarts them on show: call
   `OrbControl.Resume()` whenever the panel opens.
+- What a request is doing shows inline, last in its exchange (`Exchange.Status` → `StatusLine`), not in the
+  caption by the orb: the eye is on the question and the prompt after sending. `StatusTicker` holds each step
+  0.7 s so instant tools are still read, and drops a queued "Thinking" when the next step arrives.
 - The panel closes on outside clicks through `X11PointerWatch` (polled XQueryPointer): clicks on
   the shell's top bar, dock or bare desktop never move focus, so deactivation alone misses them.
 - `IDesktopNotifier` is `NotificationRouter`: reminder-category notices (the scheduler's) go to

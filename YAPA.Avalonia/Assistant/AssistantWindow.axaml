@@ -378,46 +378,6 @@
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
 
-        <!-- "…" while an answer is on its way. The animations run only while a dot shows: there are
-             three in every exchange, and hidden ones animating kept the renderer busy (28% of a core
-             with the panel idle, on software rendering). -->
-        <Style Selector="Ellipse.dot">
-            <Setter Property="Width" Value="5" />
-            <Setter Property="Height" Value="5" />
-            <Setter Property="Fill" Value="{StaticResource Text2}" />
-            <Setter Property="Margin" Value="0,0,4,0" />
-        </Style>
-        <Style Selector="Ellipse.dot[IsVisible=True]">
-            <Style.Animations>
-                <Animation Duration="0:0:1.2" IterationCount="Infinite">
-                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
-                    <KeyFrame Cue="30%"><Setter Property="Opacity" Value="1" /></KeyFrame>
-                    <KeyFrame Cue="60%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
-                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
-                </Animation>
-            </Style.Animations>
-        </Style>
-        <Style Selector="Ellipse.dot.second[IsVisible=True]">
-            <Style.Animations>
-                <Animation Duration="0:0:1.2" IterationCount="Infinite" Delay="0:0:0.15">
-                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
-                    <KeyFrame Cue="30%"><Setter Property="Opacity" Value="1" /></KeyFrame>
-                    <KeyFrame Cue="60%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
-                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
-                </Animation>
-            </Style.Animations>
-        </Style>
-        <Style Selector="Ellipse.dot.third[IsVisible=True]">
-            <Style.Animations>
-                <Animation Duration="0:0:1.2" IterationCount="Infinite" Delay="0:0:0.3">
-                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
-                    <KeyFrame Cue="30%"><Setter Property="Opacity" Value="1" /></KeyFrame>
-                    <KeyFrame Cue="60%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
-                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0.2" /></KeyFrame>
-                </Animation>
-            </Style.Animations>
-        </Style>
-
         <Style Selector="ScrollViewer /template/ ScrollBar">
             <Setter Property="Opacity" Value="0.5" />
         </Style>
@@ -557,12 +517,6 @@
                                                 <Border Classes="question">
                                                     <SelectableTextBlock Classes="question" Text="{Binding Question}" />
                                                 </Border>
-                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,4"
-                                                            IsVisible="{Binding IsWaiting}">
-                                                    <Ellipse Classes="dot" IsVisible="{Binding IsWaiting}" />
-                                                    <Ellipse Classes="dot second" IsVisible="{Binding IsWaiting}" />
-                                                    <Ellipse Classes="dot third" IsVisible="{Binding IsWaiting}" />
-                                                </StackPanel>
                                                 <ItemsControl Classes="answer" Classes.error="{Binding IsError}" ItemsSource="{Binding Blocks}"
                                                               IsVisible="{Binding HasAnswer}">
                                                     <ItemsControl.ItemTemplate>
@@ -589,6 +543,8 @@
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
+                                                <!-- What it's doing, always last: under the question at first, then under whatever it has said or done so far. -->
+                                                <a:StatusLine Status="{Binding Status}" IsVisible="{Binding ShowStatus}" Margin="-2,1,0,1" />
                                                 <!-- What can be done with the answer: Undo, Try again, Copy. -->
                                                 <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" Height="24" Margin="-6,-4,-4,0" IsVisible="{Binding HasFooter}">
                                                     <Button Classes="link" Content="Undo" IsVisible="{Binding CanUndo}"

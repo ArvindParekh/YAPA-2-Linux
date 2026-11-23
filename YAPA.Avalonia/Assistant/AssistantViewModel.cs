@@ -42,11 +42,11 @@ public sealed partial class Exchange : ObservableObject
     public string Question { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsWaiting), nameof(HasAnswer))]
+    [NotifyPropertyChangedFor(nameof(HasAnswer))]
     private string _answer = "";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsWaiting), nameof(CanCopy), nameof(CanRetry), nameof(HasFooter))]
+    [NotifyPropertyChangedFor(nameof(ShowStatus), nameof(CanCopy), nameof(CanRetry), nameof(HasFooter))]
     private bool _isPending = true;
 
     public bool HasAnswer => Answer.Length > 0;
@@ -97,11 +97,16 @@ public sealed partial class Exchange : ObservableObject
 
     /// <summary>Held until the user signs in to Claude; it's sent then.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsWaiting), nameof(CanRetry))]
+    [NotifyPropertyChangedFor(nameof(ShowStatus), nameof(CanRetry))]
     private bool _awaitsSignIn;
 
-    /// <summary>Asked, and not a word back yet: the dots show.</summary>
-    public bool IsWaiting => IsPending && Answer.Length == 0 && !AwaitsSignIn;
+    /// <summary>What it's doing while no words are coming: thinking, or a tool's step. Null while it speaks.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowStatus))]
+    private AgentStatus? _status;
+
+    public bool ShowStatus => IsPending && !AwaitsSignIn && Status != null;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanCopy), nameof(CanRetry), nameof(HasFooter))]
     private bool _isError;
@@ -312,7 +317,9 @@ public sealed partial class AssistantViewModel : ObservableObject
         _interrupted = false;
         IsBusy = true;
         Mood = OrbMood.Thinking;
-        Caption = "Thinking…";
+        // What it's doing shows in the conversation, under the question, where the eye is now.
+        Caption = "";
+        _current.Status = AgentStatus.Thinking;
         _outstanding++;
         Asked?.Invoke();
         if (!_service.Ask(text))
@@ -458,10 +465,14 @@ public sealed partial class AssistantViewModel : ObservableObject
 
             case ClaudeThinking when IsBusy:
                 Mood = OrbMood.Thinking;
+                ShowStatus(AgentStatus.Thinking);
                 break;
 
+            // Words that led up to a tool stay on screen; the status comes back under them.
+            // The tool's own step ("Reading your day") follows once YAPA's tools hear the call.
             case ClaudeToolCall when IsBusy:
                 Mood = OrbMood.Acting;
+                if (_current is { Status: null }) ShowStatus(AgentStatus.Thinking);
                 break;
 
             case ClaudeTextDelta delta when _current is { IsPending: true } exchange && !_interrupted:
@@ -471,6 +482,7 @@ public sealed partial class AssistantViewModel : ObservableObject
                     _replaceOnNextText = false;
                 }
                 exchange.Answer = Tidy(exchange.Answer + delta.Text, final: false);
+                exchange.Status = null; // the words are the sign of life now
                 Mood = OrbMood.Speaking;
                 Spoke?.Invoke();
                 Caption = "";
@@ -516,19 +528,30 @@ public sealed partial class AssistantViewModel : ObservableObject
         {
             case ToolActivityKind.Started:
                 Mood = OrbMood.Acting;
-                if (a.Text.Length > 0) Caption = a.Text + "…";
+                if (a.Text.Length > 0) ShowStatus(new AgentStatus(a.Text, Acting: true));
                 break;
             case ToolActivityKind.Finished when a.Mutated && a.Text.Length > 0:
                 exchange.AddAction(a.Text);
                 ActionCompleted?.Invoke();
                 Mood = OrbMood.Thinking;
+                ShowStatus(AgentStatus.Thinking);
                 ContentGrew?.Invoke();
                 break;
             case ToolActivityKind.Finished:
             case ToolActivityKind.Failed:
                 Mood = OrbMood.Thinking;
+                ShowStatus(AgentStatus.Thinking);
                 break;
         }
+    }
+
+    /// <summary>Puts the status under the current request; appearing, it may need scrolling into view.</summary>
+    private void ShowStatus(AgentStatus status)
+    {
+        if (_current is not { IsPending: true } exchange) return;
+        var appeared = exchange.Status == null;
+        exchange.Status = status;
+        if (appeared) ContentGrew?.Invoke();
     }
 
     private void OnCrashed(string stderr)
@@ -560,6 +583,7 @@ public sealed partial class AssistantViewModel : ObservableObject
             _outstanding++;
             IsBusy = true;
             Mood = OrbMood.Thinking;
+            exchange.Status = AgentStatus.Thinking;
             return true;
         }
         exchange.AwaitsSignIn = true;
@@ -630,6 +654,7 @@ public sealed partial class AssistantViewModel : ObservableObject
         if (_current is { IsPending: true, AwaitsSignIn: true } waiting)
         {
             waiting.AwaitsSignIn = false;
+            waiting.Status = AgentStatus.Thinking;
             IsBusy = true;
             Mood = OrbMood.Thinking;
             _outstanding++;
@@ -654,6 +679,7 @@ public sealed partial class AssistantViewModel : ObservableObject
     {
         if (!exchange.IsPending) return;
         exchange.IsPending = false;
+        exchange.Status = null;
         if (error != null)
         {
             exchange.IsError = true;
