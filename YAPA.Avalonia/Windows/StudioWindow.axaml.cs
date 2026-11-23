@@ -77,11 +77,21 @@ public partial class StudioWindow : TimerWindowBase
     public static readonly StyledProperty<string> AsideTextProperty =
         AvaloniaProperty.Register<StudioWindow, string>(nameof(AsideText), "");
 
-    /// <summary>The status line's middle: the user's own note when there is one, else when the goal will be reached.</summary>
+    /// <summary>The status line's middle: the user's own note.</summary>
     public string AsideText
     {
         get => GetValue(AsideTextProperty);
         private set => SetValue(AsideTextProperty, value);
+    }
+
+    public static readonly StyledProperty<string> ForecastTextProperty =
+        AvaloniaProperty.Register<StudioWindow, string>(nameof(ForecastText), "");
+
+    /// <summary>"goal by 18:40": when today's goal will be reached at this pace.</summary>
+    public string ForecastText
+    {
+        get => GetValue(ForecastTextProperty);
+        private set => SetValue(ForecastTextProperty, value);
     }
 
     public static readonly StyledProperty<bool> HoveringProperty =
@@ -149,10 +159,11 @@ public partial class StudioWindow : TimerWindowBase
         CycleText = ViewModel.Phase is PomodoroPhase.NotStarted || settings.Counter == CounterEnum.PomodoroIndex ? ""
             : ViewModel.Engine.Index + "/" + Math.Max(1, settings.PomodorosBeforeLongBreak);
         var note = ViewModel.NoteSuffix.TrimStart(' ', '·').Trim();
+        // The user's note has the status line; the forecast has its own place beside the time.
+        AsideText = note;
         // The count is already at the right ("3/12"), so the forecast needs only its time: "goal by 18:40".
-        AsideText = note.Length > 0 ? note
-            : ViewModel.HasGoalForecast ? System.Text.RegularExpressions.Regex.Replace(ViewModel.GoalForecastText, @"^\d+ ", "goal ").Replace("after midnight", "past midnight")
-            : "";
+        ForecastText = System.Text.RegularExpressions.Regex.Replace(ViewModel.GoalForecastText, @"^\d+ ", "goal ")
+            .Replace("after midnight", "tomorrow");
         UpdateTime();
         UpdateProgress();
     }

@@ -128,14 +128,15 @@
                                         <TextBlock Text="2/4" FontFamily="{StaticResource MonoFont}" FontSize="11.5" Foreground="{StaticResource Text3}"
                                                    VerticalAlignment="Center" Margin="1,1,0,0" />
                                     </StackPanel>
-                                    <TextBlock Grid.Column="1" Text="goal by 18:40" FontSize="12" Foreground="{StaticResource Text3}"
-                                               VerticalAlignment="Center" Margin="10,1,8,0" />
+
                                     <TextBlock Grid.Column="2" Text="5/12" FontFamily="{StaticResource MonoFont}" FontSize="11.5"
                                                Foreground="{StaticResource Text3}" VerticalAlignment="Center" Margin="0,0,4,0" />
                                 </Grid>
                                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
                                     <TextBlock Text="{Binding PreviewTime}" FontFamily="{StaticResource UiFont}" FontSize="48" FontWeight="Light"
                                                FontFeatures="+tnum" Foreground="{StaticResource Text1}" VerticalAlignment="Center" Margin="-2,-6,0,0" />
+                                    <TextBlock Grid.Column="0" Text="goal by 18:40" FontSize="12" Foreground="{StaticResource Text3}"
+                                               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" />
                                     <Border Grid.Column="1" Width="38" Height="38" CornerRadius="19" Background="{StaticResource Text1}"
                                             VerticalAlignment="Center" Margin="0,-4,0,0">
                                         <Path Width="11" Height="13" Stretch="Uniform" Fill="{StaticResource Canvas}"
