@@ -243,10 +243,14 @@ public sealed class AppearancePageViewModel : SettingsPageViewModel
     public string Note
     {
         get => _texts?.Note ?? "";
-        set { if (_texts != null && value.Length <= TimerTexts.MaxNote) { _texts.Note = value; Changed(); } }
+        set { if (_texts != null && value.Length <= TimerTexts.MaxNote) { _texts.Note = value; Changed(); Changed(nameof(PreviewNote)); Changed(nameof(HasPreviewNote)); } }
     }
 
-    public string NoteHint => "Shown after the status. Live: " + string.Join(" ", TimerTexts.Placeholders.Take(6).Select(p => p.Token)) + " …";
+    /// <summary>The note as the Studio preview shows it, on its own line under the time.</summary>
+    public string PreviewNote => Note.Trim();
+    public bool HasPreviewNote => PreviewNote.Length > 0;
+
+    public string NoteHint => (IsStudio ? "Shown under the time, in full. " : "Shown after the status. ") + "Live: " + string.Join(" ", TimerTexts.Placeholders.Take(6).Select(p => p.Token)) + " …";
 
     public override string Title => "Appearance";
     public override string Subtitle => "How the timer looks on your desktop.";
@@ -300,7 +304,7 @@ public sealed class AppearancePageViewModel : SettingsPageViewModel
     public int ThemeIndex
     {
         get => Math.Max(0, Array.IndexOf(ThemeNames, themes.ActiveTheme));
-        set { themes.ActiveTheme = ThemeNames[Math.Clamp(value, 0, ThemeNames.Length - 1)]; Changed(); Changed(nameof(IsStudio)); }
+        set { themes.ActiveTheme = ThemeNames[Math.Clamp(value, 0, ThemeNames.Length - 1)]; Changed(); Changed(nameof(IsStudio)); Changed(nameof(NoteHint)); }
     }
 
     public IReadOnlyList<string> TextColors { get; } =

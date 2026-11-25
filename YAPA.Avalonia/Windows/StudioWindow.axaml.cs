@@ -15,11 +15,15 @@ namespace YAPA.Avalonia.Windows;
 /// </summary>
 public partial class StudioWindow : TimerWindowBase
 {
-    // The XAML is laid out at this size (card and its shadow's margin); Size scales it.
-    private const double DesignWidth = 328;
-    private const double DesignHeight = 132;
+    // The XAML is laid out at this width (the card and its shadow's margin); Size scales it. The
+    // height follows the card: it grows for a note and stays compact without one.
+    private const double CardWidth = 280;
+    private const double ShadowRoom = 16; // the transparent margin around the card, for its shadow
+    private const double DesignWidth = CardWidth + 2 * ShadowRoom;
     private const double DesignSize = 200; // the Size setting this layout is drawn for
-    private const double TrackWidth = 296 - 36;
+    private const double TrackWidth = CardWidth - 36;
+
+    private double _scale = 1;
 
     public StudioWindow()
     {
@@ -64,30 +68,61 @@ public partial class StudioWindow : TimerWindowBase
         private set => SetValue(TimeDisplayProperty, value);
     }
 
-    public static readonly StyledProperty<string> CycleTextProperty =
-        AvaloniaProperty.Register<StudioWindow, string>(nameof(CycleText), "");
+    public static readonly StyledProperty<string> LeftCountTextProperty =
+        AvaloniaProperty.Register<StudioWindow, string>(nameof(LeftCountText), "");
 
-    /// <summary>"2/4": where this pomodoro sits in the cycle; empty when idle.</summary>
-    public string CycleText
+    /// <summary>
+    /// Beside the state: where this pomodoro sits in the cycle ("2/4"). With the counter set to
+    /// the cycle that's the counter itself; otherwise the cycle, and the counter goes right.
+    /// </summary>
+    public string LeftCountText
     {
-        get => GetValue(CycleTextProperty);
-        private set => SetValue(CycleTextProperty, value);
+        get => GetValue(LeftCountTextProperty);
+        private set => SetValue(LeftCountTextProperty, value);
     }
 
-    public static readonly StyledProperty<string> AsideTextProperty =
-        AvaloniaProperty.Register<StudioWindow, string>(nameof(AsideText), "");
+    public static readonly StyledProperty<string> RightCountTextProperty =
+        AvaloniaProperty.Register<StudioWindow, string>(nameof(RightCountText), "");
 
-    /// <summary>The status line's middle: the user's own note.</summary>
-    public string AsideText
+    /// <summary>Beside the forecast: today's count against the goal ("5/12"), when that's what the counter counts.</summary>
+    public string RightCountText
     {
-        get => GetValue(AsideTextProperty);
-        private set => SetValue(AsideTextProperty, value);
+        get => GetValue(RightCountTextProperty);
+        private set => SetValue(RightCountTextProperty, value);
+    }
+
+    public static readonly StyledProperty<bool> HasRightCountProperty =
+        AvaloniaProperty.Register<StudioWindow, bool>(nameof(HasRightCount));
+
+    public bool HasRightCount
+    {
+        get => GetValue(HasRightCountProperty);
+        private set => SetValue(HasRightCountProperty, value);
+    }
+
+    public static readonly StyledProperty<string> NoteTextProperty =
+        AvaloniaProperty.Register<StudioWindow, string>(nameof(NoteText), "");
+
+    /// <summary>The user's own note, on its own line under the time.</summary>
+    public string NoteText
+    {
+        get => GetValue(NoteTextProperty);
+        private set => SetValue(NoteTextProperty, value);
+    }
+
+    public static readonly StyledProperty<bool> HasNoteProperty =
+        AvaloniaProperty.Register<StudioWindow, bool>(nameof(HasNote));
+
+    public bool HasNote
+    {
+        get => GetValue(HasNoteProperty);
+        private set => SetValue(HasNoteProperty, value);
     }
 
     public static readonly StyledProperty<string> ForecastTextProperty =
         AvaloniaProperty.Register<StudioWindow, string>(nameof(ForecastText), "");
 
-    /// <summary>"goal by 18:40": when today's goal will be reached at this pace.</summary>
+    /// <summary>"goal by 18:40": when today's goal will be reached at this pace, at the status line's right.</summary>
     public string ForecastText
     {
         get => GetValue(ForecastTextProperty);
@@ -153,17 +188,22 @@ public partial class StudioWindow : TimerWindowBase
             _ => "Text3",
         };
         if (this.TryFindResource(key, out var brush) && brush is IBrush b) StateBrush = b;
-        // The classic timer's suffix reads " · Cycle 2"; here the cycle is the number alone, as the pomodoro's place in it.
-        // Left out when the counter at the right already is the place in the cycle.
         var settings = EngineSettings;
-        CycleText = ViewModel.Phase is PomodoroPhase.NotStarted || settings.Counter == CounterEnum.PomodoroIndex ? ""
-            : ViewModel.Engine.Index + "/" + Math.Max(1, settings.PomodorosBeforeLongBreak);
-        var note = ViewModel.NoteSuffix.TrimStart(' ', '·').Trim();
-        // The user's note has the status line; the forecast has its own place beside the time.
-        AsideText = note;
-        // The count is already at the right ("3/12"), so the forecast needs only its time: "goal by 18:40".
+        var cycle = ViewModel.Phase is PomodoroPhase.NotStarted ? "" : ViewModel.Engine.Index + "/" + Math.Max(1, settings.PomodorosBeforeLongBreak);
+        var countsCycle = settings.Counter == CounterEnum.PomodoroIndex;
+        LeftCountText = countsCycle ? ViewModel.CounterText : cycle;
+        RightCountText = countsCycle ? "" : ViewModel.CounterText;
+        HasRightCount = RightCountText.Length > 0;
+        // The count is beside it ("5/12") or the goal is known, so the forecast needs only its time: "goal by 18:40".
         ForecastText = System.Text.RegularExpressions.Regex.Replace(ViewModel.GoalForecastText, @"^\d+ ", "goal ")
             .Replace("after midnight", "tomorrow");
+        var note = ViewModel.NoteSuffix.TrimStart(' ', '·').Trim();
+        if (note != NoteText || note.Length > 0 != HasNote)
+        {
+            NoteText = note;
+            HasNote = note.Length > 0;
+            Fit();
+        }
         UpdateTime();
         UpdateProgress();
     }
@@ -180,13 +220,27 @@ public partial class StudioWindow : TimerWindowBase
 
     protected override void OnAppearanceChanged()
     {
-        var scale = Math.Max(0.6, Appearance.Width / DesignSize);
-        Width = Math.Round(DesignWidth * scale);
-        Height = Math.Round(DesignHeight * scale);
+        _scale = Math.Max(0.6, Appearance.Width / DesignSize);
+        Fit();
         StatusLabel.IsVisible = Appearance.ShowStatusText;
         Progress.IsVisible = Appearance.ShowProgress;
         // Without the flashing alert, the glow holds still instead of breathing.
         Glow.Classes.Set("still", Appearance.DisableFlashingAnimation);
+    }
+
+    /// <summary>
+    /// Sizes the window to the card: its width from the Size setting, its height from what the
+    /// card holds (a note adds a line or two), both at the Size setting's scale.
+    /// </summary>
+    private void Fit()
+    {
+        Card.Measure(new Size(CardWidth, double.PositiveInfinity));
+        var cardHeight = Card.DesiredSize.Height - 2 * ShadowRoom;
+        // Before the styles are in, the card measures as nothing: the compact card's height stands in.
+        var height = (cardHeight > 40 ? Math.Ceiling(cardHeight) : 100) + 2 * ShadowRoom;
+        Page.Height = height;
+        Width = Math.Round(DesignWidth * _scale);
+        Height = Math.Round(height * _scale);
     }
 
     /// <summary>Clicks in the shadow's margin go to whatever is underneath, as if the card were the window.</summary>
@@ -213,6 +267,8 @@ public partial class StudioWindow : TimerWindowBase
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
+        // Measured again now the styles are applied: the first measure may have come before them.
+        Fit();
         UpdateInputRegion();
     }
 

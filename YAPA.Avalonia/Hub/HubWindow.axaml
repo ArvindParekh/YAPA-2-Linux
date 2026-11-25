@@ -100,7 +100,7 @@
         <DataTemplate DataType="s:AppearancePageViewModel">
             <StackPanel>
                 <!-- The Studio card, as it will look: drawn from the same tokens, on a stand-in for the desktop. -->
-                <Border CornerRadius="14" ClipToBounds="True" Height="150" Margin="0,0,0,26" IsVisible="{Binding IsStudio}"
+                <Border CornerRadius="14" ClipToBounds="True" MinHeight="150" Margin="0,0,0,26" IsVisible="{Binding IsStudio}"
                         BorderBrush="{DynamicResource Hairline}" BorderThickness="1">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
@@ -109,44 +109,43 @@
                             <GradientStop Offset="1" Color="#FF8E3A3A" />
                         </LinearGradientBrush>
                     </Border.Background>
-                    <Border Width="296" Height="100" CornerRadius="18" BorderThickness="1" Opacity="{Binding PreviewOpacity}"
+                    <Border Width="280" CornerRadius="18" BorderThickness="1" Opacity="{Binding PreviewOpacity}"
                             HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="#1FFFFFFF"
                             BoxShadow="0 10 28 -6 #A0000000">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                <GradientStop Offset="0" Color="#F51A1A1E" />
-                                <GradientStop Offset="1" Color="#F5111114" />
+                                <GradientStop Offset="0" Color="#FF1A1A1E" />
+                                <GradientStop Offset="1" Color="#FF111114" />
                             </LinearGradientBrush>
                         </Border.Background>
+                        <!-- The Studio card as it lays out: state and cycle, the forecast, the time, the note. -->
                         <Panel>
-                            <Grid RowDefinitions="Auto,*" Margin="16,12,12,0">
-                                <Grid ColumnDefinitions="Auto,*,Auto" Height="22">
+                            <StackPanel Margin="16,12,12,16">
+                                <Grid ColumnDefinitions="*,Auto" Height="22">
                                     <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
                                         <Ellipse Width="7" Height="7" Fill="{StaticResource Focus}" VerticalAlignment="Center" />
-                                        <TextBlock Text="Work" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource Text1}"
+                                        <TextBlock Text="Work" FontSize="12.5" FontWeight="Medium" Foreground="{StaticResource Text1}"
                                                    IsVisible="{Binding ShowStatusText}" VerticalAlignment="Center" />
                                         <TextBlock Text="2/4" FontFamily="{StaticResource MonoFont}" FontSize="11.5" Foreground="{StaticResource Text3}"
                                                    VerticalAlignment="Center" Margin="1,1,0,0" />
                                     </StackPanel>
-
-                                    <TextBlock Grid.Column="2" Text="5/12" FontFamily="{StaticResource MonoFont}" FontSize="11.5"
-                                               Foreground="{StaticResource Text3}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <TextBlock Grid.Column="1" Text="goal by 18:40" FontSize="12" Foreground="{StaticResource Text3}"
+                                               VerticalAlignment="Center" Margin="12,0,4,0" />
                                 </Grid>
-                                <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
                                     <TextBlock Text="{Binding PreviewTime}" FontFamily="{StaticResource UiFont}" FontSize="48" FontWeight="Light"
-                                               FontFeatures="+tnum" Foreground="{StaticResource Text1}" VerticalAlignment="Center" Margin="-2,-6,0,0" />
-                                    <TextBlock Grid.Column="0" Text="goal by 18:40" FontSize="12" Foreground="{StaticResource Text3}"
-                                               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" />
-                                    <Border Grid.Column="1" Width="38" Height="38" CornerRadius="19" Background="{StaticResource Text1}"
-                                            VerticalAlignment="Center" Margin="0,-4,0,0">
+                                               FontFeatures="+tnum" LetterSpacing="-1.5" Foreground="{StaticResource Text1}" VerticalAlignment="Center" Margin="-2,-4,0,0" />
+                                    <Border Grid.Column="1" Width="38" Height="38" CornerRadius="19" Background="{StaticResource Text1}" VerticalAlignment="Center">
                                         <Path Width="11" Height="13" Stretch="Uniform" Fill="{StaticResource Canvas}"
                                               Data="M 0 0 H 4 V 14 H 0 Z M 7 0 H 11 V 14 H 7 Z" />
                                     </Border>
                                 </Grid>
-                            </Grid>
+                                <TextBlock Text="{Binding PreviewNote}" IsVisible="{Binding HasPreviewNote}" FontSize="12.5" LineHeight="17"
+                                           Foreground="{StaticResource Text2}" TextWrapping="Wrap" Margin="0,3,24,0" />
+                            </StackPanel>
                             <Panel IsVisible="{Binding ShowProgress}">
                                 <Border VerticalAlignment="Bottom" Height="2" Margin="18,0,18,7" CornerRadius="1" Background="#12FFFFFF" />
-                                <Border VerticalAlignment="Bottom" HorizontalAlignment="Left" Height="2" Margin="18,0,0,7" Width="104"
+                                <Border VerticalAlignment="Bottom" HorizontalAlignment="Left" Height="2" Margin="18,0,0,7" Width="96"
                                         CornerRadius="1" Background="{StaticResource Focus}" />
                             </Panel>
                         </Panel>
